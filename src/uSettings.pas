@@ -1,0 +1,249 @@
+unit uSettings;
+
+{ DiskLED.ini: prefer exe directory; fall back to %AppData%\DiskLED when needed. }
+
+interface
+
+type
+  TAppSettings = class
+  private
+    FFilePath: string;
+    FMode: string;
+    FStayOnTop: Boolean;
+    FFps: Integer;
+    FWindowX: Integer;
+    FWindowY: Integer;
+    FStartup: Boolean;
+    FCompact: Boolean;
+    FGraphRateHz: Double;
+    FPingEnabled: Boolean;
+    FPingIntervalSec: Integer;
+    FPingAutoGateway: Boolean;
+    FPingHost: string;
+    FPingFairMs: Integer;
+    FPingSlowMs: Integer;
+    FPingTimeoutMs: Integer;
+    class function ExeIniPath: string; static;
+    class function AppDataIniPath: string; static;
+    class function CanWriteDir(const ADir: string): Boolean; static;
+    procedure ResolvePath;
+    procedure ApplyDefaults;
+    procedure Normalize;
+  public
+    constructor Create;
+    procedure Load;
+    procedure Save;
+    property FilePath: string read FFilePath;
+    property Mode: string read FMode write FMode;
+    property StayOnTop: Boolean read FStayOnTop write FStayOnTop;
+    property Fps: Integer read FFps write FFps;
+    property WindowX: Integer read FWindowX write FWindowX;
+    property WindowY: Integer read FWindowY write FWindowY;
+    property Startup: Boolean read FStartup write FStartup;
+    property Compact: Boolean read FCompact write FCompact;
+    property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
+    property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
+    property PingIntervalSec: Integer read FPingIntervalSec write FPingIntervalSec;
+    property PingAutoGateway: Boolean read FPingAutoGateway write FPingAutoGateway;
+    property PingHost: string read FPingHost write FPingHost;
+    property PingFairMs: Integer read FPingFairMs write FPingFairMs;
+    property PingSlowMs: Integer read FPingSlowMs write FPingSlowMs;
+    property PingTimeoutMs: Integer read FPingTimeoutMs write FPingTimeoutMs;
+  end;
+
+implementation
+
+uses
+  System.SysUtils,
+  System.IniFiles;
+
+const
+  CIniName = 'DiskLED.ini';
+
+class function TAppSettings.ExeIniPath: string;
+begin
+  Result := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + CIniName;
+end;
+
+class function TAppSettings.AppDataIniPath: string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetEnvironmentVariable('APPDATA')) +
+    'DiskLED' + PathDelim + CIniName;
+end;
+
+class function TAppSettings.CanWriteDir(const ADir: string): Boolean;
+var
+  Probe: string;
+  H: TextFile;
+begin
+  Result := False;
+  if ADir = '' then
+    Exit;
+  try
+    if not DirectoryExists(ADir) then
+      ForceDirectories(ADir);
+    Probe := IncludeTrailingPathDelimiter(ADir) + '~diskled_write_probe.tmp';
+    AssignFile(H, Probe);
+    Rewrite(H);
+    Write(H, 'ok');
+    CloseFile(H);
+    DeleteFile(Probe);
+    Result := True;
+  except
+    Result := False;
+    try
+      if FileExists(Probe) then
+        DeleteFile(Probe);
+    except
+    end;
+  end;
+end;
+
+constructor TAppSettings.Create;
+begin
+  inherited Create;
+  ApplyDefaults;
+  ResolvePath;
+end;
+
+procedure TAppSettings.ApplyDefaults;
+begin
+  FMode := 'original';
+  FStayOnTop := True;
+  FFps := 15;
+  FWindowX := 100;
+  FWindowY := 100;
+  FStartup := False;
+  FCompact := True;
+  FGraphRateHz := 1.0;
+  FPingEnabled := True;
+  FPingIntervalSec := 300;
+  FPingAutoGateway := False;
+  FPingHost := 'mg6.jp';
+  FPingFairMs := 200;
+  FPingSlowMs := 500;
+  FPingTimeoutMs := 1000;
+end;
+
+procedure TAppSettings.ResolvePath;
+var
+  ExePath, AppPath, ExeDir: string;
+begin
+  ExePath := ExeIniPath;
+  AppPath := AppDataIniPath;
+  if FileExists(ExePath) then
+    FFilePath := ExePath
+  else if FileExists(AppPath) then
+    FFilePath := AppPath
+  else
+  begin
+    ExeDir := ExtractFilePath(ExePath);
+    if CanWriteDir(ExeDir) then
+      FFilePath := ExePath
+    else
+    begin
+      ForceDirectories(ExtractFilePath(AppPath));
+      FFilePath := AppPath;
+    end;
+  end;
+end;
+
+procedure TAppSettings.Normalize;
+begin
+  if not ((FFps = 10) or (FFps = 15) or (FFps = 20)) then
+    FFps := 15;
+  if Abs(FGraphRateHz - 2.0) < 0.01 then
+    FGraphRateHz := 2.0
+  else if Abs(FGraphRateHz - 0.5) < 0.01 then
+    FGraphRateHz := 0.5
+  else
+    FGraphRateHz := 1.0;
+  if FPingIntervalSec < 300 then
+    FPingIntervalSec := 300;
+  if Trim(FPingHost) = '' then
+    FPingHost := 'mg6.jp';
+  if FPingFairMs < 1 then
+    FPingFairMs := 200;
+  if FPingSlowMs <= FPingFairMs then
+    FPingSlowMs := FPingFairMs + 1;
+  if FPingTimeoutMs <= FPingSlowMs then
+    FPingTimeoutMs := FPingSlowMs + 1;
+  if Trim(FMode) = '' then
+    FMode := 'original';
+end;
+
+procedure TAppSettings.Load;
+var
+  Ini: TMemIniFile;
+begin
+  ApplyDefaults;
+  ResolvePath;
+  if not FileExists(FFilePath) then
+  begin
+    Normalize;
+    Exit;
+  end;
+
+  Ini := TMemIniFile.Create(FFilePath);
+  try
+    FMode := Ini.ReadString('General', 'Mode', FMode);
+    FStayOnTop := Ini.ReadBool('General', 'StayOnTop', FStayOnTop);
+    FFps := Ini.ReadInteger('General', 'Fps', FFps);
+    FWindowX := Ini.ReadInteger('General', 'WindowX', FWindowX);
+    FWindowY := Ini.ReadInteger('General', 'WindowY', FWindowY);
+    FStartup := Ini.ReadBool('General', 'Startup', FStartup);
+    FCompact := Ini.ReadBool('View', 'Compact', FCompact);
+    FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
+    FPingEnabled := Ini.ReadBool('Ping', 'Enabled', FPingEnabled);
+    FPingIntervalSec := Ini.ReadInteger('Ping', 'IntervalSec', FPingIntervalSec);
+    FPingAutoGateway := Ini.ReadBool('Ping', 'AutoGateway', FPingAutoGateway);
+    FPingHost := Ini.ReadString('Ping', 'Host', FPingHost);
+    FPingFairMs := Ini.ReadInteger('Ping', 'ThresholdFairMs', FPingFairMs);
+    FPingSlowMs := Ini.ReadInteger('Ping', 'ThresholdSlowMs', FPingSlowMs);
+    FPingTimeoutMs := Ini.ReadInteger('Ping', 'ThresholdTimeoutMs', FPingTimeoutMs);
+  finally
+    Ini.Free;
+  end;
+  Normalize;
+end;
+
+procedure TAppSettings.Save;
+var
+  Ini: TMemIniFile;
+  Dir: string;
+begin
+  Normalize;
+  Dir := ExtractFilePath(FFilePath);
+  if not DirectoryExists(Dir) then
+    ForceDirectories(Dir);
+
+  if SameText(FFilePath, ExeIniPath) and (not CanWriteDir(Dir)) then
+  begin
+    FFilePath := AppDataIniPath;
+    ForceDirectories(ExtractFilePath(FFilePath));
+  end;
+
+  Ini := TMemIniFile.Create(FFilePath);
+  try
+    Ini.WriteString('General', 'Mode', FMode);
+    Ini.WriteBool('General', 'StayOnTop', FStayOnTop);
+    Ini.WriteInteger('General', 'Fps', FFps);
+    Ini.WriteInteger('General', 'WindowX', FWindowX);
+    Ini.WriteInteger('General', 'WindowY', FWindowY);
+    Ini.WriteBool('General', 'Startup', FStartup);
+    Ini.WriteBool('View', 'Compact', FCompact);
+    Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
+    Ini.WriteBool('Ping', 'Enabled', FPingEnabled);
+    Ini.WriteInteger('Ping', 'IntervalSec', FPingIntervalSec);
+    Ini.WriteBool('Ping', 'AutoGateway', FPingAutoGateway);
+    Ini.WriteString('Ping', 'Host', FPingHost);
+    Ini.WriteInteger('Ping', 'ThresholdFairMs', FPingFairMs);
+    Ini.WriteInteger('Ping', 'ThresholdSlowMs', FPingSlowMs);
+    Ini.WriteInteger('Ping', 'ThresholdTimeoutMs', FPingTimeoutMs);
+    Ini.UpdateFile;
+  finally
+    Ini.Free;
+  end;
+end;
+
+end.
