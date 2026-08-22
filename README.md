@@ -1,5 +1,9 @@
 # DiskLED
 
+[English](#diskled-english)
+
+このファイルは前半が日本語、後半が同じ内容の英語です。日本語を変更したら、同じ作業で英訳も更新してください。
+
 Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネットワーク / CPU / メモリ）を、現代の Windows（Windows 11 など）向けに基本設計から再構築したアプリケーションです。
 
 ## 確定方針
@@ -65,7 +69,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 ### 配布・その他
 
-- **配布形態**: 
+- **配布形態**:
   - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_3.0.0.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
   - 併せてポータブル zip（`DiskLED-3.0.0-portable.zip`）も利用可能とする
 - **言語**: 既定は英語。OS の UI 言語が日本語のときだけ日本語
@@ -90,3 +94,100 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - ビルド補助: `tools/build.ps1`（**Community Edition は CLI コンパイル不可**。IDE の F9 / Shift+F9 が正）
 - インストーラー: `installer/DiskLED.iss`、`tools/make-installer.ps1` / `tools/make-portable.ps1`
 
+---
+
+# DiskLED (English)
+
+[日本語](#diskled)
+
+The first half of this file is Japanese; this half is the English translation of the same text. When the Japanese changes, update the English in the same edit.
+
+This application rebuilds a resident monitor (HDD / network / CPU / memory) originally written in Delphi 4.0 in the Windows XP era, from a fresh design for modern Windows (Windows 11 and others).
+
+## Confirmed policy
+
+- **Development environment**: Delphi Community Edition (personal development, free distribution) / **VCL** · 64-bit
+- **Target**: Windows 10 / 11
+- **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic). Modes can be added by placing `assets/<id>/layout.cfg`
+- **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic` (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
+- **Refresh rate**: Minimum **10 fps**, default **15 fps**
+- **Process**: **Single instance only** (later launches are suppressed and focus is given to the existing instance, etc.)
+- **Scales**:
+  - CPU / physical memory / SWAP … 0–100%
+  - Disk / network speed … device maximum → if that fails, measured auto-sense (manual range is a later phase)
+  - Ping … response time shown in 4 levels (OK / somewhat slow / slow / timeout)
+- **Not adopted**: User-facing skin distribution (`.dla`), SSTP, **sound in general**, floating, multiple instances
+- **Phase5**: Compact/full toggle (double-click) and CPU / MEM / SWAP history graphs (Original / Metalic)
+- **Phase6**: Per-user installer (Inno Setup) + portable zip (`tools/make-*.ps1`)
+
+## MVP (first edition)
+
+A resident desktop gadget that shows at a glance whether something is being accessed and how much load there is. First edition with the minimum features needed as a standalone application.
+
+**Include**
+
+- Display mode switching (Original / Crystal / Metalic)
+- CPU, MEM, SWAP (virtual memory) meters
+- Disk R/W LED + speed bar
+- Net activity LED + speed bar
+- **Ping display** (both modes)
+- Always-on-top
+- Simple settings persistence (ini)
+- Tray icon (while running)
+- Startup registration
+- Enforce single instance
+
+**Do not include (consider later)**
+
+- Floating
+- Sound
+- Multiple instances / per-drive instances
+- Hide on mouse approach / retreat to tray when maximized
+- OwnerDraw menus
+- Full high-DPI support (Per-Monitor v2)
+- Manual speed-range UI
+- Manual language switching (ini / menu)
+
+Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-only.
+
+### What is monitored
+
+- **Disk**: **Sum** of I/O of all physical disks (system-wide “HDD lamp” equivalent)
+- **Network**: **Sum of real NICs only** (VPN, loopback, and virtual adapters are excluded where possible)
+- **Ping**: Specified host (default **mg6.jp**), or auto-detect the default gateway. Interval is **at least 5 minutes**; thresholds can be changed in Options
+
+### UI / drawing
+
+- **Transparency**: Color-key transparency, like the old skins, to reproduce a non-rectangular window
+- **Settings file**: Basically `DiskLED.ini` in the same folder as the exe (falls back to `%AppData%\DiskLED\DiskLED.ini` when that folder is not writable)
+- **Meter follow**: Light smoothing (a simpler version of the old linear chase)
+- **Log scale**: Later phase (first edition is linear + auto-sense)
+- **High DPI**: First edition assumes **100% display scale** (OS scaling is acceptable when enlarged)
+- **Privileges**: Limited to what works **without administrator** (ICMP Ping is also done as a standard user)
+
+### Distribution and other
+
+- **Distribution**:
+  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_3.0.0.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
+  - A portable zip (`DiskLED-3.0.0-portable.zip`) is also available
+- **Language**: English by default. Japanese only when the OS UI language is Japanese
+- **License**: Copyright is SoRaMiMi (same as the previous version’s author). Same for `assets/`. Official packages may be used free of charge. Modification and redistribution of the source are not permitted. Help with improvements and debugging is as a co-developer (granted repository write access). Details in `LICENSE.txt`
+
+## Intended features (MVP)
+
+- Real-time CPU / physical memory / SWAP display
+- Disk I/O (LED · speed bar)
+- Network send/receive (LED · speed bar)
+- Ping (level display · manual immediate refresh)
+- Automatic speed range (device info → measured estimate)
+- Display mode switching (`assets/*/layout.cfg`; more can be added later)
+- Always-on-top, tray icon, startup
+- Suppress extra instances
+- Settings saved to ini
+
+## References
+
+- End-user docs: `public_docs/` (Japanese) and `public_docs/EN/` (English)
+- Display mode definition: `assets/LAYOUT.md`
+- Build helper: `tools/build.ps1` (**Community Edition cannot compile from the command line**. IDE F9 / Shift+F9 is authoritative)
+- Installer: `installer/DiskLED.iss`, `tools/make-installer.ps1` / `tools/make-portable.ps1`
