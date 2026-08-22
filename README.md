@@ -85,6 +85,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 ## 参考
 
+- 利用者向け説明: `public_docs/`（日本語）と `public_docs/EN/`（英語）
 - 表示モード定義: `assets/LAYOUT.md`
 - ビルド補助: `tools/build.ps1`（**Community Edition は CLI コンパイル不可**。IDE の F9 / Shift+F9 が正）
 - インストーラー: `installer/DiskLED.iss`、`tools/make-installer.ps1` / `tools/make-portable.ps1`
