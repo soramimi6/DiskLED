@@ -43,6 +43,14 @@ if (Test-Path -LiteralPath $License) {
     Write-Warning "LICENSE.txt missing — staged folder will ship without a license file."
 }
 
+# Editable source stays at dist/public_docs (stage folder is wiped each run).
+$PublicDocs = Join-Path $Root 'dist\public_docs'
+if (Test-Path -LiteralPath $PublicDocs) {
+    Copy-Item -LiteralPath $PublicDocs -Destination (Join-Path $Stage 'public_docs') -Recurse -Force
+} else {
+    Write-Warning "dist/public_docs missing — staged folder will ship without user documentation."
+}
+
 # Drop editor leftovers if any
 $junk = Get-ChildItem -LiteralPath (Join-Path $Stage 'assets') -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Extension -in @('.tmp', '.bak') }
