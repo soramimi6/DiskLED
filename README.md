@@ -98,8 +98,6 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 [日本語](#diskled)
 
-The first half of this file is Japanese; this half is the English translation of the same text. When the Japanese changes, update the English in the same edit.
-
 This application rebuilds a resident monitor (HDD / network / CPU / memory) originally written in Delphi 4.0 in the Windows XP era, from a fresh design for modern Windows (Windows 11 and others).
 
 ## Confirmed policy
