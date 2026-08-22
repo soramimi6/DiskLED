@@ -38,7 +38,7 @@ assets/
 | Font | 数値用 bitmap フォントシート（横 11 セル: 0–9・空白） |
 | FontMaskColor | 任意。指定時のみフォントを透過描画 |
 
-## [ModeFull]（任意・P5）
+## [ModeFull]（任意・Phase5）
 
 省略時はコンパクトのみ（ダブルクリック無効）。
 

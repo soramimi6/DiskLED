@@ -1,0 +1,40 @@
+﻿DiskLED 使用許諾 / License
+Copyright (c) SoRaMiMi
+
+本ソフトウェア（ソース、公式バイナリ、同梱ドキュメント）および
+assets 以下の全リソース（旧バージョンから引き継いだ表示モード画像を含む）の
+著作権は、旧バージョンの開発者と同一である SoRaMiMi(旧名 短波) に帰属します。
+
+
+■ 日本語
+
+1. 公式に配布するインストーラーおよびポータブル zip は、無償で利用できます。
+2. ソースコードの改変、およびソースコードの再配布は許可しません。
+3. 改善やデバッグの協力は、著作権者から共同開発者としてリポジトリの
+   編集権限を付与された場合に限り可能です。
+4. assets 以下のリソースを、本ソフトウェアから抜き出して単体で再配布したり、
+   別ライセンスを付けたりすることはできません。
+5. 公式配布物を改変して再配布することはできません。改変しない公式パッケージの
+   再配布は、本使用許諾と著作権表示を残す場合に限り許可します。
+6. 本ソフトウェアは無保証です。利用によって生じた損害について、
+   著作権者は責任を負いません。
+
+
+■ English
+
+1. The official installer and portable zip may be used free of charge.
+2. Modification of the source code, and redistribution of the source code,
+   are not permitted.
+3. Improvements and debugging are allowed only if the copyright holder
+   grants you co-developer access (write permission) to the repository.
+4. Resources under assets/ may not be extracted and redistributed on their
+   own, nor placed under a different license.
+5. Modified official packages may not be redistributed. Unmodified official
+   packages may be redistributed only if this license and the copyright
+   notice are kept intact.
+6. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+   IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES,
+   OR OTHER LIABILITY ARISING FROM USE OF THE SOFTWARE.
+
+Delphi (Embarcadero) and Inno Setup remain subject to their own licenses.
+This grant covers DiskLED and its bundled assets only.

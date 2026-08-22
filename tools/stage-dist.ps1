@@ -36,6 +36,13 @@ New-Item -ItemType Directory -Path $Stage | Out-Null
 Copy-Item -LiteralPath $ExeSrc -Destination (Join-Path $Stage 'DiskLED.exe') -Force
 Copy-Item -LiteralPath $Assets -Destination (Join-Path $Stage 'assets') -Recurse -Force
 
+$License = Join-Path $Root 'LICENSE.txt'
+if (Test-Path -LiteralPath $License) {
+    Copy-Item -LiteralPath $License -Destination (Join-Path $Stage 'LICENSE.txt') -Force
+} else {
+    Write-Warning "LICENSE.txt missing — staged folder will ship without a license file."
+}
+
 # Drop editor leftovers if any
 $junk = Get-ChildItem -LiteralPath (Join-Path $Stage 'assets') -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object { $_.Extension -in @('.tmp', '.bak') }

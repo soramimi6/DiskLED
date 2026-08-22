@@ -5,6 +5,7 @@
 #define MyAppName "DiskLED"
 #define MyAppVersion "3.0.0"
 #define MyAppPublisher "SoRaMiMi"
+#define MyAppURL "https://mg6.jp/"
 #define MyAppExeName "DiskLED.exe"
 #define MyAppId "{{A7C3E91B-4D2F-4B8A-9E1C-8F6B2D4A1C30}"
 
@@ -14,6 +15,10 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
+AppContact=sw@mg6.jp
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -34,8 +39,8 @@ VersionInfoProductName={#MyAppName}
 ; User settings (DiskLED.ini) are not removed on uninstall — see INSTALL.md
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"; LicenseFile: "..\LICENSE.txt"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"; LicenseFile: "..\LICENSE.txt"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
