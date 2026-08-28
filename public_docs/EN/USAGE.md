@@ -16,6 +16,7 @@
 | Action | Effect |
 |--------|--------|
 | Left-drag | Move the window |
+| Hover | Tooltip with version, CPU / MEM / SWP, Disk / Net I/O, and Ping (target and RTT). Updates about once per second |
 | Left double-click | Compact ⇄ full (Original / Metalic; no-op on Crystal) |
 | Right-click | Popup menu |
 
@@ -32,16 +33,16 @@ The window is a tool window and usually does not appear on the taskbar (resident
 | Options / オプション | Always-on-top, startup, fps, graph rate, Ping settings |
 | Exit / 終了 | Quit the app |
 
-Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese). A tray icon shows that DiskLED is running (same right-click menu; double-click brings the window forward). There is no taskbar button.
+Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese). A tray icon shows that DiskLED is running (same right-click menu; double-click brings the window forward). Hovering the tray shows the same tooltip as the window (version, usage, I/O, Ping). There is no taskbar button.
 
 ## Reading the display
 
-- **Meters** — CPU / memory / SWAP usage (with smoothing)
-- **LEDs** — disk R/W and network in/out activity
-- **Speed bars** — instantaneous throughput (auto range)
+- **Meters** — CPU / memory / SWAP usage. Rise is snappy; fall has a short coast (varies by display mode)
+- **LEDs** — disk R/W and network activity (Original: separate In / Out; Crystal and others may also show a combined activity LED)
+- **Speed bars** — instantaneous throughput (auto range; same rise/fall ballistics as meters)
 - **Ping** — four-level frame/lamp (look varies by mode)
 
-Layouts follow legacy skins. Original / Metalic full mode draws CPU / MEM / SWAP history graphs.
+Layouts follow legacy skins. Original / Metalic full mode draws history graphs from **normalized measured values** (peak within each graph-update interval; not the meter’s coasting display).
 
 ## Settings file
 

@@ -4,12 +4,14 @@
 
 ## What v1 / MVP includes
 
-- Usage meters for **CPU, physical memory, and SWAP** (page file equivalent)
+- Usage meters for **CPU, physical memory, and SWAP** (page file equivalent); rise is snappy, fall coasts
 - **Disk** read/write LEDs and speed bars (sum of all physical disks)
 - **Network** in/out LEDs and speed bars (sum of real NICs; VPN/loopback-style adapters are excluded when possible)
 - **Ping** shown in four levels (OK / fair / slow / timeout)
 - **Display modes**: Original / Crystal / Metalic
+- Original / Metalic full view includes history graphs (**measured values**, peak in each update interval; not the meter coast)
 - **Always-on-top** and drag-to-move
+- Hover the window (or tray) for a tooltip with **version, usage, Disk/Net I/O, and Ping (target and RTT)**
 - **Single instance** (a second launch focuses the existing window and exits)
 - **Tray**, **startup registration**, and **INI settings**
 - **Installer** (per-user, uninstallable) and portable zip (see [INSTALL.md](INSTALL.md))
@@ -24,7 +26,7 @@ Built-in looks only. User-installed legacy skins (`.dla`) are not supported.
 | **Crystal** | Mac OS X–style (MacX) | 192×14 | Yes |
 | **Metalic** | xsrv SkinS | 256×24 | No (rectangular) |
 
-- Original uses full background `Original_FullBase.png` with `[ModeFull]` / `[Graph]` (left double-click toggles)
+- Original uses full background `Original_FullBase.png` with `[ModeFull]` / `[Graph]` (left double-click toggles). Network LEDs are separate In / Out
 - Crystal has no full layout (compact only)
 - Metalic uses `Metalic_FullBase.bmp` plus graphs (left double-click toggles)
 

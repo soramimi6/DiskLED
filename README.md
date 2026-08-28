@@ -29,7 +29,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - 表示モード切替（Original / Crystal / Metalic）
 - CPU、MEM、SWAP（仮想メモリ）メーター
 - Disk R/W LED＋速度バー
-- Net 活動 LED＋速度バー
+- Net 送受信 LED＋速度バー
 - **Ping 表示**（両モード）
 - 最前面表示機能
 - 設定の簡易永続化（ini）
@@ -60,7 +60,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 - **透過**: 旧スキン同様、カラーキー透過で非矩形ウィンドウを再現する
 - **設定ファイル**: 基本は exe と同じフォルダの `DiskLED.ini`（書込不可時は `%AppData%\DiskLED\DiskLED.ini` へフォールバックする）
-- **メーター追従**: 軽いスムージングあり（旧リニア追尾の簡易版）
+- **メーター追従**: 上昇は指数で速く、下降は定速の余韻（fps 非依存）。動きは表示モードの `layout.cfg` `[Ballistic]` で指定（作業版 3.0.1。公開リリースは後続版）
 - **対数スケール**: 二期（初版は線形＋オートセンス）
 - **高 DPI**: 初版は **100% 表示前提**（拡大時は OS 側拡大でも可）
 - **権限**: **管理者不要**で動く範囲に限定（ICMP Ping も一般権限で実施）
@@ -125,7 +125,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - Display mode switching (Original / Crystal / Metalic)
 - CPU, MEM, SWAP (virtual memory) meters
 - Disk R/W LED + speed bar
-- Net activity LED + speed bar
+- Net in/out LEDs + speed bar
 - **Ping display** (both modes)
 - Always-on-top
 - Simple settings persistence (ini)
@@ -156,7 +156,7 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-o
 
 - **Transparency**: Color-key transparency, like the old skins, to reproduce a non-rectangular window
 - **Settings file**: Basically `DiskLED.ini` in the same folder as the exe (falls back to `%AppData%\DiskLED\DiskLED.ini` when that folder is not writable)
-- **Meter follow**: Light smoothing (a simpler version of the old linear chase)
+- **Meter follow**: Fast exponential rise, constant-speed fall (fps-independent). Motion is set per display mode in `layout.cfg` `[Ballistic]` (dev build 3.0.1; public release in a later version)
 - **Log scale**: Later phase (first edition is linear + auto-sense)
 - **High DPI**: First edition assumes **100% display scale** (OS scaling is acceptable when enlarged)
 - **Privileges**: Limited to what works **without administrator** (ICMP Ping is also done as a standard user)

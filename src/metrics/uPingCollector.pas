@@ -30,6 +30,7 @@ type
     FRttMs: Double;
     FOk: Boolean;
     FLevel: TPingLevel;
+    FLastTarget: string;
     procedure WorkerExecute;
     function ResolveIPv4(const AHost: string; out AAddr: Cardinal): Boolean;
     function TryDefaultGateway(out AHost: string): Boolean;
@@ -194,6 +195,7 @@ begin
       FHost := CDefaultHost
     else
       FHost := Trim(AHost);
+    FLastTarget := '';
     FAutoGateway := AAutoGateway;
     FFairMs := AFairMs;
     FSlowMs := ASlowMs;
@@ -233,13 +235,12 @@ var
   NowTick: Cardinal;
   Due: Boolean;
 begin
-  Due := False;
   NowTick := GetTickCount;
   FLock.Enter;
   try
     if (not FEnabled) or FSending or FImmediate then
-      Exit;
-    if FLastRequestTick = 0 then
+      Due := False
+    else if FLastRequestTick = 0 then
       Due := True
     else
       Due := (NowTick - FLastRequestTick) >= FIntervalMs;
@@ -260,6 +261,11 @@ begin
     ASnap.PingRttMs := FRttMs;
     ASnap.PingOk := FOk;
     ASnap.PingLevel := FLevel;
+    ASnap.PingEnabled := FEnabled;
+    if FLastTarget <> '' then
+      ASnap.PingTarget := FLastTarget
+    else
+      ASnap.PingTarget := FHost;
   finally
     FLock.Leave;
   end;
@@ -421,6 +427,13 @@ begin
 
       if PreferGw and TryDefaultGateway(Gw) then
         Host := Gw;
+
+      FLock.Enter;
+      try
+        FLastTarget := Host;
+      finally
+        FLock.Leave;
+      end;
 
       Ok := False;
       Rtt := 0;

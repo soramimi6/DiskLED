@@ -4,7 +4,8 @@ interface
 
 uses
   System.UITypes,
-  Vcl.Graphics;
+  Vcl.Graphics,
+  uMetricsTypes;
 
 type
   TSpriteStrip = record
@@ -80,6 +81,7 @@ type
     MemVal: TDigitValue;
     SwapVal: TDigitValue;
     Graph: TGraphLayout;
+    Ballistics: TMeterBallistics;
   end;
 
 function Sprite(const AFileName: string; AX, AY, AFrames: Integer): TSpriteStrip;

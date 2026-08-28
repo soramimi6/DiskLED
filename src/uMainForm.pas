@@ -17,7 +17,8 @@ uses
   uCollector,
   uDisplayPipeline,
   uHistoryBuffer,
-  uSettings;
+  uSettings,
+  uHoverTip;
 
 type
   TMainForm = class(TForm)
@@ -46,11 +47,21 @@ type
     FReadyToPersist: Boolean;
     FLastGraphTick: Cardinal;
     FHasGraphTick: Boolean;
+    FGraphPeak: THistorySample;
     FMiCompact: TMenuItem;
     FMiFull: TMenuItem;
+    FHoverTip: THoverTip;
+    FHoverDelay: TTimer;
+    FHoverArmed: Boolean;
+    FDragging: Boolean;
+    FVersionText: string;
+    FHoverHeldText: string;
+    FHoverTextTick: Cardinal;
+    FHasHoverText: Boolean;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
+    procedure ResetGraphPeak;
     procedure ToggleCompactFull;
     procedure SetCompactView(ACompact: Boolean);
     procedure Render;
@@ -71,7 +82,11 @@ type
     procedure WMSysCommand(var Message: TWMSysCommand); message WM_SYSCOMMAND;
     procedure WMMoving(var Message: TMessage); message WM_MOVING;
     procedure WMExitSizeMove(var Message: TMessage); message WM_EXITSIZEMOVE;
+    procedure WMEnterSizeMove(var Message: TMessage); message WM_ENTERSIZEMOVE;
     procedure WMNCLButtonDblClk(var Message: TWMNCLButtonDblClk); message WM_NCLBUTTONDBLCLK;
+    procedure WMNCLButtonDown(var Message: TWMNCLButtonDown); message WM_NCLBUTTONDOWN;
+    procedure WMNCMouseMove(var Message: TWMMouse); message WM_NCMOUSEMOVE;
+    procedure WMNCMouseLeave(var Message: TMessage); message WM_NCMOUSELEAVE;
     procedure ShowAppPopup(AX, AY: Integer);
     procedure ApplyWindowBounds;
     procedure ApplySettingsToUi;
@@ -83,6 +98,11 @@ type
     procedure DeleteTaskbarTab(AWnd: HWND);
     function MainIconPath: string;
     function UsingFullView: Boolean;
+    function HoverInfoText: string;
+    procedure ArmNcMouseLeave;
+    procedure HideHoverTip;
+    procedure HoverDelayTick(Sender: TObject);
+    procedure RefreshHoverText;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -97,6 +117,7 @@ implementation
 
 uses
   Vcl.Dialogs,
+  System.UITypes,
   System.Win.ComObj,
   Winapi.ShlObj,
   uAppStrings,
@@ -105,7 +126,8 @@ uses
   uGraphRenderer,
   uWindowPlacement,
   uOptionsForm,
-  uStartup;
+  uStartup,
+  uMetricsTypes;
 
 procedure TMainForm.CreateParams(var Params: TCreateParams);
 begin
@@ -120,6 +142,8 @@ procedure TMainForm.CreateWnd;
 begin
   inherited CreateWnd;
   EnsureNoTaskbarButton;
+  if FHoverTip <> nil then
+    FHoverTip.SetOwner(Handle);
 end;
 
 function TMainForm.MainIconPath: string;
@@ -200,6 +224,7 @@ begin
   FPipeline := TDisplayPipeline.Create;
   FHistory := THistoryBuffer.Create(60);
   FHasGraphTick := False;
+  ResetGraphPeak;
   FTimer := TTimer.Create(Self);
   FTimer.OnTimer := TimerTick;
 
@@ -220,6 +245,18 @@ begin
 
   FCollector.RequestPing;
   EnsureNoTaskbarButton;
+
+  FVersionText := GetProductVersionText;
+  FHoverTip := THoverTip.Create;
+  FHoverTip.SetOwner(Handle);
+  FHoverDelay := TTimer.Create(Self);
+  FHoverDelay.Enabled := False;
+  FHoverDelay.OnTimer := HoverDelayTick;
+  if Application.HintPause > 0 then
+    FHoverDelay.Interval := Application.HintPause
+  else
+    FHoverDelay.Interval := 500;
+  RefreshHoverText;
 end;
 
 procedure TMainForm.FormShow(Sender: TObject);
@@ -311,6 +348,10 @@ end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+  if FHoverDelay <> nil then
+    FHoverDelay.Enabled := False;
+  HideHoverTip;
+  FreeAndNil(FHoverTip);
   if FTimer <> nil then
     FTimer.Enabled := False;
   FCollector.Free;
@@ -420,6 +461,7 @@ begin
     if W < 1 then
       W := 1;
     FHistory.SetCapacity(W);
+    ResetGraphPeak;
   end;
 
   if (FSettings <> nil) and (not FSettings.Compact) and (not FHasFull) then
@@ -445,6 +487,11 @@ begin
   Result := FHasFull and (FSettings <> nil) and (not FSettings.Compact);
 end;
 
+procedure TMainForm.ResetGraphPeak;
+begin
+  FGraphPeak := ZeroHistorySample;
+end;
+
 procedure TMainForm.ApplyViewSize;
 begin
   if UsingFullView then
@@ -457,6 +504,8 @@ begin
   TransparentColorValue := FLayout.MaskColor;
   ClientWidth := FLayout.Width;
   ClientHeight := FLayout.Height;
+  if FPipeline <> nil then
+    FPipeline.ApplyBallistics(FLayout.Ballistics);
 end;
 
 procedure TMainForm.ToggleCompactFull;
@@ -556,6 +605,15 @@ begin
 
   if (FHistory <> nil) and (FSettings <> nil) then
   begin
+    Sample.Cpu := FPipeline.Normalized.Cpu;
+    Sample.Mem := FPipeline.Normalized.Mem;
+    Sample.Swap := FPipeline.Normalized.Swap;
+    Sample.DiskRead := FPipeline.Normalized.DiskRead;
+    Sample.DiskWrite := FPipeline.Normalized.DiskWrite;
+    Sample.NetIn := FPipeline.Normalized.NetIn;
+    Sample.NetOut := FPipeline.Normalized.NetOut;
+    AccruePeak(FGraphPeak, Sample);
+
     if FSettings.GraphRateHz <= 0 then
       IntervalMs := 1000
     else
@@ -563,14 +621,8 @@ begin
     NowTick := GetTickCount;
     if (not FHasGraphTick) or ((NowTick - FLastGraphTick) >= IntervalMs) then
     begin
-      Sample.Cpu := FPipeline.State.Cpu;
-      Sample.Mem := FPipeline.State.Mem;
-      Sample.Swap := FPipeline.State.Swap;
-      Sample.DiskRead := FPipeline.State.DiskRead;
-      Sample.DiskWrite := FPipeline.State.DiskWrite;
-      Sample.NetIn := FPipeline.State.NetIn;
-      Sample.NetOut := FPipeline.State.NetOut;
-      FHistory.Push(Sample);
+      FHistory.Push(FGraphPeak);
+      ResetGraphPeak;
       FLastGraphTick := NowTick;
       FHasGraphTick := True;
     end;
@@ -578,6 +630,7 @@ begin
 
   Render;
   Invalidate;
+  RefreshHoverText;
 end;
 
 procedure TMainForm.FormPaint(Sender: TObject);
@@ -631,6 +684,7 @@ end;
 
 procedure TMainForm.ShowAppPopup(AX, AY: Integer);
 begin
+  HideHoverTip;
   if FPopup = nil then
     Exit;
   SyncModeChecks;
@@ -688,10 +742,165 @@ begin
   Message.Result := 1;
 end;
 
+procedure TMainForm.WMEnterSizeMove(var Message: TMessage);
+begin
+  FDragging := True;
+  HideHoverTip;
+  inherited;
+end;
+
 procedure TMainForm.WMExitSizeMove(var Message: TMessage);
 begin
+  FDragging := False;
   ApplyWindowBounds;
   PersistSettings;
+  inherited;
+end;
+
+procedure TMainForm.WMNCLButtonDown(var Message: TWMNCLButtonDown);
+begin
+  HideHoverTip;
+  inherited;
+end;
+
+procedure TMainForm.ArmNcMouseLeave;
+var
+  Tme: TTrackMouseEvent;
+begin
+  if not HandleAllocated then
+    Exit;
+  FillChar(Tme, SizeOf(Tme), 0);
+  Tme.cbSize := SizeOf(Tme);
+  Tme.dwFlags := TME_LEAVE or TME_NONCLIENT;
+  Tme.hwndTrack := Handle;
+  TrackMouseEvent(Tme);
+end;
+
+procedure TMainForm.HideHoverTip;
+begin
+  FHoverArmed := False;
+  if FHoverDelay <> nil then
+    FHoverDelay.Enabled := False;
+  if FHoverTip <> nil then
+    FHoverTip.Hide;
+end;
+
+function TMainForm.HoverInfoText: string;
+var
+  CpuPct, MemPct, SwapPct: Integer;
+  DiskIo, NetIo: string;
+  PingLine: string;
+  Snap: TMetricsSnapshot;
+  Host: string;
+begin
+  CpuPct := 0;
+  MemPct := 0;
+  SwapPct := 0;
+  DiskIo := FormatRateBps(0);
+  NetIo := FormatRateBps(0);
+  PingLine := 'Ping: ' + S('hover.ping_off');
+  if FPipeline <> nil then
+  begin
+    CpuPct := Round(Clamp01(FPipeline.State.CpuDigit) * 100);
+    MemPct := Round(Clamp01(FPipeline.State.MemDigit) * 100);
+    SwapPct := Round(Clamp01(FPipeline.State.SwapDigit) * 100);
+    Snap := FPipeline.LastSnap;
+    DiskIo := FormatRateBps(Snap.DiskReadBps + Snap.DiskWriteBps);
+    NetIo := FormatRateBps(Snap.NetInBps + Snap.NetOutBps);
+    Host := Trim(Snap.PingTarget);
+    if not Snap.PingEnabled then
+      PingLine := 'Ping: ' + S('hover.ping_off')
+    else if Snap.PingOk then
+    begin
+      if Host <> '' then
+        PingLine := Format('Ping: %dms (%s)', [Round(Snap.PingRttMs), Host])
+      else
+        PingLine := Format('Ping: %dms', [Round(Snap.PingRttMs)]);
+    end
+    else if Snap.PingPending then
+    begin
+      if Host <> '' then
+        PingLine := Format('Ping: %s (%s)', [S('hover.ping_pending'), Host])
+      else
+        PingLine := 'Ping: ' + S('hover.ping_pending');
+    end
+    else
+    begin
+      if Host <> '' then
+        PingLine := Format('Ping: %s (%s)', [S('hover.ping_timeout'), Host])
+      else
+        PingLine := 'Ping: ' + S('hover.ping_timeout');
+    end;
+  end;
+  if FVersionText = '' then
+    FVersionText := GetProductVersionText;
+  Result := Format(
+    'DiskLED %s'#13#10 +
+    ' CPU: %d%%'#13#10 +
+    ' MEM: %d%%'#13#10 +
+    ' SWP: %d%%'#13#10 +
+    ' Disk I/O: %s'#13#10 +
+    ' Net I/O: %s'#13#10 +
+    ' %s',
+    [FVersionText, CpuPct, MemPct, SwapPct, DiskIo, NetIo, PingLine]);
+end;
+
+procedure TMainForm.RefreshHoverText;
+const
+  CHoverIntervalMs = 1000;
+var
+  NowTick: Cardinal;
+  Text: string;
+begin
+  NowTick := GetTickCount;
+  if FHasHoverText and ((NowTick - FHoverTextTick) < CHoverIntervalMs) then
+    Exit;
+  Text := HoverInfoText;
+  FHoverHeldText := Text;
+  FHoverTextTick := NowTick;
+  FHasHoverText := True;
+  if FHoverTip <> nil then
+    FHoverTip.UpdateText(Text);
+  if FTray <> nil then
+    FTray.Hint := Text;
+end;
+
+procedure TMainForm.HoverDelayTick(Sender: TObject);
+begin
+  if FHoverDelay <> nil then
+    FHoverDelay.Enabled := False;
+  if FDragging or (FHoverTip = nil) then
+    Exit;
+  RefreshHoverText;
+  FHoverTip.SetOwner(Handle);
+  if FHoverHeldText = '' then
+    FHoverHeldText := HoverInfoText;
+  FHoverTip.ShowAtCursor(FHoverHeldText);
+end;
+
+procedure TMainForm.WMNCMouseMove(var Message: TWMMouse);
+begin
+  inherited;
+  if FDragging then
+    Exit;
+  ArmNcMouseLeave;
+  if FHoverTip = nil then
+    Exit;
+  if FHoverTip.Visible then
+    Exit;
+  if FHoverArmed then
+    Exit;
+  FHoverArmed := True;
+  if FHoverDelay <> nil then
+  begin
+    FHoverDelay.Enabled := False;
+    FHoverDelay.Enabled := True;
+  end;
+end;
+
+procedure TMainForm.WMNCMouseLeave(var Message: TMessage);
+begin
+  HideHoverTip;
   inherited;
 end;
 

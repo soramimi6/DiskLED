@@ -31,12 +31,15 @@ type
     procedure CopyChronological(out ADest: TArray<THistorySample>);
   end;
 
+function ZeroHistorySample: THistorySample;
+procedure AccruePeak(var APeak: THistorySample; const ASample: THistorySample);
+
 implementation
 
 uses
   uMetricsTypes;
 
-function ZeroSample: THistorySample;
+function ZeroHistorySample: THistorySample;
 begin
   Result.Cpu := 0;
   Result.Mem := 0;
@@ -45,6 +48,24 @@ begin
   Result.DiskWrite := 0;
   Result.NetIn := 0;
   Result.NetOut := 0;
+end;
+
+procedure AccruePeak(var APeak: THistorySample; const ASample: THistorySample);
+begin
+  if ASample.Cpu > APeak.Cpu then
+    APeak.Cpu := ASample.Cpu;
+  if ASample.Mem > APeak.Mem then
+    APeak.Mem := ASample.Mem;
+  if ASample.Swap > APeak.Swap then
+    APeak.Swap := ASample.Swap;
+  if ASample.DiskRead > APeak.DiskRead then
+    APeak.DiskRead := ASample.DiskRead;
+  if ASample.DiskWrite > APeak.DiskWrite then
+    APeak.DiskWrite := ASample.DiskWrite;
+  if ASample.NetIn > APeak.NetIn then
+    APeak.NetIn := ASample.NetIn;
+  if ASample.NetOut > APeak.NetOut then
+    APeak.NetOut := ASample.NetOut;
 end;
 
 constructor THistoryBuffer.Create(ACapacity: Integer);
@@ -62,7 +83,7 @@ var
   i: Integer;
   Z: THistorySample;
 begin
-  Z := ZeroSample;
+  Z := ZeroHistorySample;
   for i := 0 to FCapacity - 1 do
     FSamples[i] := Z;
 end;

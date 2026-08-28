@@ -25,6 +25,7 @@ uses
   uWindowPlacement in 'src\uWindowPlacement.pas',
   uSettings in 'src\uSettings.pas',
   uStartup in 'src\uStartup.pas',
+  uHoverTip in 'src\uHoverTip.pas',
   uOptionsForm in 'src\uOptionsForm.pas' {OptionsForm},
   uMainForm in 'src\uMainForm.pas' {MainForm};
 

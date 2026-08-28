@@ -28,7 +28,8 @@ uses
   System.UITypes,
   Winapi.Windows,
   Vcl.Graphics,
-  uAppStrings;
+  uAppStrings,
+  uMetricsTypes;
 
 function ParseBool(const S: string; ADefault: Boolean): Boolean;
 var
@@ -85,6 +86,76 @@ begin
     Result := dsBitmap;
 end;
 
+function ParseBallisticKind(const S: string; ADefault: TBallisticKind): TBallisticKind;
+var
+  V: string;
+begin
+  V := LowerCase(Trim(S));
+  if V = 'bar' then
+    Result := bkBar
+  else if V = 'peak' then
+    Result := bkPeak
+  else if V = 'vu' then
+    Result := bkVu
+  else
+    Result := ADefault;
+end;
+
+function ParseBallisticParams(const Raw: string; const AFallback: TBallisticParams): TBallisticParams;
+var
+  V: string;
+  KindStr: string;
+  StrStr: string;
+  P: Integer;
+begin
+  Result := AFallback;
+  V := Trim(Raw);
+  if V = '' then
+    Exit;
+  P := Pos(',', V);
+  if P > 0 then
+  begin
+    KindStr := Trim(Copy(V, 1, P - 1));
+    StrStr := Trim(Copy(V, P + 1, MaxInt));
+  end
+  else
+  begin
+    KindStr := V;
+    StrStr := '';
+  end;
+  if KindStr <> '' then
+    Result.Kind := ParseBallisticKind(KindStr, AFallback.Kind);
+  if StrStr <> '' then
+    Result.Strength := ClampStrength(StrToIntDef(StrStr, AFallback.Strength));
+end;
+
+function ReadBallisticChannel(Ini: TCustomIniFile; const AKey: string;
+  const AFallback: TBallisticParams): TBallisticParams;
+begin
+  if not Ini.ValueExists('Ballistic', AKey) then
+    Exit(AFallback);
+  Result := ParseBallisticParams(Ini.ReadString('Ballistic', AKey, ''), AFallback);
+end;
+
+procedure ReadBallistics(Ini: TCustomIniFile; var ALayout: TViewLayout);
+var
+  Def: TBallisticParams;
+begin
+  Def := DefaultBallisticParams;
+  if Ini.ValueExists('Ballistic', 'Default') then
+    Def.Kind := ParseBallisticKind(Ini.ReadString('Ballistic', 'Default', 'vu'), bkVu);
+  if Ini.ValueExists('Ballistic', 'Strength') then
+    Def.Strength := ClampStrength(Ini.ReadInteger('Ballistic', 'Strength', 50));
+
+  ALayout.Ballistics.Cpu := ReadBallisticChannel(Ini, 'Cpu', Def);
+  ALayout.Ballistics.Mem := ReadBallisticChannel(Ini, 'Mem', Def);
+  ALayout.Ballistics.Swap := ReadBallisticChannel(Ini, 'Swap', Def);
+  ALayout.Ballistics.DiskRead := ReadBallisticChannel(Ini, 'DiskReadMeter', Def);
+  ALayout.Ballistics.DiskWrite := ReadBallisticChannel(Ini, 'DiskWriteMeter', Def);
+  ALayout.Ballistics.NetIn := ReadBallisticChannel(Ini, 'NetInMeter', Def);
+  ALayout.Ballistics.NetOut := ReadBallisticChannel(Ini, 'NetOutMeter', Def);
+end;
+
 function ReadSprite(Ini: TCustomIniFile; const ASection: string): TSpriteStrip;
 var
   FileName: string;
@@ -135,11 +206,10 @@ begin
   Result.Bold := ParseBool(Ini.ReadString(ASection, 'ValBold', '0'), False);
 end;
 
-function ReadParts(Ini: TCustomIniFile; var ALayout: TViewLayout): Boolean;
+procedure ReadParts(Ini: TCustomIniFile; var ALayout: TViewLayout);
 var
   FontMaskRaw: string;
 begin
-  Result := False;
   ALayout.Transparent := ParseBool(Ini.ReadString('Mode', 'Transparent', '1'), True);
   ALayout.MaskColor := ParseColor(Ini.ReadString('Mode', 'MaskColor', ''), clBlack);
   ALayout.BgFile := Trim(Ini.ReadString('Mode', 'Bg', ''));
@@ -172,7 +242,7 @@ begin
   ALayout.MemVal := ReadDigitValue(Ini, 'Mem');
   ALayout.SwapVal := ReadDigitValue(Ini, 'Swap');
   ALayout.Graph := Default(TGraphLayout);
-  Result := True;
+  ReadBallistics(Ini, ALayout);
 end;
 
 function ReadGraphLane(Ini: TCustomIniFile; const AKey, AColorKey: string;

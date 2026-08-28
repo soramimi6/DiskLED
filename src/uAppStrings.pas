@@ -11,6 +11,7 @@ type
 procedure InitAppLanguage;
 function AppLanguage: TAppLang;
 function S(const AId: string): string;
+function GetProductVersionText: string;
 
 implementation
 
@@ -52,6 +53,9 @@ begin
   AddStr('menu.full', 'フル', 'Full');
   AddStr('menu.exit', '終了', 'Exit');
   AddStr('menu.options', 'オプション', 'Options');
+  AddStr('hover.ping_off', 'オフ', 'off');
+  AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
+  AddStr('hover.ping_pending', '…', '…');
 
   AddStr('opt.title', 'DiskLED オプション', 'DiskLED Options');
   AddStr('opt.group.window', 'ウィンドウ', 'Window');
@@ -150,6 +154,44 @@ begin
       Exit(CStrings[i].En);
     end;
   Result := AId;
+end;
+
+function GetProductVersionText: string;
+const
+  CFallback = '3.0.1';
+var
+  Path: string;
+  Size: DWORD;
+  Handle: DWORD;
+  Buf: Pointer;
+  Len: UINT;
+  Info: PVSFixedFileInfo;
+  Maj, Min, Rel, Bld: Word;
+begin
+  Result := CFallback;
+  Path := ParamStr(0);
+  Size := GetFileVersionInfoSize(PChar(Path), Handle);
+  if Size = 0 then
+    Exit;
+  GetMem(Buf, Size);
+  try
+    if not GetFileVersionInfo(PChar(Path), Handle, Size, Buf) then
+      Exit;
+    if not VerQueryValue(Buf, '\', Pointer(Info), Len) then
+      Exit;
+    if (Info = nil) or (Len < SizeOf(TVSFixedFileInfo)) then
+      Exit;
+    Maj := HiWord(Info.dwFileVersionMS);
+    Min := LoWord(Info.dwFileVersionMS);
+    Rel := HiWord(Info.dwFileVersionLS);
+    Bld := LoWord(Info.dwFileVersionLS);
+    if Bld = 0 then
+      Result := Format('%d.%d.%d', [Maj, Min, Rel])
+    else
+      Result := Format('%d.%d.%d.%d', [Maj, Min, Rel, Bld]);
+  finally
+    FreeMem(Buf);
+  end;
 end;
 
 initialization
