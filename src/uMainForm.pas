@@ -18,7 +18,8 @@ uses
   uDisplayPipeline,
   uHistoryBuffer,
   uSettings,
-  uHoverTip;
+  uHoverTip,
+  uMeterRenderer;
 
 type
   TMainForm = class(TForm)
@@ -48,6 +49,9 @@ type
     FLastGraphTick: Cardinal;
     FHasGraphTick: Boolean;
     FGraphPeak: THistorySample;
+    FGraphGen: Cardinal;
+    FLastFp: TVisualFingerprint;
+    FHasFp: Boolean;
     FMiCompact: TMenuItem;
     FMiFull: TMenuItem;
     FHoverTip: THoverTip;
@@ -122,7 +126,6 @@ uses
   Winapi.ShlObj,
   uAppStrings,
   uDisplayModes,
-  uMeterRenderer,
   uGraphRenderer,
   uWindowPlacement,
   uOptionsForm,
@@ -479,6 +482,7 @@ begin
   SyncModeChecks;
   Render;
   Invalidate;
+  FHasFp := False;
   PersistSettings;
 end;
 
@@ -538,6 +542,7 @@ begin
   SyncViewMenu;
   Render;
   Invalidate;
+  FHasFp := False;
 end;
 
 procedure TMainForm.ApplyWindowBounds;
@@ -597,6 +602,8 @@ var
   IntervalMs: Cardinal;
   NowTick: Cardinal;
   Sample: THistorySample;
+  GraphKey: Cardinal;
+  Fp: TVisualFingerprint;
 begin
   if (FCollector = nil) or (FPipeline = nil) then
     Exit;
@@ -625,11 +632,22 @@ begin
       ResetGraphPeak;
       FLastGraphTick := NowTick;
       FHasGraphTick := True;
+      Inc(FGraphGen);
     end;
   end;
 
-  Render;
-  Invalidate;
+  if UsingFullView then
+    GraphKey := FGraphGen
+  else
+    GraphKey := 0;
+  Fp := TMeterRenderer.Fingerprint(FLayout, FPipeline.State, GraphKey);
+  if (not FHasFp) or (not TMeterRenderer.SameFingerprint(Fp, FLastFp)) then
+  begin
+    Render;
+    Invalidate;
+    FLastFp := Fp;
+    FHasFp := True;
+  end;
   RefreshHoverText;
 end;
 

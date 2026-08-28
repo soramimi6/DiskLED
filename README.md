@@ -10,7 +10,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - **対象**: Windows 10 / 11
 - **外観**: ユーザー導入の旧スキン（`.dla`）は非対応。内部は **layout.cfg ベースの表示モード**（Original / Crystal / Metalic）。`assets/<id>/layout.cfg` を足せばモード追加可能
 - **スキンリソース**: 旧版から引き継いだ画像を `assets/original`・`assets/crystal`・`assets/metalic` に配置（座標は各 `layout.cfg`）。`assets/` 以下は旧版開発者と同一の著作物
-- **更新頻度**: 最低 **10 fps**、デフォルト **15 fps**
+- **更新頻度**: 最低 **10 fps**、デフォルト **15 fps**。見た目のコマが変わらないときは再描画しない
 - **プロセス**: **単一起動のみ**（2つ目以降は起動を抑制し、既存へフォーカス等）
 - **スケール**:
   - CPU / 物理メモリ / SWAP … 0～100%
@@ -106,7 +106,7 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
 - **Target**: Windows 10 / 11
 - **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic). Modes can be added by placing `assets/<id>/layout.cfg`
 - **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic` (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
-- **Refresh rate**: Minimum **10 fps**, default **15 fps**
+- **Refresh rate**: Minimum **10 fps**, default **15 fps**. The window is not redrawn while sprite frames stay the same
 - **Process**: **Single instance only** (later launches are suppressed and focus is given to the existing instance, etc.)
 - **Scales**:
   - CPU / physical memory / SWAP … 0–100%

@@ -1,7 +1,7 @@
 unit uHistoryBuffer;
 
 { Fixed-width history: Capacity pixels = Capacity samples (1 px = 1 update).
-  Buffer is zero-filled and always full. }
+  Ring buffer, zero-filled and always full. Index 0 = oldest. }
 
 interface
 
@@ -20,6 +20,7 @@ type
   private
     FSamples: TArray<THistorySample>;
     FCapacity: Integer;
+    FHead: Integer;
     procedure FillZeros;
   public
     constructor Create(ACapacity: Integer = 80);
@@ -27,8 +28,8 @@ type
     procedure SetCapacity(ACapacity: Integer);
     procedure Push(const ASample: THistorySample);
     function Capacity: Integer;
-    { Always Length = Capacity; index 0 = oldest, Capacity-1 = newest. }
-    procedure CopyChronological(out ADest: TArray<THistorySample>);
+    { Index 0 = oldest, Capacity-1 = newest. }
+    function SampleChronological(AIndex: Integer): THistorySample;
   end;
 
 function ZeroHistorySample: THistorySample;
@@ -74,6 +75,7 @@ begin
   if ACapacity < 1 then
     ACapacity := 1;
   FCapacity := ACapacity;
+  FHead := 0;
   SetLength(FSamples, FCapacity);
   FillZeros;
 end;
@@ -86,6 +88,7 @@ begin
   Z := ZeroHistorySample;
   for i := 0 to FCapacity - 1 do
     FSamples[i] := Z;
+  FHead := 0;
 end;
 
 procedure THistoryBuffer.Clear;
@@ -109,13 +112,10 @@ end;
 
 procedure THistoryBuffer.Push(const ASample: THistorySample);
 var
-  i: Integer;
   S: THistorySample;
 begin
   if FCapacity < 1 then
     Exit;
-  for i := 0 to FCapacity - 2 do
-    FSamples[i] := FSamples[i + 1];
   S.Cpu := Clamp01(ASample.Cpu);
   S.Mem := Clamp01(ASample.Mem);
   S.Swap := Clamp01(ASample.Swap);
@@ -123,7 +123,8 @@ begin
   S.DiskWrite := Clamp01(ASample.DiskWrite);
   S.NetIn := Clamp01(ASample.NetIn);
   S.NetOut := Clamp01(ASample.NetOut);
-  FSamples[FCapacity - 1] := S;
+  FSamples[FHead] := S;
+  FHead := (FHead + 1) mod FCapacity;
 end;
 
 function THistoryBuffer.Capacity: Integer;
@@ -131,13 +132,11 @@ begin
   Result := FCapacity;
 end;
 
-procedure THistoryBuffer.CopyChronological(out ADest: TArray<THistorySample>);
-var
-  i: Integer;
+function THistoryBuffer.SampleChronological(AIndex: Integer): THistorySample;
 begin
-  SetLength(ADest, FCapacity);
-  for i := 0 to FCapacity - 1 do
-    ADest[i] := FSamples[i];
+  if (FCapacity < 1) or (AIndex < 0) or (AIndex >= FCapacity) then
+    Exit(ZeroHistorySample);
+  Result := FSamples[(FHead + AIndex) mod FCapacity];
 end;
 
 end.

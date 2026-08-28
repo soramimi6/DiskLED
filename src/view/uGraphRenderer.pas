@@ -44,7 +44,6 @@ class procedure TGraphRenderer.Draw(ACanvas: TCanvas; const AGraph: TGraphLayout
 
   procedure DrawLane(const ALane: TGraphLane; AKind: TLaneKind);
   var
-    Samples: TArray<THistorySample>;
     i, Cap, W, Start, X, Y: Integer;
     R: TRect;
     V: Double;
@@ -53,8 +52,7 @@ class procedure TGraphRenderer.Draw(ACanvas: TCanvas; const AGraph: TGraphLayout
       Exit;
     if AHistory = nil then
       Exit;
-    AHistory.CopyChronological(Samples);
-    Cap := Length(Samples);
+    Cap := AHistory.Capacity;
     if Cap < 1 then
       Exit;
 
@@ -70,7 +68,7 @@ class procedure TGraphRenderer.Draw(ACanvas: TCanvas; const AGraph: TGraphLayout
 
     for i := 0 to W - 1 do
     begin
-      V := Clamp01(SampleValue(Samples[Start + i], AKind));
+      V := Clamp01(SampleValue(AHistory.SampleChronological(Start + i), AKind));
       X := R.Left + i;
       Y := R.Bottom - 1 - Round(V * (R.Height - 1));
       if i = 0 then

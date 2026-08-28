@@ -12,7 +12,8 @@ The author accepts no liability for any damage arising from use of this software
 - **Disk / network** are aggregates. Per-drive or per-NIC views are not in v1
 - Virtual-adapter filtering is heuristic; LED behavior may vary by environment
 - High DPI (e.g. above 125%) may blur or mis-position the UI (v1 assumes 100%)
-- Display refresh is roughly **10–20 fps** (default 15). Collectors are designed to stay light on the system
+- Motion is roughly **10–20 fps** (default 15). The window is not redrawn while sprite frames stay the same
+- The list of real NICs is refreshed every few seconds. After a VPN connect/disconnect, LEDs may lag or linger briefly
 
 ## Changes from DiskLED 2.x
 

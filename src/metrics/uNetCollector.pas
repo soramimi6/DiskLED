@@ -1,7 +1,9 @@
 unit uNetCollector;
 
-{ Real-NIC In/Out Byte/s via IP Helper GetIfTable. Excludes loopback / tunnel /
-  common virtual adapters. Exposes max link speed (Byte/s) for RangeEngine. }
+{ Real-NIC In/Out Byte/s via IP Helper. Adapter list is refreshed every few
+  seconds with GetIfTable; per-sample counters use GetIfEntry on cached
+  indexes. Excludes loopback / tunnel / common virtual adapters. Exposes max
+  link speed (Byte/s) for RangeEngine. }
 
 interface
 
@@ -16,14 +18,20 @@ type
 
   TNetCollector = class
   private
-    FPrev: TNetIfPrevArray;
+    FIfs: TNetIfPrevArray;
     FPrevTick: Cardinal;
     FHasPrev: Boolean;
     FLastInBps: Double;
     FLastOutBps: Double;
     FLastLinkSpeedBps: Double;
+    FTableSize: Cardinal;
+    FLastRefreshTick: Cardinal;
+    FHasList: Boolean;
+    FForceRefresh: Boolean;
     function IsExcludedAdapter(AType: Cardinal; const ADescr: string): Boolean;
-    function FindPrev(AIndex: Cardinal): Integer;
+    function FindIf(AIndex: Cardinal): Integer;
+    function RefreshAdapterList: Boolean;
+    procedure SampleFromEntries(ATick: Cardinal);
   public
     procedure Sample(out AInBps, AOutBps, ALinkSpeedBps: Double);
   end;
@@ -35,6 +43,8 @@ uses
   Winapi.Windows;
 
 const
+  CAdapterRefreshMs = 3000;
+
   MAX_INTERFACE_NAME_LEN = 256;
   MAXLEN_IFDESCR = 256;
   MAXLEN_PHYSADDR = 8;
@@ -82,6 +92,8 @@ type
 
 function GetIfTable(pIfTable: Pointer; var pdwSize: DWORD; bOrder: BOOL): DWORD; stdcall;
   external 'iphlpapi.dll' name 'GetIfTable';
+function GetIfEntry(pIfRow: Pointer): DWORD; stdcall;
+  external 'iphlpapi.dll' name 'GetIfEntry';
 
 function TNetCollector.IsExcludedAdapter(AType: Cardinal; const ADescr: string): Boolean;
 var
@@ -113,17 +125,17 @@ begin
     (Pos('bluetooth', D) > 0);
 end;
 
-function TNetCollector.FindPrev(AIndex: Cardinal): Integer;
+function TNetCollector.FindIf(AIndex: Cardinal): Integer;
 var
   i: Integer;
 begin
-  for i := 0 to High(FPrev) do
-    if FPrev[i].Used and (FPrev[i].Index = AIndex) then
+  for i := 0 to High(FIfs) do
+    if FIfs[i].Used and (FIfs[i].Index = AIndex) then
       Exit(i);
   Result := -1;
 end;
 
-procedure TNetCollector.Sample(out AInBps, AOutBps, ALinkSpeedBps: Double);
+function TNetCollector.RefreshAdapterList: Boolean;
 var
   Size: DWORD;
   Status: DWORD;
@@ -131,43 +143,39 @@ var
   Table: PMIBIfTable;
   i, PrevIdx, NewCount: Integer;
   Descr: string;
-  Tick: Cardinal;
-  ElapsedSec: Double;
   Row: PMIBIfRow;
-  DeltaIn, DeltaOut: UInt64;
-  TotalInBps, TotalOutBps: Double;
+  NextIfs: TNetIfPrevArray;
   MaxSpeedBits: DWORD;
-  NextPrev: TNetIfPrevArray;
 begin
-  AInBps := FLastInBps;
-  AOutBps := FLastOutBps;
-  ALinkSpeedBps := FLastLinkSpeedBps;
-
-  Size := 0;
-  Status := GetIfTable(nil, Size, False);
-  if (Status <> ERROR_INSUFFICIENT_BUFFER) and (Status <> ERROR_SUCCESS) then
-    Exit;
+  Result := False;
+  Size := FTableSize;
   if Size = 0 then
-    Exit;
+  begin
+    Status := GetIfTable(nil, Size, False);
+    if (Status <> ERROR_INSUFFICIENT_BUFFER) and (Status <> ERROR_SUCCESS) then
+      Exit;
+    if Size = 0 then
+      Exit;
+  end;
 
   GetMem(Buf, Size);
   try
     Status := GetIfTable(Buf, Size, False);
+    if Status = ERROR_INSUFFICIENT_BUFFER then
+    begin
+      FreeMem(Buf);
+      Buf := nil;
+      GetMem(Buf, Size);
+      Status := GetIfTable(Buf, Size, False);
+    end;
     if Status <> ERROR_SUCCESS then
       Exit;
 
+    FTableSize := Size;
     Table := PMIBIfTable(Buf);
-    Tick := GetTickCount;
-    TotalInBps := 0;
-    TotalOutBps := 0;
     MaxSpeedBits := 0;
     NewCount := 0;
-    SetLength(NextPrev, Integer(Table.dwNumEntries));
-
-    if FHasPrev then
-      ElapsedSec := (Tick - FPrevTick) / 1000.0
-    else
-      ElapsedSec := 0;
+    SetLength(NextIfs, Integer(Table.dwNumEntries));
 
     for i := 0 to Integer(Table.dwNumEntries) - 1 do
     begin
@@ -182,47 +190,126 @@ begin
       if Row.dwSpeed > MaxSpeedBits then
         MaxSpeedBits := Row.dwSpeed;
 
-      NextPrev[NewCount].Index := Row.dwIndex;
-      NextPrev[NewCount].InOctets := Row.dwInOctets;
-      NextPrev[NewCount].OutOctets := Row.dwOutOctets;
-      NextPrev[NewCount].Used := True;
-
-      if FHasPrev and (ElapsedSec > 0) then
+      NextIfs[NewCount].Index := Row.dwIndex;
+      NextIfs[NewCount].Used := True;
+      PrevIdx := FindIf(Row.dwIndex);
+      if PrevIdx >= 0 then
       begin
-        PrevIdx := FindPrev(Row.dwIndex);
-        if PrevIdx >= 0 then
-        begin
-          DeltaIn := DWORD(Row.dwInOctets - FPrev[PrevIdx].InOctets);
-          DeltaOut := DWORD(Row.dwOutOctets - FPrev[PrevIdx].OutOctets);
-          TotalInBps := TotalInBps + DeltaIn / ElapsedSec;
-          TotalOutBps := TotalOutBps + DeltaOut / ElapsedSec;
-        end;
+        NextIfs[NewCount].InOctets := FIfs[PrevIdx].InOctets;
+        NextIfs[NewCount].OutOctets := FIfs[PrevIdx].OutOctets;
+      end
+      else
+      begin
+        NextIfs[NewCount].InOctets := Row.dwInOctets;
+        NextIfs[NewCount].OutOctets := Row.dwOutOctets;
       end;
-
       Inc(NewCount);
     end;
 
-    SetLength(NextPrev, NewCount);
-    FPrev := NextPrev;
-    FPrevTick := Tick;
-    FHasPrev := True;
-
+    SetLength(NextIfs, NewCount);
+    FIfs := NextIfs;
+    FHasList := True;
+    FForceRefresh := False;
+    FLastRefreshTick := GetTickCount;
     if MaxSpeedBits > 0 then
-    begin
       FLastLinkSpeedBps := MaxSpeedBits / 8.0;
-      ALinkSpeedBps := FLastLinkSpeedBps;
+    Result := True;
+  finally
+    if Buf <> nil then
+      FreeMem(Buf);
+  end;
+end;
+
+procedure TNetCollector.SampleFromEntries(ATick: Cardinal);
+var
+  i: Integer;
+  OkCount: Integer;
+  Row: TMIBIfRow;
+  ElapsedSec: Double;
+  DeltaIn, DeltaOut: UInt64;
+  TotalInBps, TotalOutBps: Double;
+  MaxSpeedBits: DWORD;
+begin
+  if Length(FIfs) < 1 then
+  begin
+    FForceRefresh := True;
+    Exit;
+  end;
+
+  if FHasPrev then
+    ElapsedSec := (ATick - FPrevTick) / 1000.0
+  else
+    ElapsedSec := 0;
+
+  OkCount := 0;
+  TotalInBps := 0;
+  TotalOutBps := 0;
+  MaxSpeedBits := 0;
+
+  for i := 0 to High(FIfs) do
+  begin
+    FillChar(Row, SizeOf(Row), 0);
+    Row.dwIndex := FIfs[i].Index;
+    if GetIfEntry(@Row) <> ERROR_SUCCESS then
+      Continue;
+
+    Inc(OkCount);
+    if Row.dwSpeed > MaxSpeedBits then
+      MaxSpeedBits := Row.dwSpeed;
+
+    if FHasPrev and (ElapsedSec > 0) then
+    begin
+      DeltaIn := DWORD(Row.dwInOctets - FIfs[i].InOctets);
+      DeltaOut := DWORD(Row.dwOutOctets - FIfs[i].OutOctets);
+      TotalInBps := TotalInBps + DeltaIn / ElapsedSec;
+      TotalOutBps := TotalOutBps + DeltaOut / ElapsedSec;
     end;
 
-    if ElapsedSec > 0 then
-    begin
-      FLastInBps := TotalInBps;
-      FLastOutBps := TotalOutBps;
-      AInBps := FLastInBps;
-      AOutBps := FLastOutBps;
-    end;
-  finally
-    FreeMem(Buf);
+    FIfs[i].InOctets := Row.dwInOctets;
+    FIfs[i].OutOctets := Row.dwOutOctets;
   end;
+
+  if OkCount = 0 then
+  begin
+    FForceRefresh := True;
+    Exit;
+  end;
+
+  if MaxSpeedBits > 0 then
+    FLastLinkSpeedBps := MaxSpeedBits / 8.0;
+
+  FPrevTick := ATick;
+  FHasPrev := True;
+
+  if ElapsedSec > 0 then
+  begin
+    FLastInBps := TotalInBps;
+    FLastOutBps := TotalOutBps;
+  end;
+end;
+
+procedure TNetCollector.Sample(out AInBps, AOutBps, ALinkSpeedBps: Double);
+var
+  Tick: Cardinal;
+  NeedRefresh: Boolean;
+begin
+  AInBps := FLastInBps;
+  AOutBps := FLastOutBps;
+  ALinkSpeedBps := FLastLinkSpeedBps;
+
+  Tick := GetTickCount;
+  NeedRefresh := FForceRefresh or (not FHasList) or
+    ((Tick - FLastRefreshTick) >= CAdapterRefreshMs);
+  if NeedRefresh then
+    RefreshAdapterList;
+
+  if Length(FIfs) < 1 then
+    Exit;
+
+  SampleFromEntries(Tick);
+  AInBps := FLastInBps;
+  AOutBps := FLastOutBps;
+  ALinkSpeedBps := FLastLinkSpeedBps;
 end;
 
 end.

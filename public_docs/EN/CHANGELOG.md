@@ -4,6 +4,10 @@
 
 Newest first. User-facing summary only; implementation detail lives in `docs/DESIGN.md`.
 
+## 3.0.1 — in progress
+
+- Lighter idle load: the window redraws only when sprite frames change (collectors still follow display fps)
+
 ## 3.0.0 — MVP
 
 First DiskLED 3.x release for Windows 10 / 11 (64-bit). Rebuild of the classic 2.x line.
