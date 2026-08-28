@@ -28,6 +28,10 @@ type
     RbGraph2: TRadioButton;
     RbGraph1: TRadioButton;
     RbGraph05: TRadioButton;
+    CardScale: TPanel;
+    LblSecScale: TLabel;
+    RbScaleLinear: TRadioButton;
+    RbScaleLog: TRadioButton;
     CardPing: TPanel;
     LblSecPing: TLabel;
     ChkPingEnabled: TCheckBox;
@@ -83,7 +87,8 @@ uses
   Vcl.Themes,
   Vcl.Styles,
   uAppStrings,
-  uStartup;
+  uStartup,
+  uMetricsTypes;
 
 const
   CDefaultFairMs = 200;
@@ -164,6 +169,9 @@ begin
   ChkStartup.Caption := S('opt.startup');
   LblSecFps.Caption := S('opt.fps');
   LblSecGraph.Caption := S('opt.graph_rate');
+  LblSecScale.Caption := S('opt.speed_scale');
+  RbScaleLinear.Caption := S('opt.speed_scale_linear');
+  RbScaleLog.Caption := S('opt.speed_scale_log');
   LblSecPing.Caption := S('opt.group.ping');
   ChkPingEnabled.Caption := S('opt.ping_enabled');
   ChkAutoGw.Caption := S('opt.ping_auto_gw');
@@ -240,6 +248,10 @@ begin
     RbGraph05.Checked := True
   else
     RbGraph1.Checked := True;
+  if FSettings.SpeedScale = ssLog then
+    RbScaleLog.Checked := True
+  else
+    RbScaleLinear.Checked := True;
   ChkPingEnabled.Checked := FSettings.PingEnabled;
   ChkAutoGw.Checked := FSettings.PingAutoGateway;
   EdHost.Text := FSettings.PingHost;
@@ -347,6 +359,10 @@ begin
     FSettings.GraphRateHz := 0.5
   else
     FSettings.GraphRateHz := 1.0;
+  if RbScaleLog.Checked then
+    FSettings.SpeedScale := ssLog
+  else
+    FSettings.SpeedScale := ssLinear;
   FSettings.PingEnabled := ChkPingEnabled.Checked;
   FSettings.PingAutoGateway := ChkAutoGw.Checked;
   FSettings.PingHost := Trim(EdHost.Text);

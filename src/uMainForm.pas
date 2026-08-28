@@ -318,6 +318,21 @@ begin
   FTimer.Interval := Round(1000.0 / FSettings.Fps);
   FTimer.Enabled := True;
 
+  { First call is during FormCreate (FReadyToPersist=False): apply scale only.
+    Clearing/redrawing with an empty layout raises and aborts FormCreate, then
+    the already-enabled timer floods error dialogs. }
+  if (FPipeline <> nil) and FPipeline.ApplySpeedScale(FSettings.SpeedScale) and
+    FReadyToPersist then
+  begin
+    if FHistory <> nil then
+      FHistory.Clear;
+    ResetGraphPeak;
+    Inc(FGraphGen);
+    FHasFp := False;
+    Render;
+    Invalidate;
+  end;
+
   FCollector.ApplyPingSettings(
     FSettings.PingEnabled,
     FSettings.PingIntervalSec,
@@ -588,6 +603,8 @@ end;
 procedure TMainForm.Render;
 begin
   if (FAssets = nil) or (FBuffer = nil) then
+    Exit;
+  if (FLayout.Width < 1) or (FLayout.Height < 1) or (FLayout.BgFile = '') then
     Exit;
   FBuffer.SetSize(FLayout.Width, FLayout.Height);
   TMeterRenderer.DrawBackground(FBuffer.Canvas, FLayout, FAssets);

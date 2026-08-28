@@ -40,6 +40,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure ApplyBallistics(const ABallistics: TMeterBallistics);
+    function ApplySpeedScale(AScale: TSpeedScale): Boolean;
     procedure Update(const ASnap: TMetricsSnapshot);
     property State: TDisplayState read FState;
     property Normalized: TNormalizedMetrics read FNormalized;
@@ -98,6 +99,17 @@ begin
   FBallistics.DiskWrite.Strength := ClampStrength(FBallistics.DiskWrite.Strength);
   FBallistics.NetIn.Strength := ClampStrength(FBallistics.NetIn.Strength);
   FBallistics.NetOut.Strength := ClampStrength(FBallistics.NetOut.Strength);
+end;
+
+function TDisplayPipeline.ApplySpeedScale(AScale: TSpeedScale): Boolean;
+begin
+  Result := False;
+  if FRange = nil then
+    Exit;
+  if FRange.SpeedScale = AScale then
+    Exit;
+  FRange.SpeedScale := AScale;
+  Result := True;
 end;
 
 function TDisplayPipeline.AttackTau(const AParams: TBallisticParams): Double;

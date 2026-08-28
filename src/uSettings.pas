@@ -4,6 +4,9 @@ unit uSettings;
 
 interface
 
+uses
+  uMetricsTypes;
+
 type
   TAppSettings = class
   private
@@ -16,6 +19,7 @@ type
     FStartup: Boolean;
     FCompact: Boolean;
     FGraphRateHz: Double;
+    FSpeedScale: TSpeedScale;
     FPingEnabled: Boolean;
     FPingIntervalSec: Integer;
     FPingAutoGateway: Boolean;
@@ -42,6 +46,7 @@ type
     property Startup: Boolean read FStartup write FStartup;
     property Compact: Boolean read FCompact write FCompact;
     property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
+    property SpeedScale: TSpeedScale read FSpeedScale write FSpeedScale;
     property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
     property PingIntervalSec: Integer read FPingIntervalSec write FPingIntervalSec;
     property PingAutoGateway: Boolean read FPingAutoGateway write FPingAutoGateway;
@@ -116,6 +121,7 @@ begin
   FStartup := False;
   FCompact := True;
   FGraphRateHz := 1.0;
+  FSpeedScale := ssLinear;
   FPingEnabled := True;
   FPingIntervalSec := 300;
   FPingAutoGateway := False;
@@ -158,6 +164,8 @@ begin
     FGraphRateHz := 0.5
   else
     FGraphRateHz := 1.0;
+  if FSpeedScale <> ssLog then
+    FSpeedScale := ssLinear;
   if FPingIntervalSec < 300 then
     FPingIntervalSec := 300;
   if Trim(FPingHost) = '' then
@@ -194,6 +202,10 @@ begin
     FStartup := Ini.ReadBool('General', 'Startup', FStartup);
     FCompact := Ini.ReadBool('View', 'Compact', FCompact);
     FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
+    if SameText(Trim(Ini.ReadString('View', 'SpeedScale', 'linear')), 'log') then
+      FSpeedScale := ssLog
+    else
+      FSpeedScale := ssLinear;
     FPingEnabled := Ini.ReadBool('Ping', 'Enabled', FPingEnabled);
     FPingIntervalSec := Ini.ReadInteger('Ping', 'IntervalSec', FPingIntervalSec);
     FPingAutoGateway := Ini.ReadBool('Ping', 'AutoGateway', FPingAutoGateway);
@@ -233,6 +245,10 @@ begin
     Ini.WriteBool('General', 'Startup', FStartup);
     Ini.WriteBool('View', 'Compact', FCompact);
     Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
+    if FSpeedScale = ssLog then
+      Ini.WriteString('View', 'SpeedScale', 'log')
+    else
+      Ini.WriteString('View', 'SpeedScale', 'linear');
     Ini.WriteBool('Ping', 'Enabled', FPingEnabled);
     Ini.WriteInteger('Ping', 'IntervalSec', FPingIntervalSec);
     Ini.WriteBool('Ping', 'AutoGateway', FPingAutoGateway);

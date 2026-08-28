@@ -65,6 +65,9 @@ begin
   AddStr('opt.startup', 'スタートアップに登録', 'Run at Windows startup');
   AddStr('opt.fps', '表示頻度 (fps)', 'Refresh rate (fps)');
   AddStr('opt.graph_rate', 'グラフ更新 (Hz)', 'Graph update (Hz)');
+  AddStr('opt.speed_scale', 'ネット速度の反応', 'Network speed response');
+  AddStr('opt.speed_scale_linear', '直線（リンク速度＝100%）', 'Linear (link speed = 100%)');
+  AddStr('opt.speed_scale_log', '対数（小さい通信も振れやすい）', 'Logarithmic (small traffic more visible)');
   AddStr('opt.ping_enabled', 'Ping を有効にする', 'Enable Ping');
   AddStr('opt.ping_auto_gw', 'デフォルトゲートウェイを使う', 'Use default gateway');
   AddStr('opt.ping_host', 'Ping ホスト', 'Ping host');

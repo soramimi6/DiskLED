@@ -4,6 +4,7 @@ interface
 
 type
   TPingLevel = (plTimeout, plSlow, plFair, plNormal);
+  TSpeedScale = (ssLinear, ssLog); { network meters/graphs only; disk stays linear }
 
   TMetricsSnapshot = record
     CpuUsage: Double;

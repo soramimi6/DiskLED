@@ -9,7 +9,7 @@
 - **Network** in/out LEDs and speed bars (sum of real NICs; VPN/loopback-style adapters are excluded when possible)
 - **Ping** shown in four levels (OK / fair / slow / timeout)
 - **Display modes**: Original / Crystal / Metalic
-- Original / Metalic full view includes history graphs (**measured values**, peak in each update interval; not the meter coast). Original uses bars; Metalic uses a line
+- Original / Metalic full view includes history graphs (**measured values**, peak in each update interval; not the meter coast). Original uses bars; Metalic uses a line. Switching network linear/log clears the graph
 - **Always-on-top** and drag-to-move
 - Hover the window (or tray) for a tooltip with **version, usage, Disk/Net I/O, and Ping (target and RTT)**
 - **Single instance** (a second launch focuses the existing window and exits)
@@ -36,7 +36,7 @@ Built-in looks only. User-installed legacy skins (`.dla`) are not supported.
 |--------|----------|
 | Disk | Aggregate I/O for the whole system (like the chassis HDD lamp). Per-drive selection is out of scope for v1 |
 | Network | Sum of real NICs. Pinning one NIC is out of scope for v1 |
-| Speed range | Device caps, then measured auto-sense (no manual range UI in v1) |
+| Speed range | Net: link speed, linear (default) or logarithmic (Options). Disk: measured auto-sense, always linear. No manual range UI in v1 |
 | Ping | Default host `mg6.jp`, or auto default gateway (toggle planned in options). Interval minimum and default **5 minutes**. Right-click **Refresh Ping** (Japanese UI: **Ping 更新**) for an immediate probe |
 
 ### Ping levels (default thresholds)

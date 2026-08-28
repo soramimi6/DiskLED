@@ -8,6 +8,7 @@ Newest first. User-facing summary only; implementation detail lives in `docs/DES
 
 - Lighter idle load: the window redraws only when sprite frames change (collectors still follow display fps)
 - Original full-view history graphs are bars; Metalic stays a line
+- Network speed response can be linear (default) or logarithmic; disk stays auto-sense linear. Switching the scale clears the history graph
 
 ## 3.0.0 — MVP
 

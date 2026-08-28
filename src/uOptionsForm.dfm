@@ -4,7 +4,7 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 668
+  ClientHeight = 776
   ClientWidth = 440
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object OptionsForm: TOptionsForm
     Left = 0
     Top = 0
     Width = 440
-    Height = 612
+    Height = 720
     Align = alClient
     BevelOuter = bvNone
     Color = 15921906
@@ -162,15 +162,56 @@ object OptionsForm: TOptionsForm
         end
       end
     end
-    object CardPing: TPanel
+    object CardScale: TPanel
       Left = 20
       Top = 268
+      Width = 400
+      Height = 96
+      BevelOuter = bvNone
+      Color = clWhite
+      ParentBackground = False
+      TabOrder = 2
+      object LblSecScale: TLabel
+        Left = 20
+        Top = 12
+        Width = 200
+        Height = 17
+        Caption = 'Network speed response'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Segoe UI'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object RbScaleLinear: TRadioButton
+        Left = 20
+        Top = 40
+        Width = 360
+        Height = 21
+        Caption = 'Linear (link speed = 100%)'
+        Checked = True
+        TabOrder = 0
+        TabStop = True
+      end
+      object RbScaleLog: TRadioButton
+        Left = 20
+        Top = 64
+        Width = 360
+        Height = 21
+        Caption = 'Logarithmic (small traffic more visible)'
+        TabOrder = 1
+      end
+    end
+    object CardPing: TPanel
+      Left = 20
+      Top = 376
       Width = 400
       Height = 328
       BevelOuter = bvNone
       Color = clWhite
       ParentBackground = False
-      TabOrder = 2
+      TabOrder = 3
       object LblSecPing: TLabel
         Left = 20
         Top = 12
