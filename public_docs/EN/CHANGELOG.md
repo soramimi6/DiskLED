@@ -7,6 +7,7 @@ Newest first. User-facing summary only; implementation detail lives in `docs/DES
 ## 3.0.1 — in progress
 
 - Lighter idle load: the window redraws only when sprite frames change (collectors still follow display fps)
+- Original full-view history graphs are bars; Metalic stays a line
 
 ## 3.0.0 — MVP
 

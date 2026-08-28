@@ -32,6 +32,8 @@ type
     Bold: Boolean;
   end;
 
+  TGraphStyle = (gsLine, gsBar);
+
   TGraphLane = record
     Enabled: Boolean;
     X: Integer;
@@ -43,6 +45,7 @@ type
 
   TGraphLayout = record
     Enabled: Boolean;
+    Style: TGraphStyle;
     Cpu: TGraphLane;
     Mem: TGraphLane;
     Swap: TGraphLane;

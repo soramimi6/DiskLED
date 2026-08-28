@@ -42,7 +42,7 @@ Menu captions follow the OS UI language (**English by default**; Japanese only w
 - **Speed bars** — instantaneous throughput (auto range; same rise/fall ballistics as meters)
 - **Ping** — four-level frame/lamp (look varies by mode)
 
-Layouts follow legacy skins. Original / Metalic full mode draws history graphs from **normalized measured values** (peak within each graph-update interval; not the meter’s coasting display).
+Layouts follow legacy skins. Original / Metalic full mode draws history graphs from **normalized measured values** (peak within each graph-update interval; not the meter’s coasting display). Original uses bars; Metalic uses a line.
 
 ## Settings file
 

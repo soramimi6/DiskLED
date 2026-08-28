@@ -277,8 +277,15 @@ begin
 end;
 
 function ReadGraph(Ini: TCustomIniFile): TGraphLayout;
+var
+  StyleRaw: string;
 begin
   Result := Default(TGraphLayout);
+  StyleRaw := LowerCase(Trim(Ini.ReadString('Graph', 'Style', '')));
+  if StyleRaw = 'bar' then
+    Result.Style := gsBar
+  else
+    Result.Style := gsLine;
   Result.Cpu := ReadGraphLane(Ini, 'Cpu', 'CpuColor', RGB(0, 0, 0));
   Result.Mem := ReadGraphLane(Ini, 'Mem', 'MemColor', RGB(0, 0, 0));
   Result.Swap := ReadGraphLane(Ini, 'Swap', 'SwapColor', RGB(0, 0, 0));

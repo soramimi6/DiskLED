@@ -9,7 +9,7 @@
 - **ネットワーク** 送受信の LED と速度バー（実 NIC 合算。VPN・ループバック等は除外を試みる）
 - **Ping** 応答の 4 段階表示（正常／やや遅い／遅い／タイムアウト）
 - **表示モード切替**: Original / Crystal / Metalic
-- Original / Metalic のフル表示では推移グラフ（**実測ベース**。更新間隔内の最大）
+- Original / Metalic のフル表示では推移グラフ（**実測ベース**。更新間隔内の最大）。Original は棒、Metalic は折れ線
 - **最前面表示**・ウィンドウのドラッグ移動
 - 本体（およびトレイ）にマウスを乗せると **版・使用率・Disk/Net I/O・Ping（先と RTT）** をツールチップ表示
 - **単一起動**（2 つ目を起動すると既存ウィンドウを前面化して終了）
@@ -26,9 +26,9 @@
 | **Crystal** | Mac OS X 風（MacX） | 192×14 | あり |
 | **Metalic** | xsrv SkinS | 256×24 | なし（矩形） |
 
-- Original ではフル背景 `Original_FullBase.png` と推移グラフ矩形を `[ModeFull]` / `[Graph]` で定義（左ダブルクリックで切替）。ネット LED は送受信別（In / Out）
+- Original ではフル背景 `Original_FullBase.png` と推移グラフ矩形を `[ModeFull]` / `[Graph]` で定義（左ダブルクリックで切替）。ネット LED は送受信別（In / Out）。グラフは棒
 - Crystal はフル定義なし（コンパクト固定）
-- Metalic はフル背景 `Metalic_FullBase.bmp`＋グラフ（左ダブルクリックで切替）
+- Metalic はフル背景 `Metalic_FullBase.bmp`＋グラフ（左ダブルクリックで切替）。グラフは折れ線
 
 ## 監視の考え方
 

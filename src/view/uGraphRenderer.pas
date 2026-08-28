@@ -1,6 +1,6 @@
 unit uGraphRenderer;
 
-{ Draws history polylines: 1 horizontal pixel = 1 sample. }
+{ Draws history: 1 horizontal pixel = 1 sample. Style is line or bar. }
 
 interface
 
@@ -62,19 +62,38 @@ class procedure TGraphRenderer.Draw(ACanvas: TCanvas; const AGraph: TGraphLayout
     Start := Cap - W;
 
     R := Rect(ALane.X, ALane.Y, ALane.X + ALane.W, ALane.Y + ALane.H);
-    ACanvas.Pen.Color := ALane.Color;
-    ACanvas.Pen.Width := 1;
-    ACanvas.Brush.Style := bsClear;
 
-    for i := 0 to W - 1 do
+    if AGraph.Style = gsBar then
     begin
-      V := Clamp01(SampleValue(AHistory.SampleChronological(Start + i), AKind));
-      X := R.Left + i;
-      Y := R.Bottom - 1 - Round(V * (R.Height - 1));
-      if i = 0 then
-        ACanvas.MoveTo(X, Y)
-      else
-        ACanvas.LineTo(X, Y);
+      ACanvas.Brush.Color := ALane.Color;
+      ACanvas.Brush.Style := bsSolid;
+      ACanvas.Pen.Style := psClear;
+      for i := 0 to W - 1 do
+      begin
+        V := Clamp01(SampleValue(AHistory.SampleChronological(Start + i), AKind));
+        Y := Round(V * R.Height);
+        if Y < 1 then
+          Continue;
+        X := R.Left + i;
+        ACanvas.FillRect(Rect(X, R.Bottom - Y, X + 1, R.Bottom));
+      end;
+    end
+    else
+    begin
+      ACanvas.Pen.Style := psSolid;
+      ACanvas.Pen.Color := ALane.Color;
+      ACanvas.Pen.Width := 1;
+      ACanvas.Brush.Style := bsClear;
+      for i := 0 to W - 1 do
+      begin
+        V := Clamp01(SampleValue(AHistory.SampleChronological(Start + i), AKind));
+        X := R.Left + i;
+        Y := R.Bottom - 1 - Round(V * (R.Height - 1));
+        if i = 0 then
+          ACanvas.MoveTo(X, Y)
+        else
+          ACanvas.LineTo(X, Y);
+      end;
     end;
   end;
 
