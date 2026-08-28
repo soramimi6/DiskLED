@@ -17,6 +17,7 @@ First DiskLED 3.x release for Windows 10 / 11 (64-bit). Rebuild of the classic 2
 - Resident meters for CPU / memory / SWAP / disk / network / Ping
 - Display modes: Original / Crystal / Metalic (full/compact + history graphs on Original and Metalic)
 - Original: separate Net In / Out LEDs (Crystal / Metalic may also use a combined activity LED)
+- Crystal: CPU / memory level bars upsampled to 32 frames (smoother follow)
 - Single instance, always-on-top, tray, startup, Options, `DiskLED.ini`
 - Per-user installer (`DiskLED_Setup_3.0.0.exe`) and portable zip
 - UI: English by default; Japanese when the OS UI is Japanese

@@ -17,6 +17,7 @@ Windows 10 / 11 向けの DiskLED 3.x 初版（64-bit）。旧 2.x からの再�
 - CPU / メモリ / SWAP / ディスク / ネット / Ping の常駐表示
 - 表示モード: Original / Crystal / Metalic（フル／コンパクト切替と推移グラフは Original・Metalic）
 - Original: ネット LED は送受信別（In / Out）。Crystal / Metalic は統合活動 LED も配置可能
+- Crystal: CPU / メモリ レベルバーを 32 コマに補間（滑らかな追従）
 - 単一起動、最前面、トレイ、スタートアップ、オプション、`DiskLED.ini`
 - ユーザー権限インストーラー（`DiskLED_Setup_3.0.0.exe`）とポータブル zip
 - UI: 既定は英語、OS UI が日本語のときだけ日本語
