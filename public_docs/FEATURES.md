@@ -26,8 +26,8 @@
 | **Crystal** | Mac OS X 風（MacX） | 192×14 | あり |
 | **Metalic** | xsrv SkinS | 256×24 | なし（矩形） |
 
-- Original ではフル背景 `Original_FullBase.png` と推移グラフ矩形を `[ModeFull]` / `[Graph]` で定義（左ダブルクリックで切替）。ネット LED は送受信別（In / Out）。グラフは棒
-- Crystal はフル定義なし（コンパクト固定）
+- Original ではフル背景 `Original_FullBase.png` と推移グラフ矩形を `[ModeFull]` / `[Graph]` で定義（左ダブルクリックで切替）。ネット LED は送受信別（In / Out）。アナログメーター 64 コマ。グラフは棒
+- Crystal はフル定義なし（コンパクト固定）。CPU / メモリ レベルバー 32 コマ
 - Metalic はフル背景 `Metalic_FullBase.bmp`＋グラフ（左ダブルクリックで切替）。グラフは折れ線
 
 ## 監視の考え方

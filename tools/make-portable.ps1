@@ -1,10 +1,10 @@
-# Builds dist/DiskLED-3.0.0-portable.zip from a staged folder.
+# Builds dist/DiskLED-3.0.1-portable.zip from a staged folder.
 # Usage: .\tools\make-portable.ps1 [-Config Release|Debug]
 
 param(
     [ValidateSet('Release', 'Debug')]
     [string]$Config = 'Release',
-    [string]$Version = '3.0.0'
+    [string]$Version = '3.0.1'
 )
 
 $ErrorActionPreference = 'Stop'

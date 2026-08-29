@@ -9,7 +9,7 @@ DiskLED 3 rebuilds the classic DiskLED series (2.x / Windows XP era) from the gr
 | Item | Detail |
 |------|--------|
 | Name | DiskLED |
-| Version line | 3.x |
+| Version line | 3.0.1 (3.x series) |
 | OS | Windows 10 / 11 (64-bit) |
 | Language | English by default; Japanese only when the OS UI language is Japanese |
 | Privileges | Administrator rights not required |

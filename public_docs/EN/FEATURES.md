@@ -26,8 +26,8 @@ Built-in looks only. User-installed legacy skins (`.dla`) are not supported.
 | **Crystal** | Mac OS X–style (MacX) | 192×14 | Yes |
 | **Metalic** | xsrv SkinS | 256×24 | No (rectangular) |
 
-- Original uses full background `Original_FullBase.png` with `[ModeFull]` / `[Graph]` (left double-click toggles). Network LEDs are separate In / Out. History graphs are bars
-- Crystal has no full layout (compact only)
+- Original uses full background `Original_FullBase.png` with `[ModeFull]` / `[Graph]` (left double-click toggles). Network LEDs are separate In / Out. 64-frame analog meters. History graphs are bars
+- Crystal has no full layout (compact only). CPU / memory level bars use 32 frames
 - Metalic uses `Metalic_FullBase.bmp` plus graphs (left double-click toggles). History graphs are a line
 
 ## Monitoring model

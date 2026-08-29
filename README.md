@@ -60,7 +60,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 - **透過**: 旧スキン同様、カラーキー透過で非矩形ウィンドウを再現する
 - **設定ファイル**: 基本は exe と同じフォルダの `DiskLED.ini`（書込不可時は `%AppData%\DiskLED\DiskLED.ini` へフォールバックする）
-- **メーター追従**: 上昇は指数で速く、下降は定速の余韻（fps 非依存）。動きは表示モードの `layout.cfg` `[Ballistic]` で指定（作業版 3.0.1。公開リリースは後続版）
+- **メーター追従**: 上昇は指数で速く、下降は定速の余韻（fps 非依存）。動きは表示モードの `layout.cfg` `[Ballistic]` で指定（3.0.1 以降）
 - **対数スケール**: ネット速度はオプションで直線（既定）または対数。ディスクはオートセンスの直線。CPU／MEM／SWAP は常に直線
 - **高 DPI**: 初版は **100% 表示前提**（拡大時は OS 側拡大でも可）
 - **権限**: **管理者不要**で動く範囲に限定（ICMP Ping も一般権限で実施）
@@ -68,8 +68,8 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 ### 配布・その他
 
 - **配布形態**:
-  - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_3.0.0.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
-  - 併せてポータブル zip（`DiskLED-3.0.0-portable.zip`）も利用可能とする
+  - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_3.0.1.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
+  - 併せてポータブル zip（`DiskLED-3.0.1-portable.zip`）も利用可能とする
 - **言語**: 既定は英語。OS の UI 言語が日本語のときだけ日本語
 - **ライセンス**: 著作権は SoRaMiMi（旧版開発者と同一）。`assets/` 以下も同様。公式配布物は無償利用可。ソースの改変・再配布は不可。改善・デバッグの協力は共同開発者（リポジトリ編集権限の付与）として行う。詳細は `LICENSE.txt`
 
@@ -156,7 +156,7 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-o
 
 - **Transparency**: Color-key transparency, like the old skins, to reproduce a non-rectangular window
 - **Settings file**: Basically `DiskLED.ini` in the same folder as the exe (falls back to `%AppData%\DiskLED\DiskLED.ini` when that folder is not writable)
-- **Meter follow**: Fast exponential rise, constant-speed fall (fps-independent). Motion is set per display mode in `layout.cfg` `[Ballistic]` (dev build 3.0.1; public release in a later version)
+- **Meter follow**: Fast exponential rise, constant-speed fall (fps-independent). Motion is set per display mode in `layout.cfg` `[Ballistic]` (since 3.0.1)
 - **Log scale**: Network speed can be linear (default) or logarithmic in Options. Disk stays auto-sense linear. CPU / MEM / SWAP stay linear
 - **High DPI**: First edition assumes **100% display scale** (OS scaling is acceptable when enlarged)
 - **Privileges**: Limited to what works **without administrator** (ICMP Ping is also done as a standard user)
@@ -164,8 +164,8 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-o
 ### Distribution and other
 
 - **Distribution**:
-  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_3.0.0.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
-  - A portable zip (`DiskLED-3.0.0-portable.zip`) is also available
+  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_3.0.1.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
+  - A portable zip (`DiskLED-3.0.1-portable.zip`) is also available
 - **Language**: English by default. Japanese only when the OS UI language is Japanese
 - **License**: Copyright is SoRaMiMi (same as the previous version’s author). Same for `assets/`. Official packages may be used free of charge. Modification and redistribution of the source are not permitted. Help with improvements and debugging is as a co-developer (granted repository write access). Details in `LICENSE.txt`
 
