@@ -96,6 +96,7 @@ type
     procedure ApplySettingsToUi;
     procedure CaptureWindowPosToSettings;
     procedure PersistSettings;
+    procedure ApplyStartupRegistration;
     procedure SetupTray;
     procedure BringWindowForward;
     procedure EnsureNoTaskbarButton;
@@ -364,6 +365,16 @@ begin
   end;
 end;
 
+procedure TMainForm.ApplyStartupRegistration;
+begin
+  if (FSettings = nil) or (not FReadyToPersist) then
+    Exit;
+  try
+    TStartup.SetRegistered(FSettings.Startup);
+  except
+  end;
+end;
+
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   if FHoverDelay <> nil then
@@ -385,12 +396,14 @@ procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   { Capture while the window still has a valid position. }
   PersistSettings;
+  ApplyStartupRegistration;
   CanClose := True;
 end;
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   PersistSettings;
+  ApplyStartupRegistration;
 end;
 
 procedure TMainForm.BuildPopup;

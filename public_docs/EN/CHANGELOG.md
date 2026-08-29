@@ -14,6 +14,7 @@ Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 - Crystal: CPU / memory level bars upsampled to 32 frames (smoother follow)
 - Metalic: full-view history graphs stay a line (unchanged)
 - Network speed response can be linear (default) or logarithmic in Options; disk stays auto-sense linear. Switching the scale clears the history graph
+- On exit, startup registration is updated to match the current setting (including rewriting the exe path after a move)
 - Distribution: `DiskLED_Setup_3.0.1.exe` and `DiskLED-3.0.1-portable.zip`
 
 ## 3.0.0 — MVP

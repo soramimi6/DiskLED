@@ -13,7 +13,7 @@
 - **Always-on-top** and drag-to-move
 - Hover the window (or tray) for a tooltip with **version, usage, Disk/Net I/O, and Ping (target and RTT)**
 - **Single instance** (a second launch focuses the existing window and exits)
-- **Tray**, **startup registration**, and **INI settings**
+- **Tray**, **startup registration** (applied when Options is confirmed and on exit), and **INI settings**
 - **Installer** (per-user, uninstallable) and portable zip (see [INSTALL.md](INSTALL.md))
 
 ## Display modes

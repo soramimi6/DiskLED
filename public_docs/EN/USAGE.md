@@ -10,6 +10,7 @@
 
 - Only one instance is allowed. A second launch brings the existing window forward and exits
 - Prefer the Exit menu over killing the process in Task Manager
+- A normal exit rewrites startup registration to match the current Options setting (including the exe path if the folder moved)
 
 ## Window controls
 
