@@ -20,13 +20,20 @@ uses
   uPingCollector in 'src\metrics\uPingCollector.pas',
   uRangeEngine in 'src\metrics\uRangeEngine.pas',
   uHistoryBuffer in 'src\metrics\uHistoryBuffer.pas',
+  uDashboardHistory in 'src\metrics\uDashboardHistory.pas',
   uCollector in 'src\metrics\uCollector.pas',
   uDisplayPipeline in 'src\metrics\uDisplayPipeline.pas',
   uWindowPlacement in 'src\uWindowPlacement.pas',
+  uDpiScale in 'src\uDpiScale.pas',
   uSettings in 'src\uSettings.pas',
   uStartup in 'src\uStartup.pas',
   uHoverTip in 'src\uHoverTip.pas',
   uOptionsForm in 'src\uOptionsForm.pas' {OptionsForm},
+  uDashboardTheme in 'src\dashboard\uDashboardTheme.pas',
+  uDashboardGraph in 'src\dashboard\uDashboardGraph.pas',
+  uDashboardPainter in 'src\dashboard\uDashboardPainter.pas',
+  uDashboardCard in 'src\dashboard\uDashboardCard.pas',
+  uDashboardForm in 'src\dashboard\uDashboardForm.pas' {DashboardForm},
   uMainForm in 'src\uMainForm.pas' {MainForm};
 
 {$R *.res}

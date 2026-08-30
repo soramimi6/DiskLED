@@ -49,6 +49,7 @@ begin
     Exit;
 
   AddStr('menu.ping', 'Ping 更新', 'Refresh Ping');
+  AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
   AddStr('menu.exit', '終了', 'Exit');
@@ -113,6 +114,59 @@ begin
   AddStr('err.layout_mode_incomplete',
     'layout.cfg の Mode 定義が不完全です: %s',
     'Incomplete Mode section in layout.cfg: %s');
+
+  AddStr('dash.title', 'DiskLED ダッシュボード', 'DiskLED Dashboard');
+  AddStr('dash.cpu', 'CPU', 'CPU');
+  AddStr('dash.cpu_user', 'User', 'User');
+  AddStr('dash.cpu_kernel', 'Kernel', 'Kernel');
+  AddStr('dash.cpu_name', '名前', 'Name');
+  AddStr('dash.cpu_cores', 'コア', 'Cores');
+  AddStr('dash.cpu_clock', 'クロック', 'Clock');
+  AddStr('dash.mem', 'メモリ', 'Memory');
+  AddStr('dash.swap', 'SWAP', 'SWAP');
+  AddStr('dash.disk_read', 'ディスク読取', 'Disk Read');
+  AddStr('dash.disk_write', 'ディスク書込', 'Disk Write');
+  AddStr('dash.disk', 'ディスク', 'Disk');
+  AddStr('dash.net', 'ネット', 'Net');
+  AddStr('dash.net_in', 'ネット受信', 'Net In');
+  AddStr('dash.net_out', 'ネット送信', 'Net Out');
+  AddStr('dash.ram', 'RAM', 'RAM');
+  AddStr('dash.mem_avail', '空き', 'Avail');
+  AddStr('dash.mem_cache', 'キャッシュ', 'Cache');
+  AddStr('dash.mem_commit', 'コミット', 'Commit');
+  AddStr('dash.mem_used', '使用中', 'In use');
+  AddStr('dash.mem_standby', 'スタンバイ', 'Standby');
+  AddStr('dash.mem_free', '空き', 'Free');
+  AddStr('dash.lg_read', '読取', 'Read');
+  AddStr('dash.lg_write', '書込', 'Write');
+  AddStr('dash.lg_in', 'In', 'In');
+  AddStr('dash.lg_out', 'Out', 'Out');
+  AddStr('dash.disk_active', 'アクティブ', 'Active');
+  AddStr('dash.queue', 'ディスクキュー', 'Disk queue');
+  AddStr('dash.queue_depth', 'Queue', 'Queue');
+  AddStr('dash.iops_read', '読取 IOPS', 'Read IOPS');
+  AddStr('dash.iops_write', '書込 IOPS', 'Write IOPS');
+  AddStr('dash.power', '電源', 'Power');
+  AddStr('dash.power_source', 'ソース', 'Source');
+  AddStr('dash.power_ac', 'AC', 'AC');
+  AddStr('dash.power_battery', 'バッテリ', 'Battery');
+  AddStr('dash.power_unknown', '不明', 'Unknown');
+  AddStr('dash.power_remain', '残時間', 'Remaining');
+  AddStr('dash.dhcp', 'DHCP', 'DHCP');
+  AddStr('dash.static', '固定', 'Static');
+  AddStr('dash.gw', 'GW', 'GW');
+  AddStr('dash.disk_note', '全物理ディスク（合算）', 'All physical disks (aggregate)');
+  AddStr('dash.adapters', 'アダプタ', 'Adapters');
+  AddStr('dash.nic_active', '稼働中', 'Active');
+  AddStr('dash.nic_skip', '除外', 'Skip');
+  AddStr('dash.ping', 'Ping', 'Ping');
+  AddStr('dash.ping_time', '時刻', 'Time');
+  AddStr('dash.ping_target', '宛先', 'Target');
+  AddStr('dash.ping_rtt', 'RTT', 'RTT');
+  AddStr('dash.ping_status', '状態', 'Status');
+  AddStr('dash.live', 'LIVE', 'LIVE');
+  AddStr('dash.axis_now', '現在', 'now');
+  AddStr('dash.axis_5m', '5分', '5m');
 
   GStringsReady := True;
 end;

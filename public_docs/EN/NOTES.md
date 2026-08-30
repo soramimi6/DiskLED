@@ -11,9 +11,12 @@ The author accepts no liability for any damage arising from use of this software
 - **Ping** sends ICMP to an external host (default `mg6.jp`) or the gateway. If security software or a firewall blocks ICMP, the UI stays on timeout (accepted as normal)
 - **Disk / network** are aggregates. Per-drive or per-NIC views are not in v1
 - Virtual-adapter filtering is heuristic; LED behavior may vary by environment
-- High DPI (e.g. above 125%) may blur or mis-position the UI (v1 assumes 100%)
+- High DPI (e.g. above 125%): since 3.1.0, Per-Monitor V2 and integer scaling are supported. Intermediate scales (e.g. 125%) are floored, so the gadget may look slightly smaller than OS scaling
 - Motion is roughly **10–20 fps** (default 15). The window is not redrawn while sprite frames stay the same
 - The list of real NICs is refreshed every few seconds. After a VPN connect/disconnect, LEDs may lag or linger briefly
+- The dashboard CPU subsection does **not** show package temperature. User-mode Windows APIs do not provide it reliably
+- The dashboard RAM bar’s Standby segment is an approximation (cache capped by available memory), not Task Manager’s exact standby list
+- Dashboard colors follow Windows app light/dark mode. The gadget display modes (Original / Crystal / Metalic) stay skin-based and do not follow OS light/dark. Light dashboard colors are provisional
 
 ## Changes from DiskLED 2.x
 

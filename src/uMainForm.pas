@@ -17,9 +17,11 @@ uses
   uCollector,
   uDisplayPipeline,
   uHistoryBuffer,
+  uDashboardHistory,
   uSettings,
   uHoverTip,
-  uMeterRenderer;
+  uMeterRenderer,
+  uDashboardForm;
 
 type
   TMainForm = class(TForm)
@@ -62,10 +64,21 @@ type
     FHoverHeldText: string;
     FHoverTextTick: Cardinal;
     FHasHoverText: Boolean;
+    FMonitorDpi: Integer;
+    FDisplayScale: Integer;
+    FDashboardHistory: TDashboardHistory;
+    FDashboardPeak: TDashboardSample;
+    FDashboardLastPushTick: Cardinal;
+    FHasDashboardPushTick: Boolean;
+    FDashboardForm: TDashboardForm;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
     procedure ResetGraphPeak;
+    procedure ResetDashboardPeak;
+    procedure ApplyDpiScale;
+    procedure ApplyDpiClientSize;
+    procedure ShowDashboard;
     procedure ToggleCompactFull;
     procedure SetCompactView(ACompact: Boolean);
     procedure Render;
@@ -77,6 +90,7 @@ type
     procedure miFullClick(Sender: TObject);
     procedure miPingClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
+    procedure miDashboardClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure TrayDblClick(Sender: TObject);
     procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
@@ -84,6 +98,7 @@ type
     procedure WMNCRButtonUp(var Message: TWMNCRButtonUp); message WM_NCRBUTTONUP;
     procedure WMContextMenu(var Message: TWMContextMenu); message WM_CONTEXTMENU;
     procedure WMSysCommand(var Message: TWMSysCommand); message WM_SYSCOMMAND;
+    procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
     procedure WMMoving(var Message: TMessage); message WM_MOVING;
     procedure WMExitSizeMove(var Message: TMessage); message WM_EXITSIZEMOVE;
     procedure WMEnterSizeMove(var Message: TMessage); message WM_ENTERSIZEMOVE;
@@ -131,7 +146,8 @@ uses
   uWindowPlacement,
   uOptionsForm,
   uStartup,
-  uMetricsTypes;
+  uMetricsTypes,
+  uDpiScale;
 
 procedure TMainForm.CreateParams(var Params: TCreateParams);
 begin
@@ -227,8 +243,13 @@ begin
   FCollector := TMetricsCollector.Create;
   FPipeline := TDisplayPipeline.Create;
   FHistory := THistoryBuffer.Create(60);
+  FDashboardHistory := TDashboardHistory.Create(300);
   FHasGraphTick := False;
+  FHasDashboardPushTick := False;
+  FMonitorDpi := 96;
+  FDisplayScale := 1;
   ResetGraphPeak;
+  ResetDashboardPeak;
   FTimer := TTimer.Create(Self);
   FTimer.OnTimer := TimerTick;
 
@@ -247,6 +268,8 @@ begin
   { Write back clamped position so next launch matches what user sees. }
   PersistSettings;
 
+  ApplyDpiScale;
+
   FCollector.RequestPing;
   EnsureNoTaskbarButton;
 
@@ -261,6 +284,9 @@ begin
   else
     FHoverDelay.Interval := 500;
   RefreshHoverText;
+
+  if (FSettings <> nil) and FSettings.DashboardOpen then
+    ShowDashboard;
 end;
 
 procedure TMainForm.FormShow(Sender: TObject);
@@ -327,6 +353,8 @@ begin
   begin
     if FHistory <> nil then
       FHistory.Clear;
+    if FDashboardHistory <> nil then
+      FDashboardHistory.ClearLanes([dlNetIn, dlNetOut]);
     ResetGraphPeak;
     Inc(FGraphGen);
     FHasFp := False;
@@ -383,9 +411,11 @@ begin
   FreeAndNil(FHoverTip);
   if FTimer <> nil then
     FTimer.Enabled := False;
+  FreeAndNil(FDashboardForm);
   FCollector.Free;
   FPipeline.Free;
   FHistory.Free;
+  FDashboardHistory.Free;
   FBuffer.Free;
   FAssets.Free;
   FSettings.Free;
@@ -459,6 +489,11 @@ begin
   FPopup.Items.Add(miPing);
 
   miOpt := TMenuItem.Create(FPopup);
+  miOpt.Caption := S('menu.dashboard');
+  miOpt.OnClick := miDashboardClick;
+  FPopup.Items.Add(miOpt);
+
+  miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.options');
   miOpt.OnClick := miOptionsClick;
   FPopup.Items.Add(miOpt);
@@ -524,6 +559,42 @@ begin
   FGraphPeak := ZeroHistorySample;
 end;
 
+procedure TMainForm.ResetDashboardPeak;
+begin
+  FDashboardPeak := ZeroDashboardSample;
+end;
+
+procedure TMainForm.ApplyDpiScale;
+begin
+  if HandleAllocated then
+    FMonitorDpi := MonitorDpiForWindow(Handle)
+  else
+    FMonitorDpi := MonitorDpiForWindow(0);
+  FDisplayScale := IntegerDisplayScale(FMonitorDpi);
+  ApplyDpiClientSize;
+end;
+
+procedure TMainForm.ApplyDpiClientSize;
+var
+  CW, CH: Integer;
+begin
+  if FLayout.Width < 1 then
+    Exit;
+  LayoutClientSize(FLayout.Width, FLayout.Height, FDisplayScale, CW, CH);
+  ClientWidth := CW;
+  ClientHeight := CH;
+end;
+
+procedure TMainForm.ShowDashboard;
+begin
+  if FDashboardForm = nil then
+    FDashboardForm := TDashboardForm.Create(Self, FPipeline, FDashboardHistory,
+      FCollector, FSettings);
+  if FSettings <> nil then
+    FSettings.DashboardOpen := True;
+  FDashboardForm.Show;
+end;
+
 procedure TMainForm.ApplyViewSize;
 begin
   if UsingFullView then
@@ -538,6 +609,7 @@ begin
   ClientHeight := FLayout.Height;
   if FPipeline <> nil then
     FPipeline.ApplyBallistics(FLayout.Ballistics);
+  ApplyDpiClientSize;
 end;
 
 procedure TMainForm.ToggleCompactFull;
@@ -578,7 +650,7 @@ var
   R: TRect;
 begin
   R := BoundsRect;
-  ConstrainAndSnapRect(R);
+  ConstrainAndSnapRect(R, FMonitorDpi);
   if not EqualRect(R, BoundsRect) then
     BoundsRect := R;
 end;
@@ -632,6 +704,7 @@ var
   IntervalMs: Cardinal;
   NowTick: Cardinal;
   Sample: THistorySample;
+  DashSample: TDashboardSample;
   GraphKey: Cardinal;
   Fp: TVisualFingerprint;
 begin
@@ -666,6 +739,27 @@ begin
     end;
   end;
 
+  if FDashboardHistory <> nil then
+  begin
+    DashSample.Cpu := FPipeline.Normalized.Cpu;
+    DashSample.Mem := FPipeline.Normalized.Mem;
+    DashSample.Swap := FPipeline.Normalized.Swap;
+    DashSample.DiskRead := FPipeline.Normalized.DiskRead;
+    DashSample.DiskWrite := FPipeline.Normalized.DiskWrite;
+    DashSample.NetIn := FPipeline.Normalized.NetIn;
+    DashSample.NetOut := FPipeline.Normalized.NetOut;
+    AccrueDashboardPeak(FDashboardPeak, DashSample);
+    NowTick := GetTickCount;
+    if (not FHasDashboardPushTick) or
+      ((NowTick - FDashboardLastPushTick) >= 1000) then
+    begin
+      FDashboardHistory.Push(FDashboardPeak);
+      ResetDashboardPeak;
+      FDashboardLastPushTick := NowTick;
+      FHasDashboardPushTick := True;
+    end;
+  end;
+
   if UsingFullView then
     GraphKey := FGraphGen
   else
@@ -682,9 +776,18 @@ begin
 end;
 
 procedure TMainForm.FormPaint(Sender: TObject);
+var
+  DestW, DestH: Integer;
 begin
-  if FBuffer <> nil then
-    Canvas.Draw(0, 0, FBuffer);
+  if FBuffer = nil then
+    Exit;
+  DestW := FLayout.Width * FDisplayScale;
+  DestH := FLayout.Height * FDisplayScale;
+  if (DestW < 1) or (DestH < 1) then
+    Exit;
+  SetStretchBltMode(Canvas.Handle, COLORONCOLOR);
+  StretchBlt(Canvas.Handle, 0, 0, DestW, DestH, FBuffer.Canvas.Handle, 0, 0,
+    FLayout.Width, FLayout.Height, SRCCOPY);
 end;
 
 procedure TMainForm.miModeClick(Sender: TObject);
@@ -706,6 +809,11 @@ procedure TMainForm.miPingClick(Sender: TObject);
 begin
   if FCollector <> nil then
     FCollector.RequestPing;
+end;
+
+procedure TMainForm.miDashboardClick(Sender: TObject);
+begin
+  ShowDashboard;
 end;
 
 procedure TMainForm.miOptionsClick(Sender: TObject);
@@ -784,9 +892,17 @@ begin
   inherited;
 end;
 
+procedure TMainForm.WMDpiChanged(var Message: TMessage);
+begin
+  ApplyDpiScale;
+  ApplyWindowBounds;
+  Invalidate;
+  Message.Result := 0;
+end;
+
 procedure TMainForm.WMMoving(var Message: TMessage);
 begin
-  ConstrainAndSnapRect(PRect(Message.LParam)^);
+  ConstrainAndSnapRect(PRect(Message.LParam)^, FMonitorDpi);
   Message.Result := 1;
 end;
 

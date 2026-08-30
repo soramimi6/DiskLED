@@ -8,6 +8,13 @@ type
 
   TMetricsSnapshot = record
     CpuUsage: Double;
+    CpuUserPct: Double;
+    CpuKernelPct: Double;
+    CpuName: string;
+    CpuCores: Integer;
+    CpuThreads: Integer;
+    CpuCurrentMhz: Integer;
+    CpuMaxMhz: Integer;
     MemUsage: Double;
     SwapUsage: Double;
     DiskReadBps: Double;
@@ -15,6 +22,22 @@ type
     NetInBps: Double;
     NetOutBps: Double;
     NetLinkSpeedBps: Double; { Byte/s; 0 if unknown }
+    MemUsedBytes: UInt64;
+    MemTotalBytes: UInt64;
+    MemAvailBytes: UInt64;
+    MemCacheBytes: UInt64;
+    MemCommitBytes: UInt64;
+    MemCommitLimitBytes: UInt64;
+    SwapUsedBytes: UInt64;
+    SwapTotalBytes: UInt64;
+    DiskQueue: Double;
+    DiskReadIops: Double;
+    DiskWriteIops: Double;
+    DiskActivePct: Double; { 0..100; -1 unknown }
+    PowerAc: Boolean;
+    PowerBatteryPresent: Boolean;
+    PowerBatteryPercent: Integer; { 0..100; -1 unknown }
+    PowerRemainSec: Integer; { battery remaining seconds; -1 unknown }
     PingRttMs: Double;
     PingOk: Boolean;
     PingPending: Boolean;
@@ -74,6 +97,26 @@ type
     PingPending: Boolean;
   end;
 
+  TNetAdapterInfo = record
+    Index: Cardinal;
+    FriendlyName: string;
+    Descr: string;
+    LinkSpeedBps: Double;
+    Included: Boolean;
+    IsLoopback: Boolean;
+    Ipv4: string;
+    Gateway: string;
+    DhcpEnabled: Boolean;
+  end;
+
+  TPingHistoryEntry = record
+    When: TDateTime;
+    Target: string;
+    RttMs: Double;
+    Ok: Boolean;
+    Level: TPingLevel;
+  end;
+
 const
   CNoiseFloorBps = 4096.0; { ignore below 4 KiB/s }
 
@@ -81,6 +124,10 @@ function Clamp01(const AValue: Double): Double;
 function ClampStrength(AValue: Integer): Integer;
 function IsActiveBps(const ABps: Double): Boolean;
 function FormatRateBps(ABps: Double): string;
+function FormatLinkSpeedBps(ABps: Double): string;
+function FormatBytesPair(AUsed, ATotal: UInt64): string;
+function FormatBytesGiB(ABytes: UInt64): string;
+function FormatIops(AIops: Double): string;
 function DefaultBallisticParams: TBallisticParams;
 function DefaultMeterBallistics: TMeterBallistics;
 
@@ -138,6 +185,62 @@ begin
     Result := Format('%.1f %s', [V, UnitLabel])
   else
     Result := Format('%.2f %s', [V, UnitLabel]);
+end;
+
+function FormatBytesPair(AUsed, ATotal: UInt64): string;
+const
+  CGiB = 1024.0 * 1024.0 * 1024.0;
+var
+  U, T: Double;
+begin
+  if ATotal = 0 then
+    Exit(#$2014);
+  U := AUsed / CGiB;
+  T := ATotal / CGiB;
+  if T >= 10 then
+    Result := Format('%.1f / %.1f GB', [U, T])
+  else
+    Result := Format('%.2f / %.2f GB', [U, T]);
+end;
+
+function FormatBytesGiB(ABytes: UInt64): string;
+const
+  CGiB = 1024.0 * 1024.0 * 1024.0;
+var
+  V: Double;
+begin
+  V := ABytes / CGiB;
+  if V >= 10 then
+    Result := Format('%.1f GB', [V])
+  else
+    Result := Format('%.2f GB', [V]);
+end;
+
+function FormatIops(AIops: Double): string;
+begin
+  if AIops < 0 then
+    AIops := 0;
+  if AIops >= 100 then
+    Result := Format('%.0f', [AIops])
+  else if AIops >= 10 then
+    Result := Format('%.1f', [AIops])
+  else
+    Result := Format('%.2f', [AIops]);
+end;
+
+function FormatLinkSpeedBps(ABps: Double): string;
+var
+  Mbps: Double;
+begin
+  if ABps <= 0 then
+    Exit(#$2014);
+  Mbps := (ABps * 8) / (1000 * 1000);
+  if Mbps >= 1000 then
+    Result := Format('%.1f Gbps', [Mbps / 1000])
+  else if Mbps >= 100 then
+    Result := Format('%.0f Mbps', [Mbps])
+  else
+    Result := Format('%.0f Mbps', [Mbps]);
 end;
 
 function ClampStrength(AValue: Integer): Integer;

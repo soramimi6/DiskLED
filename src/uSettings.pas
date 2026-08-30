@@ -27,6 +27,11 @@ type
     FPingFairMs: Integer;
     FPingSlowMs: Integer;
     FPingTimeoutMs: Integer;
+    FDashboardOpen: Boolean;
+    FDashboardX: Integer;
+    FDashboardY: Integer;
+    FDashboardW: Integer;
+    FDashboardH: Integer;
     class function ExeIniPath: string; static;
     class function AppDataIniPath: string; static;
     class function CanWriteDir(const ADir: string): Boolean; static;
@@ -54,6 +59,11 @@ type
     property PingFairMs: Integer read FPingFairMs write FPingFairMs;
     property PingSlowMs: Integer read FPingSlowMs write FPingSlowMs;
     property PingTimeoutMs: Integer read FPingTimeoutMs write FPingTimeoutMs;
+    property DashboardOpen: Boolean read FDashboardOpen write FDashboardOpen;
+    property DashboardX: Integer read FDashboardX write FDashboardX;
+    property DashboardY: Integer read FDashboardY write FDashboardY;
+    property DashboardW: Integer read FDashboardW write FDashboardW;
+    property DashboardH: Integer read FDashboardH write FDashboardH;
   end;
 
 implementation
@@ -129,6 +139,11 @@ begin
   FPingFairMs := 200;
   FPingSlowMs := 500;
   FPingTimeoutMs := 1000;
+  FDashboardOpen := False;
+  FDashboardX := 100;
+  FDashboardY := 100;
+  FDashboardW := 1440;
+  FDashboardH := 1200;
 end;
 
 procedure TAppSettings.ResolvePath;
@@ -178,6 +193,10 @@ begin
     FPingTimeoutMs := FPingSlowMs + 1;
   if Trim(FMode) = '' then
     FMode := 'original';
+  if FDashboardW < 1280 then
+    FDashboardW := 1280;
+  if FDashboardH < 960 then
+    FDashboardH := 960;
 end;
 
 procedure TAppSettings.Load;
@@ -213,6 +232,11 @@ begin
     FPingFairMs := Ini.ReadInteger('Ping', 'ThresholdFairMs', FPingFairMs);
     FPingSlowMs := Ini.ReadInteger('Ping', 'ThresholdSlowMs', FPingSlowMs);
     FPingTimeoutMs := Ini.ReadInteger('Ping', 'ThresholdTimeoutMs', FPingTimeoutMs);
+    FDashboardOpen := Ini.ReadBool('Dashboard', 'Open', FDashboardOpen);
+    FDashboardX := Ini.ReadInteger('Dashboard', 'WindowX', FDashboardX);
+    FDashboardY := Ini.ReadInteger('Dashboard', 'WindowY', FDashboardY);
+    FDashboardW := Ini.ReadInteger('Dashboard', 'WindowW', FDashboardW);
+    FDashboardH := Ini.ReadInteger('Dashboard', 'WindowH', FDashboardH);
   finally
     Ini.Free;
   end;
@@ -256,6 +280,11 @@ begin
     Ini.WriteInteger('Ping', 'ThresholdFairMs', FPingFairMs);
     Ini.WriteInteger('Ping', 'ThresholdSlowMs', FPingSlowMs);
     Ini.WriteInteger('Ping', 'ThresholdTimeoutMs', FPingTimeoutMs);
+    Ini.WriteBool('Dashboard', 'Open', FDashboardOpen);
+    Ini.WriteInteger('Dashboard', 'WindowX', FDashboardX);
+    Ini.WriteInteger('Dashboard', 'WindowY', FDashboardY);
+    Ini.WriteInteger('Dashboard', 'WindowW', FDashboardW);
+    Ini.WriteInteger('Dashboard', 'WindowH', FDashboardH);
     Ini.UpdateFile;
   finally
     Ini.Free;

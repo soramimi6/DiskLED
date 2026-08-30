@@ -11,9 +11,12 @@ uses
 const
   CEdgeSnapPx = 16;
 
-procedure ConstrainAndSnapRect(var R: TRect);
+procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer = 96);
 
 implementation
+
+uses
+  uDpiScale;
 
 function WorkAreaForRect(const R: TRect): TRect;
 var
@@ -29,17 +32,19 @@ begin
     SystemParametersInfo(SPI_GETWORKAREA, 0, @Result, 0);
 end;
 
-procedure ConstrainAndSnapRect(var R: TRect);
+procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer);
 var
   Work: TRect;
   W, H: Integer;
   Left, Top: Integer;
+  SnapPx: Integer;
 begin
   W := R.Right - R.Left;
   H := R.Bottom - R.Top;
   if (W <= 0) or (H <= 0) then
     Exit;
 
+  SnapPx := SnapPixels(ADpi);
   Work := WorkAreaForRect(R);
   Left := R.Left;
   Top := R.Top;
@@ -64,13 +69,13 @@ begin
       Top := Work.Bottom - H;
   end;
 
-  if Abs(Left - Work.Left) <= CEdgeSnapPx then
+  if Abs(Left - Work.Left) <= SnapPx then
     Left := Work.Left;
-  if Abs((Left + W) - Work.Right) <= CEdgeSnapPx then
+  if Abs((Left + W) - Work.Right) <= SnapPx then
     Left := Work.Right - W;
-  if Abs(Top - Work.Top) <= CEdgeSnapPx then
+  if Abs(Top - Work.Top) <= SnapPx then
     Top := Work.Top;
-  if Abs((Top + H) - Work.Bottom) <= CEdgeSnapPx then
+  if Abs((Top + H) - Work.Bottom) <= SnapPx then
     Top := Work.Bottom - H;
 
   R.Left := Left;

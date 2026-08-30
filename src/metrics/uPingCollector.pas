@@ -31,6 +31,10 @@ type
     FOk: Boolean;
     FLevel: TPingLevel;
     FLastTarget: string;
+    FHistory: TArray<TPingHistoryEntry>;
+    FHistoryHead: Integer;
+    FHistoryCount: Integer;
+    procedure PushHistory(const E: TPingHistoryEntry);
     procedure WorkerExecute;
     function ResolveIPv4(const AHost: string; out AAddr: Cardinal): Boolean;
     function TryDefaultGateway(out AHost: string): Boolean;
@@ -46,6 +50,7 @@ type
     procedure RequestNow;
     procedure Tick;
     procedure CopyTo(var ASnap: TMetricsSnapshot);
+    procedure CopyPingHistory(out AEntries: TArray<TPingHistoryEntry>);
   end;
 
 implementation
@@ -62,6 +67,7 @@ const
   CFairMs = 200;
   CSlowMs = 500;
   CTimeoutThreshMs = 1000;
+  CPingHistoryCapacity = 24;
 
 type
   TMIBIpForwardRow = record
@@ -158,6 +164,9 @@ begin
   FRttMs := 0;
   FOk := False;
   FLevel := plTimeout;
+  SetLength(FHistory, CPingHistoryCapacity);
+  FHistoryHead := 0;
+  FHistoryCount := 0;
   FThread := TPingWorker.Create(Self);
 end;
 
@@ -253,6 +262,44 @@ begin
     FWake.SetEvent;
 end;
 
+procedure TPingCollector.PushHistory(const E: TPingHistoryEntry);
+var
+  Idx: Integer;
+begin
+  if Length(FHistory) < 1 then
+    Exit;
+  Idx := FHistoryHead;
+  FHistory[Idx] := E;
+  FHistoryHead := (FHistoryHead + 1) mod Length(FHistory);
+  if FHistoryCount < Length(FHistory) then
+    Inc(FHistoryCount);
+end;
+
+procedure TPingCollector.CopyPingHistory(out AEntries: TArray<TPingHistoryEntry>);
+var
+  i, StartIdx, PhysIdx: Integer;
+  Count: Integer;
+begin
+  FLock.Enter;
+  try
+    Count := FHistoryCount;
+    SetLength(AEntries, Count);
+    if Count = 0 then
+      Exit;
+    if Count < Length(FHistory) then
+      StartIdx := 0
+    else
+      StartIdx := FHistoryHead;
+    for i := 0 to Count - 1 do
+    begin
+      PhysIdx := (StartIdx + i) mod Length(FHistory);
+      AEntries[i] := FHistory[PhysIdx];
+    end;
+  finally
+    FLock.Leave;
+  end;
+end;
+
 procedure TPingCollector.CopyTo(var ASnap: TMetricsSnapshot);
 begin
   FLock.Enter;
@@ -283,6 +330,9 @@ begin
 end;
 
 procedure TPingCollector.ApplyResult(AOk: Boolean; ARttMs: Double);
+var
+  Entry: TPingHistoryEntry;
+  Target: string;
 begin
   FLock.Enter;
   try
@@ -290,6 +340,16 @@ begin
     FRttMs := ARttMs;
     FLevel := LevelFromRtt(AOk, ARttMs);
     FSending := False;
+    if FLastTarget <> '' then
+      Target := FLastTarget
+    else
+      Target := FHost;
+    Entry.When := Now;
+    Entry.Target := Target;
+    Entry.RttMs := ARttMs;
+    Entry.Ok := AOk;
+    Entry.Level := FLevel;
+    PushHistory(Entry);
   finally
     FLock.Leave;
   end;

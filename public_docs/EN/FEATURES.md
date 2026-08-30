@@ -15,6 +15,8 @@
 - **Single instance** (a second launch focuses the existing window and exits)
 - **Tray**, **startup registration** (applied when Options is confirmed and on exit), and **INI settings**
 - **Installer** (per-user, uninstallable) and portable zip (see [INSTALL.md](INSTALL.md))
+- **Dashboard** (3.1.0): separate window with a left column (donuts and history; disk/network include a color legend) and a right column (CPU details, memory amounts, power, disk queue, Ping history) on one screen (right-click menu). Colors follow Windows app light/dark mode
+- **High DPI** (3.1.0): Per-Monitor V2; integer scaling for the gadget
 
 ## Display modes
 

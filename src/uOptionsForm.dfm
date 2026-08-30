@@ -13,6 +13,7 @@ object OptionsForm: TOptionsForm
   Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
+  Scaled = True
   OnCreate = FormCreate
   TextHeight = 15
   object PnlContent: TPanel
