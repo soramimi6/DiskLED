@@ -53,6 +53,13 @@ type
     BodySize: Integer;
     MonoSize: Integer;
     AxisSize: Integer;
+    QueueDigitSize: Integer;
+    PingHeroSize: Integer;
+    GraphPenWidth: Integer;
+    HeaderTitleSize: Integer;
+    HeaderMetaSize: Integer;
+    MeterPenMin: Integer;
+    MeterPenMinInner: Integer;
   end;
 
 function SystemUsesLightTheme: Boolean;
@@ -60,14 +67,15 @@ procedure ApplyHudTitleBar(AHandle: THandle);
 function HudPaletteDark: THudPalette;
 function HudPaletteLight: THudPalette;
 function HudPalette: THudPalette;
-function HudMetrics: THudMetrics;
+function HudMetrics(ADpi: Integer): THudMetrics;
 function PingLevelColor(const APalette: THudPalette; ALevel: Integer): TColor;
 
 implementation
 
 uses
   Winapi.Windows,
-  uMetricsTypes;
+  uMetricsTypes,
+  uDpiScale;
 
 function DwmSetWindowAttribute(hwnd: HWND; dwAttribute: DWORD;
   pvAttribute: Pointer; cbAttribute: DWORD): HRESULT; stdcall;
@@ -180,27 +188,36 @@ begin
     Result := HudPaletteDark;
 end;
 
-function HudMetrics: THudMetrics;
+function HudMetrics(ADpi: Integer): THudMetrics;
 begin
-  Result.Margin := 12;
-  Result.HeaderHeight := 44;
-  Result.AccentLine := 2;
-  Result.CardRadius := 8;
-  Result.CardGap := 8;
-  Result.CardPad := 10;
-  Result.StatPillHeight := 96;
-  Result.GraphHeight := 88;
-  Result.CardHeaderHeight := 22;
-  Result.MeterPaneWidth := 240;
-  Result.SideColWidth := 360;
-  Result.NicRowHeight := 46;
-  Result.PingHeroHeight := 28;
-  Result.PingRowHeight := 18;
-  Result.BigDigitSize := 22;
-  Result.HeadingSize := 10;
-  Result.BodySize := 10;
-  Result.MonoSize := 10;
-  Result.AxisSize := 8;
+  if ADpi < 1 then
+    ADpi := 96;
+  Result.Margin := ScalePx(12, ADpi);
+  Result.HeaderHeight := ScalePx(44, ADpi);
+  Result.AccentLine := ScalePx(2, ADpi);
+  Result.CardRadius := ScalePx(8, ADpi);
+  Result.CardGap := ScalePx(8, ADpi);
+  Result.CardPad := ScalePx(10, ADpi);
+  Result.StatPillHeight := ScalePx(96, ADpi);
+  Result.GraphHeight := ScalePx(88, ADpi);
+  Result.CardHeaderHeight := ScalePx(22, ADpi);
+  Result.MeterPaneWidth := ScalePx(240, ADpi);
+  Result.SideColWidth := ScalePx(360, ADpi);
+  Result.NicRowHeight := ScalePx(46, ADpi);
+  Result.PingHeroHeight := ScalePx(28, ADpi);
+  Result.PingRowHeight := ScalePx(18, ADpi);
+  Result.BigDigitSize := ScalePx(22, ADpi);
+  Result.HeadingSize := ScalePx(10, ADpi);
+  Result.BodySize := ScalePx(10, ADpi);
+  Result.MonoSize := ScalePx(10, ADpi);
+  Result.AxisSize := ScalePx(8, ADpi);
+  Result.QueueDigitSize := ScalePx(28, ADpi);
+  Result.PingHeroSize := ScalePx(14, ADpi);
+  Result.GraphPenWidth := ScalePx(2, ADpi);
+  Result.HeaderTitleSize := ScalePx(12, ADpi);
+  Result.HeaderMetaSize := ScalePx(9, ADpi);
+  Result.MeterPenMin := ScalePx(5, ADpi);
+  Result.MeterPenMinInner := ScalePx(4, ADpi);
 end;
 
 function PingLevelColor(const APalette: THudPalette; ALevel: Integer): TColor;

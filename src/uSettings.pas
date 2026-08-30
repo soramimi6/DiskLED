@@ -193,6 +193,12 @@ begin
     FPingTimeoutMs := FPingSlowMs + 1;
   if Trim(FMode) = '' then
     FMode := 'original';
+  { Dashboard size/pos are 96dpi DIP. Clamp leftover physical pixels from
+    earlier PMv2 builds that stored window pixels instead of DIP. }
+  if FDashboardW > 3840 then
+    FDashboardW := 1440;
+  if FDashboardH > 2400 then
+    FDashboardH := 1200;
   if FDashboardW < 1280 then
     FDashboardW := 1280;
   if FDashboardH < 960 then

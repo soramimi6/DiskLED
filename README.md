@@ -36,6 +36,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - トレイアイコン（起動中）表示
 - スタートアップ登録機能
 - 単一起動の強制
+- **高 DPI（Per-Monitor V2）**。ガジェットは 0.5 刻み、ダッシュボードは実 DPI、オプションは VCL Scaled
 
 **含めない（今後検討）**
 
@@ -44,7 +45,6 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - 複数起動・ドライブ別インスタンス
 - マウス接近で隠す／最大化でトレイ退避
 - OwnerDraw メニュー
-- 高 DPI 本対応（Per-Monitor v2）
 - 手動速度レンジ UI
 - 手動言語切替（ini / メニュー）
 
@@ -62,7 +62,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - **設定ファイル**: 基本は exe と同じフォルダの `DiskLED.ini`（書込不可時は `%AppData%\DiskLED\DiskLED.ini` へフォールバックする）
 - **メーター追従**: 上昇は指数で速く、下降は定速の余韻（fps 非依存）。動きは表示モードの `layout.cfg` `[Ballistic]` で指定（3.0.1 以降）
 - **対数スケール**: ネット速度はオプションで直線（既定）または対数。ディスクはオートセンスの直線。CPU／MEM／SWAP は常に直線
-- **高 DPI**: 初版は **100% 表示前提**（拡大時は OS 側拡大でも可）
+- **高 DPI**: プロセスは **Per-Monitor V2**。ガジェットは 0.5 刻み（125% は見た目 1.5 倍）。ダッシュボードは実 DPI。オプションは VCL の Scaled
 - **権限**: **管理者不要**で動く範囲に限定（ICMP Ping も一般権限で実施）
 
 ### 配布・その他
@@ -132,6 +132,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - Tray icon (while running)
 - Startup registration
 - Enforce single instance
+- **High DPI (Per-Monitor V2)**. Gadget uses 0.5-step scale; dashboard follows real DPI; Options use VCL Scaled
 
 **Do not include (consider later)**
 
@@ -140,7 +141,6 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - Multiple instances / per-drive instances
 - Hide on mouse approach / retreat to tray when maximized
 - OwnerDraw menus
-- Full high-DPI support (Per-Monitor v2)
 - Manual speed-range UI
 - Manual language switching (ini / menu)
 
@@ -158,7 +158,7 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-o
 - **Settings file**: Basically `DiskLED.ini` in the same folder as the exe (falls back to `%AppData%\DiskLED\DiskLED.ini` when that folder is not writable)
 - **Meter follow**: Fast exponential rise, constant-speed fall (fps-independent). Motion is set per display mode in `layout.cfg` `[Ballistic]` (since 3.0.1)
 - **Log scale**: Network speed can be linear (default) or logarithmic in Options. Disk stays auto-sense linear. CPU / MEM / SWAP stay linear
-- **High DPI**: First edition assumes **100% display scale** (OS scaling is acceptable when enlarged)
+- **High DPI**: Process is **Per-Monitor V2**. The gadget uses 0.5-step scale (125% looks like 1.5×). The dashboard follows real DPI. Options use VCL Scaled
 - **Privileges**: Limited to what works **without administrator** (ICMP Ping is also done as a standard user)
 
 ### Distribution and other

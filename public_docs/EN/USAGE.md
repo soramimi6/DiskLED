@@ -54,7 +54,7 @@ Open **Dashboard** from the right-click menu. Region names:
 DISKLED HUD (header)
 + Left column
 | + CPU / memory / SWAP / disk / network sections
-|     donut graph | history graph (about 5 minutes, updated every second while open)
+|     donut graph (about 5 times per second) | history graph (about 5 minutes, updated every second while open)
 + Right column
   + CPU subsection — name, cores, clock, user/kernel
   + Memory subsection — RAM stacked bar (in use / standby / free), SWAP usage and commit
@@ -64,6 +64,7 @@ DISKLED HUD (header)
 ```
 
 - The disk section combines read (outer ring) and write (inner ring); both history traces are solid lines, distinguished by color and the legend. Network in/out is the same
+- Numbers in the donut update once per second. Only the rings follow about 5 times per second
 - CPU / memory / SWAP history graphs fill under the line with a lighter wash of the line color. Disk / network are lines only, because the traces overlap
 - CPU package temperature is not shown (not available reliably without admin/vendor APIs)
 - Matching row heights across columns (CPU / memory / SWAP↔power / disk↔disk queue / network↔Ping). Laid out for a single screen with no scrolling. Resizable window. Close (×) hides it (history stays in memory). History is cleared on app restart

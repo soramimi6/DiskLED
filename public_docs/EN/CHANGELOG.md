@@ -8,9 +8,9 @@ Newest first. User-facing summary only; implementation detail lives in `docs/DES
 
 Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 
-- **High DPI**: Per-Monitor V2. The gadget uses integer scaling (no OS blur). Intermediate scales such as 125% are floored for a crisp look
+- **High DPI**: Per-Monitor V2. The gadget uses 0.5-step scale (1× / 1.5× / 2×…; 125% looks like 1.5×). The dashboard follows real DPI (`Dpi/96`). Options use VCL Scaled
 - **Dashboard**: Open from the right-click menu as a separate window. The left column has sections for CPU / memory / SWAP / disk / network (donut plus history; disk and network use a double donut, overlaid lines, and a Read/Write or In/Out color legend). The right column has CPU details, memory amounts (in-use / standby / free bar and SWAP commit), power (battery field names stay visible on AC), disk queue (including combined active time), and Ping (latest plus up to 5 history rows)
-- Dashboard colors follow Windows app light/dark mode (updates while the window is open). Updates once per second while visible. History is in memory only (cleared on restart). CPU / memory / SWAP history fills under the line with a lighter wash (disk / network stay unfilled because the traces overlap)
+- Dashboard colors follow Windows app light/dark mode (updates while the window is open). While visible, left-column donuts update about 5 times per second; numbers, history graphs, and the right column stay at once per second. History is in memory only (cleared on restart). CPU / memory / SWAP history fills under the line with a lighter wash (disk / network stay unfilled because the traces overlap)
 - Fixed network aggregate speed staying at zero
 - Options dialog auto-scales on high DPI
 

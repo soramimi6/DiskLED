@@ -19,7 +19,8 @@ uses
   uDashboardCard,
   uDashboardGraph,
   uSettings,
-  uMetricsTypes;
+  uMetricsTypes,
+  uDpiScale;
 
 { Dashboard regions (docs/DESIGN.md, .cursor/rules/dashboard-regions.mdc):
   ヘッダー
@@ -46,10 +47,13 @@ type
     FPowerPaint: TPaintBox;
     FPingPaint: TPaintBox;
     FUiTimer: TTimer;
+    FMeterTimer: TTimer;
     FCards: array[0..4] of TDashboardCard;
     FLiveOn: Boolean;
     FPingHistory: TArray<TPingHistoryEntry>;
+    FWindowDpi: Integer;
     procedure UiTimerTick(Sender: TObject);
+    procedure MeterTimerTick(Sender: TObject);
     procedure HeaderPaint(Sender: TObject);
     procedure CpuPaint(Sender: TObject);
     procedure MemPaint(Sender: TObject);
@@ -58,8 +62,15 @@ type
     procedure PingPaint(Sender: TObject);
     procedure LayoutContent;
     procedure RefreshData;
+    procedure ApplyDonutLevels;
     procedure ApplyTheme;
+    procedure ApplyDpiChrome;
+    procedure ApplySavedDipBounds;
+    procedure PersistDashboardDip;
+    function WindowDpi: Integer;
+    function CurrentMetrics: THudMetrics;
     procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
+    procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
     function ProductVersionText: string;
   protected
     procedure CreateWnd; override;
@@ -93,22 +104,24 @@ var
   Pal: THudPalette;
 begin
   Pal := HudPalette;
+  Scaled := False;
   Caption := S('dash.title');
   Color := Pal.Bg;
   DoubleBuffered := True;
   Position := poDesigned;
-  Constraints.MinWidth := 1280;
-  Constraints.MinHeight := 960;
-  if FSettings <> nil then
-  begin
-    SetBounds(FSettings.DashboardX, FSettings.DashboardY,
-      FSettings.DashboardW, FSettings.DashboardH);
-  end;
+  if HandleAllocated then
+    FWindowDpi := MonitorDpiForWindow(Handle)
+  else
+    FWindowDpi := MonitorDpiForWindow(0);
+  if FWindowDpi < 1 then
+    FWindowDpi := 96;
+  ApplyDpiChrome;
+  ApplySavedDipBounds;
 
   FHeaderPaint := TPaintBox.Create(Self);
   FHeaderPaint.Parent := Self;
   FHeaderPaint.Align := alTop;
-  FHeaderPaint.Height := HudMetrics.HeaderHeight + HudMetrics.AccentLine;
+  FHeaderPaint.Height := CurrentMetrics.HeaderHeight + CurrentMetrics.AccentLine;
   FHeaderPaint.OnPaint := HeaderPaint;
 
   for i := 0 to 4 do
@@ -166,8 +179,13 @@ begin
   FPingPaint.OnPaint := PingPaint;
 
   FUiTimer := TTimer.Create(Self);
+  FUiTimer.Enabled := False;
   FUiTimer.Interval := 1000;
   FUiTimer.OnTimer := UiTimerTick;
+  FMeterTimer := TTimer.Create(Self);
+  FMeterTimer.Enabled := False;
+  FMeterTimer.Interval := 200;
+  FMeterTimer.OnTimer := MeterTimerTick;
   FLiveOn := True;
 
   LayoutContent;
@@ -177,7 +195,87 @@ end;
 procedure TDashboardForm.CreateWnd;
 begin
   inherited;
+  if FWindowDpi < 1 then
+  begin
+    FWindowDpi := MonitorDpiForWindow(Handle);
+    if FWindowDpi < 1 then
+      FWindowDpi := 96;
+  end;
   ApplyHudTitleBar(Handle);
+end;
+
+function TDashboardForm.WindowDpi: Integer;
+begin
+  if FWindowDpi > 0 then
+    Result := FWindowDpi
+  else if HandleAllocated then
+    Result := MonitorDpiForWindow(Handle)
+  else
+    Result := MonitorDpiForWindow(0);
+  if Result < 1 then
+    Result := 96;
+end;
+
+function TDashboardForm.CurrentMetrics: THudMetrics;
+begin
+  Result := HudMetrics(WindowDpi);
+end;
+
+procedure TDashboardForm.ApplyDpiChrome;
+var
+  Dpi: Integer;
+  Met: THudMetrics;
+begin
+  Dpi := WindowDpi;
+  Met := HudMetrics(Dpi);
+  Constraints.MinWidth := ScalePx(1280, Dpi);
+  Constraints.MinHeight := ScalePx(960, Dpi);
+  if FHeaderPaint <> nil then
+    FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
+end;
+
+procedure TDashboardForm.ApplySavedDipBounds;
+var
+  Dpi: Integer;
+begin
+  if FSettings = nil then
+    Exit;
+  Dpi := WindowDpi;
+  SetBounds(ScalePx(FSettings.DashboardX, Dpi), ScalePx(FSettings.DashboardY, Dpi),
+    ScalePx(FSettings.DashboardW, Dpi), ScalePx(FSettings.DashboardH, Dpi));
+end;
+
+procedure TDashboardForm.PersistDashboardDip;
+var
+  Dpi: Integer;
+begin
+  if FSettings = nil then
+    Exit;
+  Dpi := WindowDpi;
+  FSettings.DashboardX := DipFromPx(Left, Dpi);
+  FSettings.DashboardY := DipFromPx(Top, Dpi);
+  FSettings.DashboardW := DipFromPx(Width, Dpi);
+  FSettings.DashboardH := DipFromPx(Height, Dpi);
+end;
+
+procedure TDashboardForm.WMDpiChanged(var Message: TMessage);
+var
+  Suggested: TRect;
+begin
+  FWindowDpi := LoWord(Message.WParam);
+  if FWindowDpi < 1 then
+    FWindowDpi := MonitorDpiForWindow(Handle);
+  ApplyDpiChrome;
+  if Message.LParam <> 0 then
+  begin
+    Suggested := PRect(Message.LParam)^;
+    SetBounds(Suggested.Left, Suggested.Top,
+      Suggested.Right - Suggested.Left, Suggested.Bottom - Suggested.Top);
+  end;
+  LayoutContent;
+  ApplyTheme;
+  Invalidate;
+  Message.Result := 0;
 end;
 
 procedure TDashboardForm.ApplyTheme;
@@ -233,30 +331,36 @@ end;
 procedure TDashboardForm.LayoutContent;
 var
   Met: THudMetrics;
-  LeftColW, RightColW, SideX, Y, i, RowH, BodyH, BodyTop: Integer;
-  Extra: Integer;
+  Dpi, LeftColW, RightColW, SideX, Y, i, RowH, BodyH, BodyTop: Integer;
+  Extra, MinRight, MinLeft, MinBody, MinRow, MinGraph: Integer;
   Heights: array[0..4] of Integer;
 begin
   if (FHeaderPaint = nil) or (FCards[0] = nil) or (FCpuPaint = nil) or
     (FPingPaint = nil) then
     Exit;
-  Met := HudMetrics;
+  Dpi := WindowDpi;
+  Met := HudMetrics(Dpi);
+  MinRight := ScalePx(280, Dpi);
+  MinLeft := ScalePx(480, Dpi);
+  MinGraph := ScalePx(640, Dpi);
+  MinBody := ScalePx(400, Dpi);
+  MinRow := ScalePx(96, Dpi);
   RightColW := Met.SideColWidth;
-  if ClientWidth - Met.Margin * 2 - Met.CardGap - RightColW < 640 then
-    RightColW := ClientWidth - Met.Margin * 2 - Met.CardGap - 640;
-  if RightColW < 280 then
-    RightColW := 280;
+  if ClientWidth - Met.Margin * 2 - Met.CardGap - RightColW < MinGraph then
+    RightColW := ClientWidth - Met.Margin * 2 - Met.CardGap - MinGraph;
+  if RightColW < MinRight then
+    RightColW := MinRight;
   LeftColW := ClientWidth - Met.Margin * 2 - Met.CardGap - RightColW;
-  if LeftColW < 480 then
-    LeftColW := 480;
+  if LeftColW < MinLeft then
+    LeftColW := MinLeft;
   BodyTop := FHeaderPaint.Height + Met.Margin;
   BodyH := ClientHeight - BodyTop - Met.Margin;
-  if BodyH < 400 then
-    BodyH := 400;
+  if BodyH < MinBody then
+    BodyH := MinBody;
   { Same five row heights for left sections and facing right subsections. }
   RowH := (BodyH - Met.CardGap * 4) div 5;
-  if RowH < 96 then
-    RowH := 96;
+  if RowH < MinRow then
+    RowH := MinRow;
   Extra := BodyH - Met.CardGap * 4 - RowH * 5;
   if Extra < 0 then
     Extra := 0;
@@ -291,6 +395,20 @@ begin
   FPingPaint.SetBounds(SideX, Y, RightColW, Heights[4]);
 end;
 
+procedure TDashboardForm.ApplyDonutLevels;
+begin
+  if (FPipeline = nil) or (FCards[0] = nil) then
+    Exit;
+  { Ballistic meter values (gadget follow), not the 1 Hz digit snapshot. }
+  FCards[0].Level := Clamp01(FPipeline.State.Cpu);
+  FCards[1].Level := Clamp01(FPipeline.State.Mem);
+  FCards[2].Level := Clamp01(FPipeline.State.Swap);
+  FCards[3].Level := Clamp01(FPipeline.State.DiskRead);
+  FCards[3].Level2 := Clamp01(FPipeline.State.DiskWrite);
+  FCards[4].Level := Clamp01(FPipeline.State.NetIn);
+  FCards[4].Level2 := Clamp01(FPipeline.State.NetOut);
+end;
+
 procedure TDashboardForm.RefreshData;
 var
   Snap: TMetricsSnapshot;
@@ -300,19 +418,13 @@ begin
     Exit;
   Snap := FPipeline.LastSnap;
   FCards[0].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.CpuDigit) * 100)]);
-  FCards[0].Level := Clamp01(FPipeline.State.CpuDigit);
   FCards[1].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.MemDigit) * 100)]);
-  FCards[1].Level := Clamp01(FPipeline.State.MemDigit);
   FCards[2].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
-  FCards[2].Level := Clamp01(FPipeline.State.SwapDigit);
   FCards[3].Value := FormatRateBps(Snap.DiskReadBps);
   FCards[3].Value2 := FormatRateBps(Snap.DiskWriteBps);
-  FCards[3].Level := Clamp01(FPipeline.State.DiskRead);
-  FCards[3].Level2 := Clamp01(FPipeline.State.DiskWrite);
   FCards[4].Value := FormatRateBps(Snap.NetInBps);
   FCards[4].Value2 := FormatRateBps(Snap.NetOutBps);
-  FCards[4].Level := Clamp01(FPipeline.State.NetIn);
-  FCards[4].Level2 := Clamp01(FPipeline.State.NetOut);
+  ApplyDonutLevels;
   FCollector.CopyPingHistory(FPingHistory);
   for i := 0 to 4 do
     FCards[i].Invalidate;
@@ -322,6 +434,17 @@ begin
   FPowerPaint.Invalidate;
   FPingPaint.Invalidate;
   FHeaderPaint.Invalidate;
+end;
+
+procedure TDashboardForm.MeterTimerTick(Sender: TObject);
+var
+  i: Integer;
+begin
+  if not Visible then
+    Exit;
+  ApplyDonutLevels;
+  for i := 0 to 4 do
+    FCards[i].InvalidateMeter;
 end;
 
 procedure TDashboardForm.UiTimerTick(Sender: TObject);
@@ -334,7 +457,7 @@ procedure TDashboardForm.HeaderPaint(Sender: TObject);
 begin
   DrawHudHeader(FHeaderPaint.Canvas, FHeaderPaint.ClientRect,
     'DISKLED HUD', S('dash.live'), ProductVersionText, FLiveOn,
-    HudPalette, HudMetrics);
+    HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.CpuPaint(Sender: TObject);
@@ -343,7 +466,7 @@ begin
     Exit;
   DrawCpuPanel(FCpuPaint.Canvas, FCpuPaint.ClientRect, FPipeline.LastSnap,
     S('dash.cpu'), S('dash.cpu_name'), S('dash.cpu_cores'), S('dash.cpu_clock'),
-    S('dash.cpu_user'), S('dash.cpu_kernel'), HudPalette, HudMetrics);
+    S('dash.cpu_user'), S('dash.cpu_kernel'), HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.MemPaint(Sender: TObject);
@@ -353,7 +476,7 @@ begin
   DrawMemAmounts(FMemPaint.Canvas, FMemPaint.ClientRect, FPipeline.LastSnap,
     S('dash.mem'), S('dash.ram'), S('dash.swap'), S('dash.mem_commit'),
     S('dash.mem_used'), S('dash.mem_standby'), S('dash.mem_free'),
-    HudPalette, HudMetrics);
+    HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.QueuePaint(Sender: TObject);
@@ -362,7 +485,7 @@ begin
     Exit;
   DrawDiskQueue(FQueuePaint.Canvas, FQueuePaint.ClientRect, FPipeline.LastSnap,
     S('dash.queue'), S('dash.queue_depth'), S('dash.iops_read'),
-    S('dash.iops_write'), S('dash.disk_active'), HudPalette, HudMetrics);
+    S('dash.iops_write'), S('dash.disk_active'), HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.PowerPaint(Sender: TObject);
@@ -372,7 +495,7 @@ begin
   DrawPowerPanel(FPowerPaint.Canvas, FPowerPaint.ClientRect, FPipeline.LastSnap,
     S('dash.power'), S('dash.power_source'), S('dash.power_ac'),
     S('dash.power_battery'), S('dash.power_unknown'), S('dash.power_remain'),
-    HudPalette, HudMetrics);
+    HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.PingPaint(Sender: TObject);
@@ -384,18 +507,21 @@ begin
   Snap := FPipeline.LastSnap;
   DrawPingPanel(FPingPaint.Canvas, FPingPaint.ClientRect, Snap, FPingHistory,
     S('dash.ping'), S('dash.ping_time'), S('dash.ping_target'),
-    S('dash.ping_rtt'), S('dash.ping_status'), HudPalette, HudMetrics);
+    S('dash.ping_rtt'), S('dash.ping_status'), HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.FormShow(Sender: TObject);
 begin
   FUiTimer.Enabled := True;
+  FMeterTimer.Enabled := True;
   RefreshData;
 end;
 
 procedure TDashboardForm.FormHide(Sender: TObject);
 begin
   FUiTimer.Enabled := False;
+  FMeterTimer.Enabled := False;
+  PersistDashboardDip;
 end;
 
 procedure TDashboardForm.FormResize(Sender: TObject);
@@ -406,12 +532,7 @@ end;
 procedure TDashboardForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if FSettings <> nil then
-  begin
-    FSettings.DashboardX := Left;
-    FSettings.DashboardY := Top;
-    FSettings.DashboardW := Width;
-    FSettings.DashboardH := Height;
-  end;
+    PersistDashboardDip;
   CanClose := True;
 end;
 

@@ -14,6 +14,7 @@ object OptionsForm: TOptionsForm
   Font.Style = []
   Position = poScreenCenter
   Scaled = True
+  PixelsPerInch = 96
   OnCreate = FormCreate
   TextHeight = 15
   object PnlContent: TPanel

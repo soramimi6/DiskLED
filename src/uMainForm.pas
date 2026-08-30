@@ -65,7 +65,7 @@ type
     FHoverTextTick: Cardinal;
     FHasHoverText: Boolean;
     FMonitorDpi: Integer;
-    FDisplayScale: Integer;
+    FScale100: Integer;
     FDashboardHistory: TDashboardHistory;
     FDashboardPeak: TDashboardSample;
     FDashboardLastPushTick: Cardinal;
@@ -247,7 +247,7 @@ begin
   FHasGraphTick := False;
   FHasDashboardPushTick := False;
   FMonitorDpi := 96;
-  FDisplayScale := 1;
+  FScale100 := 100;
   ResetGraphPeak;
   ResetDashboardPeak;
   FTimer := TTimer.Create(Self);
@@ -570,7 +570,7 @@ begin
     FMonitorDpi := MonitorDpiForWindow(Handle)
   else
     FMonitorDpi := MonitorDpiForWindow(0);
-  FDisplayScale := IntegerDisplayScale(FMonitorDpi);
+  FScale100 := GadgetScale100(FMonitorDpi);
   ApplyDpiClientSize;
 end;
 
@@ -580,7 +580,7 @@ var
 begin
   if FLayout.Width < 1 then
     Exit;
-  LayoutClientSize(FLayout.Width, FLayout.Height, FDisplayScale, CW, CH);
+  LayoutClientSize(FLayout.Width, FLayout.Height, FScale100, CW, CH);
   ClientWidth := CW;
   ClientHeight := CH;
 end;
@@ -781,8 +781,8 @@ var
 begin
   if FBuffer = nil then
     Exit;
-  DestW := FLayout.Width * FDisplayScale;
-  DestH := FLayout.Height * FDisplayScale;
+  DestW := MulDiv(FLayout.Width, FScale100, 100);
+  DestH := MulDiv(FLayout.Height, FScale100, 100);
   if (DestW < 1) or (DestH < 1) then
     Exit;
   SetStretchBltMode(Canvas.Handle, COLORONCOLOR);
@@ -893,9 +893,19 @@ begin
 end;
 
 procedure TMainForm.WMDpiChanged(var Message: TMessage);
+var
+  Suggested: TRect;
 begin
-  ApplyDpiScale;
-  ApplyWindowBounds;
+  FMonitorDpi := LoWord(Message.WParam);
+  if FMonitorDpi < 1 then
+    FMonitorDpi := MonitorDpiForWindow(Handle);
+  FScale100 := GadgetScale100(FMonitorDpi);
+  ApplyDpiClientSize;
+  if Message.LParam <> 0 then
+  begin
+    Suggested := PRect(Message.LParam)^;
+    SetBounds(Suggested.Left, Suggested.Top, Width, Height);
+  end;
   Invalidate;
   Message.Result := 0;
 end;

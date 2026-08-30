@@ -11,7 +11,7 @@ The author accepts no liability for any damage arising from use of this software
 - **Ping** sends ICMP to an external host (default `mg6.jp`) or the gateway. If security software or a firewall blocks ICMP, the UI stays on timeout (accepted as normal)
 - **Disk / network** are aggregates. Per-drive or per-NIC views are not in v1
 - Virtual-adapter filtering is heuristic; LED behavior may vary by environment
-- High DPI (e.g. above 125%): since 3.1.0, Per-Monitor V2 and integer scaling are supported. Intermediate scales (e.g. 125%) are floored, so the gadget may look slightly smaller than OS scaling
+- High DPI: since 3.1.0 the process is **Per-Monitor V2**. The gadget uses 0.5-step scale, so it may not match the OS percentage (**125% looks like 150%**). Skin bitmaps can look a bit soft when enlarged. The dashboard follows real DPI. If a dashboard size saved by an earlier build is too large, resize it once
 - Motion is roughly **10–20 fps** (default 15). The window is not redrawn while sprite frames stay the same
 - The list of real NICs is refreshed every few seconds. After a VPN connect/disconnect, LEDs may lag or linger briefly
 - The dashboard CPU subsection does **not** show package temperature. User-mode Windows APIs do not provide it reliably

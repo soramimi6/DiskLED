@@ -38,6 +38,7 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     procedure Paint; override;
+    procedure InvalidateMeter;
     property Title: string read FTitle write FTitle;
     property Value: string read FValue write FValue;
     property Value2: string read FValue2 write FValue2;
@@ -66,6 +67,7 @@ uses
   System.SysUtils,
   Winapi.Windows,
   uDashboardPainter,
+  uDpiScale,
   uMetricsTypes;
 
 constructor TDashboardCard.Create(AOwner: TComponent);
@@ -89,16 +91,43 @@ begin
   Invalidate;
 end;
 
+procedure TDashboardCard.InvalidateMeter;
+var
+  R: TRect;
+  Met: THudMetrics;
+begin
+  if not HandleAllocated then
+  begin
+    Invalidate;
+    Exit;
+  end;
+  Met := HudMetrics(MonitorDpiForWindow(Handle));
+  R := Rect(0, 0, Met.MeterPaneWidth, Height);
+  InvalidateRect(Handle, @R, False);
+end;
+
 procedure TDashboardCard.Paint;
 var
   Pal: THudPalette;
   Met: THudMetrics;
-  CardR, LeftR, MeterR, GraphR: TRect;
-  TitleH, MeterTop, Tw, Th, Gap: Integer;
+  CardR, LeftR, MeterR, GraphR, ClipR: TRect;
+  TitleH, MeterTop, Tw, Th, Gap, Sw, Pad: Integer;
   ValueX, ValueY: Integer;
+  DrawGraph: Boolean;
+  SavedDc: Integer;
 begin
   Pal := HudPalette;
-  Met := HudMetrics;
+  Met := HudMetrics(MonitorDpiForWindow(Handle));
+  Canvas.Font.PixelsPerInch := 96;
+  GetClipBox(Canvas.Handle, ClipR);
+  DrawGraph := ClipR.Right > Met.MeterPaneWidth;
+  SavedDc := 0;
+  if not DrawGraph then
+  begin
+    SavedDc := SaveDC(Canvas.Handle);
+    IntersectClipRect(Canvas.Handle, 0, 0, Met.MeterPaneWidth, Height);
+  end;
+  try
   Canvas.Brush.Color := Pal.Bg;
   Canvas.FillRect(ClientRect);
   CardR := ClientRect;
@@ -107,12 +136,12 @@ begin
 
   LeftR := Rect(Met.CardPad, Met.CardPad, Met.MeterPaneWidth - Met.CardPad,
     Height - Met.CardPad);
-  if LeftR.Right < LeftR.Left + 48 then
-    LeftR.Right := LeftR.Left + 48;
+  if LeftR.Right < LeftR.Left + MulDiv(48, Met.Margin, 12) then
+    LeftR.Right := LeftR.Left + MulDiv(48, Met.Margin, 12);
 
-  TitleH := Met.HeadingSize + 8;
+  TitleH := Met.HeadingSize + MulDiv(8, Met.Margin, 12);
   if FDual and ((FLegend1 <> '') or (FLegend2 <> '')) then
-    TitleH := TitleH + Met.BodySize + 4;
+    TitleH := TitleH + Met.BodySize + MulDiv(4, Met.Margin, 12);
   Canvas.Font.Name := 'Segoe UI';
   Canvas.Font.Style := [fsBold];
   Canvas.Font.Size := Met.HeadingSize;
@@ -125,36 +154,43 @@ begin
     Canvas.Font.Style := [];
     Canvas.Font.Size := Met.AxisSize + 1;
     Tw := LeftR.Left;
-    Th := LeftR.Top + Met.HeadingSize + 6;
+    Th := LeftR.Top + Met.HeadingSize + MulDiv(6, Met.Margin, 12);
+    Sw := MulDiv(8, Met.Margin, 12);
+    if Sw < 4 then
+      Sw := 4;
+    Pad := MulDiv(2, Met.Margin, 12);
+    if Pad < 1 then
+      Pad := 1;
     Canvas.Brush.Color := FAccent;
     Canvas.Pen.Color := FAccent;
-    Canvas.RoundRect(Tw, Th + 2, Tw + 8, Th + 10, 2, 2);
+    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
     Canvas.Brush.Style := bsClear;
     SetBkMode(Canvas.Handle, TRANSPARENT);
     Canvas.Font.Color := Pal.TextMuted;
-    Canvas.TextOut(Tw + 10, Th, FLegend1);
-    Tw := Tw + 10 + Canvas.TextWidth(FLegend1) + 10;
+    Canvas.TextOut(Tw + Sw + Pad, Th, FLegend1);
+    Tw := Tw + Sw + Pad + Canvas.TextWidth(FLegend1) + MulDiv(10, Met.Margin, 12);
     Canvas.Brush.Color := FAccent2;
     Canvas.Pen.Color := FAccent2;
-    Canvas.RoundRect(Tw, Th + 2, Tw + 8, Th + 10, 2, 2);
+    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
     Canvas.Brush.Style := bsClear;
     SetBkMode(Canvas.Handle, TRANSPARENT);
     Canvas.Font.Color := Pal.TextMuted;
-    Canvas.TextOut(Tw + 10, Th, FLegend2);
+    Canvas.TextOut(Tw + Sw + Pad, Th, FLegend2);
   end;
 
   MeterTop := LeftR.Top + TitleH;
   MeterR := Rect(LeftR.Left, MeterTop, LeftR.Right, LeftR.Bottom);
-  if MeterR.Bottom < MeterR.Top + 24 then
-    MeterR.Bottom := MeterR.Top + 24;
+  if MeterR.Bottom < MeterR.Top + MulDiv(24, Met.Margin, 12) then
+    MeterR.Bottom := MeterR.Top + MulDiv(24, Met.Margin, 12);
 
   if FDual then
     DrawDualConcentricMeter(Canvas, MeterR, Clamp01(FLevel), Clamp01(FLevel2),
-      FAccent, FAccent2, Pal)
+      FAccent, FAccent2, Pal, Met)
   else
-    DrawConcentricMeter(Canvas, MeterR, Clamp01(FLevel), FAccent, Pal);
+    DrawConcentricMeter(Canvas, MeterR, Clamp01(FLevel), FAccent, Pal, Met);
 
   Canvas.Font.Name := 'Segoe UI';
+  Canvas.Font.PixelsPerInch := 96;
   Canvas.Font.Style := [];
   Canvas.Brush.Style := bsClear;
   SetBkMode(Canvas.Handle, TRANSPARENT);
@@ -162,7 +198,9 @@ begin
   begin
     Canvas.Font.Size := Met.BodySize + 1;
     Th := Canvas.TextHeight('0');
-    Gap := 2;
+    Gap := MulDiv(2, Met.Margin, 12);
+    if Gap < 1 then
+      Gap := 1;
     Canvas.Font.Color := FAccent;
     Tw := Canvas.TextWidth(FValue);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
@@ -187,18 +225,25 @@ begin
     Canvas.TextOut(ValueX, ValueY, FValue);
   end;
 
-  GraphR := Rect(Met.MeterPaneWidth, Met.CardPad + 4,
-    Width - Met.CardPad, Height - Met.CardPad - 14);
-  if GraphR.Right < GraphR.Left + 40 then
-    GraphR.Right := GraphR.Left + 40;
-  if GraphR.Bottom < GraphR.Top + 24 then
-    GraphR.Bottom := GraphR.Top + 24;
-  if FDual then
-    DrawOverlayMetricGraph(Canvas, GraphR, FHistory, FLane, FAccent, FLineStyle,
-      FLane2, FAccent2, FLineStyle2, FMaxY, Pal, Met, FAxisNow, FAxis5m)
-  else
-    DrawMetricGraph(Canvas, GraphR, FHistory, FLane, FAccent, FMaxY,
-      FLineStyle, Pal, Met, FAxisNow, FAxis5m);
+  GraphR := Rect(Met.MeterPaneWidth, Met.CardPad + MulDiv(4, Met.Margin, 12),
+    Width - Met.CardPad, Height - Met.CardPad - MulDiv(14, Met.Margin, 12));
+  if GraphR.Right < GraphR.Left + MulDiv(40, Met.Margin, 12) then
+    GraphR.Right := GraphR.Left + MulDiv(40, Met.Margin, 12);
+  if GraphR.Bottom < GraphR.Top + MulDiv(24, Met.Margin, 12) then
+    GraphR.Bottom := GraphR.Top + MulDiv(24, Met.Margin, 12);
+  if DrawGraph then
+  begin
+    if FDual then
+      DrawOverlayMetricGraph(Canvas, GraphR, FHistory, FLane, FAccent, FLineStyle,
+        FLane2, FAccent2, FLineStyle2, FMaxY, Pal, Met, FAxisNow, FAxis5m)
+    else
+      DrawMetricGraph(Canvas, GraphR, FHistory, FLane, FAccent, FMaxY,
+        FLineStyle, Pal, Met, FAxisNow, FAxis5m);
+  end;
+  finally
+    if SavedDc <> 0 then
+      RestoreDC(Canvas.Handle, SavedDc);
+  end;
 end;
 
 end.

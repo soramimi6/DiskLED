@@ -59,6 +59,14 @@ procedure TransparentText(ACanvas: TCanvas);
 begin
   ACanvas.Brush.Style := bsClear;
   SetBkMode(ACanvas.Handle, TRANSPARENT);
+  ACanvas.Font.PixelsPerInch := 96;
+end;
+
+function Dip(const AMetrics: THudMetrics; V: Integer): Integer;
+begin
+  Result := MulDiv(V, AMetrics.Margin, 12);
+  if (V > 0) and (Result < 1) then
+    Result := 1;
 end;
 
 procedure FillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
@@ -91,8 +99,9 @@ var
 begin
   FillRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.Card);
   StrokeRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.CardBorder);
-  Bar := Rect(ARect.Left + AMetrics.CardPad, ARect.Top + 6,
-    ARect.Left + AMetrics.CardPad + 3, ARect.Top + AMetrics.CardHeaderHeight);
+  Bar := Rect(ARect.Left + AMetrics.CardPad, ARect.Top + Dip(AMetrics, 6),
+    ARect.Left + AMetrics.CardPad + Dip(AMetrics, 3),
+    ARect.Top + AMetrics.CardHeaderHeight);
   ACanvas.Brush.Color := AAccent;
   ACanvas.FillRect(Bar);
   TransparentText(ACanvas);
@@ -100,11 +109,12 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + AMetrics.CardPad + 10, ARect.Top + 8, UpperCase(ATitle));
+  ACanvas.TextOut(ARect.Left + AMetrics.CardPad + Dip(AMetrics, 10),
+    ARect.Top + Dip(AMetrics, 8), UpperCase(ATitle));
   ACanvas.Font.Style := [];
   ACanvas.Font.Color := APalette.TextPrimary;
   ACanvas.TextOut(ARect.Right - ACanvas.TextWidth(AValue) - AMetrics.CardPad,
-    ARect.Top + 6, AValue);
+    ARect.Top + Dip(AMetrics, 6), AValue);
 end;
 
 procedure DrawStatPill(ACanvas: TCanvas; const ARect: TRect; const ATitle: string;
@@ -120,12 +130,13 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 10, UpperCase(ATitle));
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 10),
+    UpperCase(ATitle));
   Txt := Format('%d%%', [APct]);
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.BigDigitSize;
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 34, Txt);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 34), Txt);
 end;
 
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
@@ -148,18 +159,18 @@ begin
   TransparentText(ACanvas);
   ACanvas.Font.Name := 'Segoe UI';
   ACanvas.Font.Style := [fsBold];
-  ACanvas.Font.Size := 12;
+  ACanvas.Font.Size := AMetrics.HeaderTitleSize;
   ACanvas.Font.Color := APalette.TextPrimary;
   TitleY := BandTop + (BandH - ACanvas.TextHeight(ATitle)) div 2;
-  ACanvas.TextOut(ARect.Left + 16, TitleY, ATitle);
+  ACanvas.TextOut(ARect.Left + Dip(AMetrics, 16), TitleY, ATitle);
 
   ACanvas.Font.Style := [];
-  ACanvas.Font.Size := 9;
+  ACanvas.Font.Size := AMetrics.HeaderMetaSize;
   MetaY := BandTop + (BandH - ACanvas.TextHeight('Ag')) div 2;
   LiveTxt := #$25CF' ' + ALiveText;
-  LiveX := ARect.Right - ACanvas.TextWidth(LiveTxt) - 16;
+  LiveX := ARect.Right - ACanvas.TextWidth(LiveTxt) - Dip(AMetrics, 16);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(LiveX - 12 - ACanvas.TextWidth(AVersion), MetaY, AVersion);
+  ACanvas.TextOut(LiveX - Dip(AMetrics, 12) - ACanvas.TextWidth(AVersion), MetaY, AVersion);
   if ALiveOn then
     ACanvas.Font.Color := APalette.Active
   else
@@ -210,7 +221,8 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 8, UpperCase(AHeading));
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+    UpperCase(AHeading));
 
   if ASnap.CpuName <> '' then
     NameTxt := ASnap.CpuName
@@ -228,10 +240,10 @@ begin
 
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.BodySize;
-  LineH := ACanvas.TextHeight('Ag') + 6;
+  LineH := ACanvas.TextHeight('Ag') + Dip(AMetrics, 6);
   BlockH := LineH * 4;
-  InnerTop := ARect.Top + 28;
-  TopY := InnerTop + ((ARect.Bottom - 12 - InnerTop) - BlockH) div 2;
+  InnerTop := ARect.Top + Dip(AMetrics, 28);
+  TopY := InnerTop + ((ARect.Bottom - Dip(AMetrics, 12) - InnerTop) - BlockH) div 2;
   if TopY < InnerTop then
     TopY := InnerTop;
   LabelW := ACanvas.TextWidth(AClockLbl);
@@ -241,42 +253,48 @@ begin
     LabelW := ACanvas.TextWidth(ATopoLbl);
   if ACanvas.TextWidth(AUserLbl) > LabelW then
     LabelW := ACanvas.TextWidth(AUserLbl);
-  Inc(LabelW, 10);
-  MaxW := ARect.Right - ARect.Left - 24 - LabelW;
+  Inc(LabelW, Dip(AMetrics, 10));
+  MaxW := ARect.Right - ARect.Left - Dip(AMetrics, 24) - LabelW;
   Y := TopY;
   for i := 0 to 3 do
   begin
     ACanvas.Font.Color := APalette.TextMuted;
     TransparentText(ACanvas);
-    ACanvas.TextOut(ARect.Left + 12, Y, Labels[i]);
+    ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, Labels[i]);
     ACanvas.Font.Color := APalette.TextPrimary;
-    ACanvas.TextOut(ARect.Left + 12 + LabelW, Y,
+    ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y,
       Ellipsize(ACanvas, Values[i], MaxW));
     Inc(Y, LineH);
-    if Y + LineH > ARect.Bottom - 8 then
+    if Y + LineH > ARect.Bottom - Dip(AMetrics, 8) then
       Break;
   end;
 end;
 
 procedure DrawStackedMemBar(ACanvas: TCanvas; const ARect: TRect;
-  AUsed, AStandby, AFree: UInt64; AUsedC, AStandbyC, AFreeC: TColor);
+  AUsed, AStandby, AFree: UInt64; AUsedC, AStandbyC, AFreeC: TColor;
+  ARadius: Integer);
 var
   Total: UInt64;
-  W, X, Wu, Ws: Integer;
+  W, X, Wu, Ws, MinSeg: Integer;
 begin
+  if ARadius < 1 then
+    ARadius := 1;
+  MinSeg := ARadius div 2;
+  if MinSeg < 1 then
+    MinSeg := 1;
   ACanvas.Brush.Color := AFreeC;
   ACanvas.Pen.Color := AFreeC;
-  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom, 4, 4);
+  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom, ARadius, ARadius);
   Total := AUsed + AStandby + AFree;
   if Total = 0 then
     Exit;
   W := ARect.Right - ARect.Left;
   Wu := Round(W * (AUsed / Total));
   Ws := Round(W * (AStandby / Total));
-  if (AUsed > 0) and (Wu < 2) then
-    Wu := 2;
-  if (AStandby > 0) and (Ws < 2) then
-    Ws := 2;
+  if (AUsed > 0) and (Wu < MinSeg) then
+    Wu := MinSeg;
+  if (AStandby > 0) and (Ws < MinSeg) then
+    Ws := MinSeg;
   if Wu + Ws > W then
     Ws := W - Wu;
   X := ARect.Left;
@@ -296,21 +314,23 @@ begin
 end;
 
 procedure DrawUsageBar(ACanvas: TCanvas; const ARect: TRect; ALevel: Double;
-  AFill, ATrack: TColor);
+  AFill, ATrack: TColor; ARadius: Integer);
 var
   FillR: TRect;
   W: Integer;
 begin
+  if ARadius < 1 then
+    ARadius := 1;
   ACanvas.Brush.Color := ATrack;
   ACanvas.Pen.Color := ATrack;
-  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom, 4, 4);
+  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom, ARadius, ARadius);
   W := Round((ARect.Right - ARect.Left) * Clamp01(ALevel));
-  if W < 2 then
+  if W < 1 then
     Exit;
   FillR := Rect(ARect.Left, ARect.Top, ARect.Left + W, ARect.Bottom);
   ACanvas.Brush.Color := AFill;
   ACanvas.Pen.Color := AFill;
-  ACanvas.RoundRect(FillR.Left, FillR.Top, FillR.Right, FillR.Bottom, 4, 4);
+  ACanvas.RoundRect(FillR.Left, FillR.Top, FillR.Right, FillR.Bottom, ARadius, ARadius);
 end;
 
 procedure DrawNicList(ACanvas: TCanvas; const ARect: TRect;
@@ -330,13 +350,15 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 8, UpperCase(AHeading));
-  Y := ARect.Top + 26;
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+    UpperCase(AHeading));
+  Y := ARect.Top + Dip(AMetrics, 26);
   for i := 0 to High(AAdapters) do
   begin
-    if Y + AMetrics.NicRowHeight > ARect.Bottom - 6 then
+    if Y + AMetrics.NicRowHeight > ARect.Bottom - Dip(AMetrics, 6) then
       Break;
-    Row := Rect(ARect.Left + 8, Y, ARect.Right - 8, Y + AMetrics.NicRowHeight);
+    Row := Rect(ARect.Left + Dip(AMetrics, 8), Y, ARect.Right - Dip(AMetrics, 8),
+      Y + AMetrics.NicRowHeight);
     if AAdapters[i].Included then
     begin
       Badge := AActiveLbl;
@@ -368,12 +390,13 @@ begin
     ACanvas.Font.Size := AMetrics.BodySize;
     TransparentText(ACanvas);
     ACanvas.Font.Color := APalette.TextPrimary;
-    ACanvas.TextOut(Row.Left + 8, Row.Top + 4, NameTxt);
+    ACanvas.TextOut(Row.Left + Dip(AMetrics, 8), Row.Top + Dip(AMetrics, 4), NameTxt);
     ACanvas.Font.Color := BadgeColor;
-    ACanvas.TextOut(Row.Right - ACanvas.TextWidth(Badge) - 12, Row.Top + 4, Badge);
+    ACanvas.TextOut(Row.Right - ACanvas.TextWidth(Badge) - Dip(AMetrics, 12),
+      Row.Top + Dip(AMetrics, 4), Badge);
     ACanvas.Font.Size := AMetrics.AxisSize + 1;
     ACanvas.Font.Color := APalette.TextMuted;
-    ACanvas.TextOut(Row.Left + 8, Row.Top + 22, Line2);
+    ACanvas.TextOut(Row.Left + Dip(AMetrics, 8), Row.Top + Dip(AMetrics, 22), Line2);
     Inc(Y, AMetrics.NicRowHeight);
   end;
 end;
@@ -395,13 +418,14 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 8, UpperCase(AHeading));
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+    UpperCase(AHeading));
 
-  InnerTop := ARect.Top + 28;
-  Block := (ARect.Bottom - 12 - InnerTop) div 2;
-  if Block < 48 then
-    Block := 48;
-  MaxW := ARect.Right - ARect.Left - 24;
+  InnerTop := ARect.Top + Dip(AMetrics, 28);
+  Block := (ARect.Bottom - Dip(AMetrics, 12) - InnerTop) div 2;
+  if Block < Dip(AMetrics, 48) then
+    Block := Dip(AMetrics, 48);
+  MaxW := ARect.Right - ARect.Left - Dip(AMetrics, 24);
 
   Standby := ASnap.MemCacheBytes;
   if Standby > ASnap.MemAvailBytes then
@@ -411,59 +435,62 @@ begin
   else
     FreeB := 0;
 
-  Y := InnerTop + 4;
+  Y := InnerTop + Dip(AMetrics, 4);
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.BodySize;
   ACanvas.Font.Color := APalette.Mem;
   TransparentText(ACanvas);
-  ACanvas.TextOut(ARect.Left + 12, Y, ARamLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ARamLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 56, Y, FormatBytesPair(ASnap.MemUsedBytes, ASnap.MemTotalBytes));
-  Bar := Rect(ARect.Left + 12, Y + 16, ARect.Right - 12, Y + 24);
+  ACanvas.TextOut(ARect.Left + Dip(AMetrics, 56), Y, FormatBytesPair(ASnap.MemUsedBytes, ASnap.MemTotalBytes));
+  Bar := Rect(ARect.Left + AMetrics.Margin, Y + Dip(AMetrics, 16),
+    ARect.Right - AMetrics.Margin, Y + Dip(AMetrics, 24));
   DrawStackedMemBar(ACanvas, Bar, ASnap.MemUsedBytes, Standby, FreeB,
-    APalette.Mem, APalette.MemStandby, APalette.MemFree);
-  ExtraY := Y + 28;
-  if ExtraY + 14 < InnerTop + Block then
+    APalette.Mem, APalette.MemStandby, APalette.MemFree, Dip(AMetrics, 4));
+  ExtraY := Y + Dip(AMetrics, 28);
+  if ExtraY + Dip(AMetrics, 14) < InnerTop + Block then
   begin
     UsedTxt := AUsedLbl + ' ' + FormatBytesGiB(ASnap.MemUsedBytes);
     StandbyTxt := AStandbyLbl + ' ' + FormatBytesGiB(Standby);
     FreeTxt := AFreeLbl + ' ' + FormatBytesGiB(FreeB);
-    X := ARect.Left + 12;
+    X := ARect.Left + AMetrics.Margin;
     RemainW := MaxW;
     TransparentText(ACanvas);
     ACanvas.Font.Color := APalette.Mem;
     ACanvas.TextOut(X, ExtraY, UsedTxt);
-    Inc(X, ACanvas.TextWidth(UsedTxt) + 12);
-    Dec(RemainW, ACanvas.TextWidth(UsedTxt) + 12);
-    if RemainW > 8 then
+    Inc(X, ACanvas.TextWidth(UsedTxt) + Dip(AMetrics, 12));
+    Dec(RemainW, ACanvas.TextWidth(UsedTxt) + Dip(AMetrics, 12));
+    if RemainW > Dip(AMetrics, 8) then
     begin
       ACanvas.Font.Color := APalette.MemStandby;
       ACanvas.TextOut(X, ExtraY, StandbyTxt);
-      Inc(X, ACanvas.TextWidth(StandbyTxt) + 12);
-      Dec(RemainW, ACanvas.TextWidth(StandbyTxt) + 12);
+      Inc(X, ACanvas.TextWidth(StandbyTxt) + Dip(AMetrics, 12));
+      Dec(RemainW, ACanvas.TextWidth(StandbyTxt) + Dip(AMetrics, 12));
     end;
-    if RemainW > 8 then
+    if RemainW > Dip(AMetrics, 8) then
     begin
       ACanvas.Font.Color := APalette.TextMuted;
       ACanvas.TextOut(X, ExtraY, Ellipsize(ACanvas, FreeTxt, RemainW));
     end;
   end;
 
-  Y := InnerTop + Block + 4;
+  Y := InnerTop + Block + Dip(AMetrics, 4);
   TransparentText(ACanvas);
   ACanvas.Font.Color := APalette.Swap;
-  ACanvas.TextOut(ARect.Left + 12, Y, ASwapLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ASwapLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 56, Y, FormatBytesPair(ASnap.SwapUsedBytes, ASnap.SwapTotalBytes));
-  Bar := Rect(ARect.Left + 12, Y + 16, ARect.Right - 12, Y + 22);
-  DrawUsageBar(ACanvas, Bar, ASnap.SwapUsage / 100.0, APalette.Swap, APalette.Grid);
-  ExtraY := Y + 26;
-  if ExtraY + 14 < ARect.Bottom - 8 then
+  ACanvas.TextOut(ARect.Left + Dip(AMetrics, 56), Y, FormatBytesPair(ASnap.SwapUsedBytes, ASnap.SwapTotalBytes));
+  Bar := Rect(ARect.Left + AMetrics.Margin, Y + Dip(AMetrics, 16),
+    ARect.Right - AMetrics.Margin, Y + Dip(AMetrics, 22));
+  DrawUsageBar(ACanvas, Bar, ASnap.SwapUsage / 100.0, APalette.Swap, APalette.Grid,
+    Dip(AMetrics, 4));
+  ExtraY := Y + Dip(AMetrics, 26);
+  if ExtraY + Dip(AMetrics, 14) < ARect.Bottom - Dip(AMetrics, 8) then
   begin
     Extra := ACommitLbl + ' ' + FormatBytesPair(ASnap.MemCommitBytes, ASnap.MemCommitLimitBytes);
     ACanvas.Font.Color := APalette.TextMuted;
     TransparentText(ACanvas);
-    ACanvas.TextOut(ARect.Left + 12, ExtraY, Ellipsize(ACanvas, Extra, MaxW));
+    ACanvas.TextOut(ARect.Left + AMetrics.Margin, ExtraY, Ellipsize(ACanvas, Extra, MaxW));
   end;
 end;
 
@@ -482,40 +509,41 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 8, UpperCase(AHeading));
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+    UpperCase(AHeading));
 
   if ASnap.DiskQueue >= 10 then
     QTxt := Format('%.0f', [ASnap.DiskQueue])
   else
     QTxt := Format('%.1f', [ASnap.DiskQueue]);
-  QY := ARect.Top + 32;
-  IopsY := ARect.Bottom - 64;
-  if IopsY < QY + 44 then
-    IopsY := QY + 44;
-  Gap := (IopsY - QY - 36) div 4;
+  QY := ARect.Top + AMetrics.CardPad * 3;
+  IopsY := ARect.Bottom - (AMetrics.PingRowHeight * 3 + AMetrics.CardPad);
+  if IopsY < QY + AMetrics.CardPad * 4 then
+    IopsY := QY + AMetrics.CardPad * 4;
+  Gap := (IopsY - QY - AMetrics.CardPad * 3) div 4;
   if Gap > 0 then
     QY := QY + Gap;
   ACanvas.Font.Style := [];
-  ACanvas.Font.Size := 28;
+  ACanvas.Font.Size := AMetrics.QueueDigitSize;
   ACanvas.Font.Color := APalette.Disk;
   TransparentText(ACanvas);
   QW := ACanvas.TextWidth(QTxt);
-  ACanvas.TextOut(ARect.Left + 12, QY, QTxt);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, QY, QTxt);
   ACanvas.Font.Size := AMetrics.BodySize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12 + QW + 10, QY + 14, AQueueLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin + QW + AMetrics.CardPad, QY + AMetrics.BodySize, AQueueLbl);
 
   if ASnap.DiskActivePct >= 0 then
     ActiveTxt := Format('%s %.0f%%', [AActiveLbl, ASnap.DiskActivePct])
   else
     ActiveTxt := AActiveLbl + ' ' + #$2014;
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 12, IopsY, ActiveTxt);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, IopsY, ActiveTxt);
   ACanvas.Font.Color := APalette.Disk;
-  ACanvas.TextOut(ARect.Left + 12, IopsY + 16,
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, IopsY + AMetrics.PingRowHeight,
     AReadLbl + ' ' + FormatIops(ASnap.DiskReadIops));
   ACanvas.Font.Color := APalette.DiskInner;
-  ACanvas.TextOut(ARect.Left + 12, IopsY + 32,
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, IopsY + AMetrics.PingRowHeight * 2,
     AWriteLbl + ' ' + FormatIops(ASnap.DiskWriteIops));
 end;
 
@@ -536,7 +564,8 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 8, UpperCase(AHeading));
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+    UpperCase(AHeading));
 
   if ASnap.PowerAc then
     Src := AAcLbl
@@ -559,36 +588,37 @@ begin
 
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.BodySize;
-  LineH := ACanvas.TextHeight('Ag') + 18;
+  LineH := ACanvas.TextHeight('Ag') + Dip(AMetrics, 18);
   LabelW := ACanvas.TextWidth(ARemainLbl);
   if ACanvas.TextWidth(ASourceLbl) > LabelW then
     LabelW := ACanvas.TextWidth(ASourceLbl);
   if ACanvas.TextWidth(ABattLbl) > LabelW then
     LabelW := ACanvas.TextWidth(ABattLbl);
-  Inc(LabelW, 12);
-  Y := ARect.Top + 44;
+  Inc(LabelW, Dip(AMetrics, 12));
+  Y := ARect.Top + Dip(AMetrics, 44);
   TransparentText(ACanvas);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, Y, ASourceLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ASourceLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 12 + LabelW, Y, Src);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y, Src);
   Inc(Y, LineH);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, Y, ABattLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ABattLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 12 + LabelW, Y, BattTxt);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y, BattTxt);
   if ASnap.PowerBatteryPresent and (ASnap.PowerBatteryPercent >= 0) then
     Level := ASnap.PowerBatteryPercent / 100.0
   else
     Level := 0;
-  Bar := Rect(ARect.Left + 12, Y + LineH - 4, ARect.Right - 12, Y + LineH + 4);
-  DrawUsageBar(ACanvas, Bar, Level, APalette.Active, APalette.Grid);
-  Inc(Y, LineH + 14);
+  Bar := Rect(ARect.Left + AMetrics.Margin, Y + LineH - Dip(AMetrics, 4),
+    ARect.Right - AMetrics.Margin, Y + LineH + Dip(AMetrics, 4));
+  DrawUsageBar(ACanvas, Bar, Level, APalette.Active, APalette.Grid, Dip(AMetrics, 4));
+  Inc(Y, LineH + Dip(AMetrics, 14));
   ACanvas.Font.Color := APalette.TextMuted;
   TransparentText(ACanvas);
-  ACanvas.TextOut(ARect.Left + 12, Y, ARemainLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ARemainLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + 12 + LabelW, Y, RemainTxt);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y, RemainTxt);
 end;
 
 function PingStatusText(const AEntry: TPingHistoryEntry): string;
@@ -627,9 +657,10 @@ begin
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, ARect.Top + 8, UpperCase(AHeading));
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+    UpperCase(AHeading));
 
-  Y := ARect.Top + 24;
+  Y := ARect.Top + Dip(AMetrics, 24);
   if ASnap.PingOk then
     RttTxt := Format('%.0f ms', [ASnap.PingRttMs])
   else if ASnap.PingPending then
@@ -638,29 +669,29 @@ begin
     RttTxt := S('hover.ping_timeout');
   HostTxt := ASnap.PingTarget;
   ACanvas.Font.Style := [];
-  ACanvas.Font.Size := 14;
+  ACanvas.Font.Size := AMetrics.PingHeroSize;
   TransparentText(ACanvas);
   ACanvas.Font.Color := PingLevelColor(APalette, Ord(ASnap.PingLevel));
   RttW := ACanvas.TextWidth(RttTxt);
-  ACanvas.TextOut(ARect.Left + 12, Y, RttTxt);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, RttTxt);
   ACanvas.Font.Size := AMetrics.BodySize;
   ACanvas.Font.Color := APalette.TextPrimary;
-  HostX := ARect.Left + 12 + RttW + 20;
-  HostMaxW := ARect.Right - 12 - HostX;
-  if HostMaxW < 24 then
-    HostMaxW := 24;
-  ACanvas.TextOut(HostX, Y + 2, Ellipsize(ACanvas, HostTxt, HostMaxW));
+  HostX := ARect.Left + AMetrics.Margin + RttW + Dip(AMetrics, 20);
+  HostMaxW := ARect.Right - AMetrics.Margin - HostX;
+  if HostMaxW < Dip(AMetrics, 24) then
+    HostMaxW := Dip(AMetrics, 24);
+  ACanvas.TextOut(HostX, Y + Dip(AMetrics, 2), Ellipsize(ACanvas, HostTxt, HostMaxW));
 
   RowH := AMetrics.PingRowHeight;
-  Inc(Y, 22);
+  Inc(Y, Dip(AMetrics, 22));
   ACanvas.Font.Name := 'Consolas';
   ACanvas.Font.Size := AMetrics.MonoSize;
   TransparentText(ACanvas);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + 12, Y, ATimeLbl);
-  ACanvas.TextOut(ARect.Left + 78, Y, ATargetLbl);
-  ACanvas.TextOut(ARect.Left + 188, Y, ARttLbl);
-  ACanvas.TextOut(ARect.Right - 64, Y, AStatusLbl);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ATimeLbl);
+  ACanvas.TextOut(ARect.Left + Dip(AMetrics, 78), Y, ATargetLbl);
+  ACanvas.TextOut(ARect.Left + Dip(AMetrics, 188), Y, ARttLbl);
+  ACanvas.TextOut(ARect.Right - Dip(AMetrics, 64), Y, AStatusLbl);
   Inc(Y, RowH);
 
   Shown := Length(AHistory);
@@ -671,7 +702,7 @@ begin
     First := Length(AHistory) - Shown;
     for i := Length(AHistory) - 1 downto First do
     begin
-      if Y + RowH > ARect.Bottom - 6 then
+      if Y + RowH > ARect.Bottom - Dip(AMetrics, 6) then
         Break;
     TimeTxt := FormatDateTime('hh:nn:ss', AHistory[i].When);
     if AHistory[i].Target <> '' then
@@ -681,12 +712,12 @@ begin
     StatusTxt := PingLevelLabel(AHistory[i].Level);
     TransparentText(ACanvas);
     ACanvas.Font.Color := APalette.TextPrimary;
-    ACanvas.TextOut(ARect.Left + 12, Y, TimeTxt);
-    ACanvas.TextOut(ARect.Left + 78, Y,
-      Ellipsize(ACanvas, HostTxt, 100));
+    ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, TimeTxt);
+    ACanvas.TextOut(ARect.Left + Dip(AMetrics, 78), Y,
+      Ellipsize(ACanvas, HostTxt, Dip(AMetrics, 100)));
     ACanvas.Font.Color := PingLevelColor(APalette, Ord(AHistory[i].Level));
-    ACanvas.TextOut(ARect.Left + 188, Y, PingStatusText(AHistory[i]));
-    ACanvas.TextOut(ARect.Right - 64, Y, StatusTxt);
+    ACanvas.TextOut(ARect.Left + Dip(AMetrics, 188), Y, PingStatusText(AHistory[i]));
+    ACanvas.TextOut(ARect.Right - Dip(AMetrics, 64), Y, StatusTxt);
       Inc(Y, RowH);
     end;
   end;

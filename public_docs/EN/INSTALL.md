@@ -8,7 +8,7 @@
 |------|-------------|
 | OS | Windows 10 / Windows 11 (64-bit) |
 | Privileges | Standard user (no administrator required) |
-| Display | v1 assumes **100%** scale (OS scaling may blur/enlarge otherwise) |
+| Display | Per-Monitor V2. The gadget uses 0.5-step scale (125% looks like 150%). The dashboard follows real DPI. Options use VCL Scaled |
 | Network | ICMP echo must work for Ping; firewall blocks appear as timeout |
 
 ## Distribution forms

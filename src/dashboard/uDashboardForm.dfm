@@ -12,7 +12,8 @@ object DashboardForm: TDashboardForm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
-  Scaled = True
+  Scaled = False
+  PixelsPerInch = 96
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate

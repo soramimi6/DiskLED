@@ -25,10 +25,11 @@ procedure DrawOverlayMetricGraph(ACanvas: TCanvas; const ARect: TRect;
   AStyle2: TDashLineStyle; AMaxY: Double; const APalette: THudPalette;
   const AMetrics: THudMetrics; const AAxisNow, AAxis5m: string);
 procedure DrawConcentricMeter(ACanvas: TCanvas; const ARect: TRect;
-  ALevel: Double; AAccent: TColor; const APalette: THudPalette);
+  ALevel: Double; AAccent: TColor; const APalette: THudPalette;
+  const AMetrics: THudMetrics);
 procedure DrawDualConcentricMeter(ACanvas: TCanvas; const ARect: TRect;
   AOuterLevel, AInnerLevel: Double; AOuterAccent, AInnerAccent: TColor;
-  const APalette: THudPalette);
+  const APalette: THudPalette; const AMetrics: THudMetrics);
 
 implementation
 
@@ -69,15 +70,24 @@ begin
   Result := GGdiOk;
 end;
 
+function GraphDip(const AMetrics: THudMetrics; V: Integer): Integer;
+begin
+  Result := MulDiv(V, AMetrics.Margin, 12);
+  if (V > 0) and (Result < 1) then
+    Result := 1;
+end;
+
 procedure DrawGridGdi(AGraphics: TGPGraphics; const ARect: TRect;
-  AColor: TColor);
+  AColor: TColor; APenWidth: Integer);
 var
   Pen: TGPPen;
   Y: Single;
   i: Integer;
 begin
+  if APenWidth < 1 then
+    APenWidth := 1;
   Pen := TGPPen.Create(MakeColor(255, GetRValue(AColor), GetGValue(AColor),
-    GetBValue(AColor)), 1);
+    GetBValue(AColor)), APenWidth);
   try
     Pen.SetDashStyle(DashStyleDot);
     for i := 1 to 3 do
@@ -93,7 +103,7 @@ end;
 procedure DrawLineGdi(AGraphics: TGPGraphics; const ARect: TRect;
   AHistory: TDashboardHistory; ALane: TDashboardLane; AColor: TColor;
   AMaxY: Double; ALineStyle: TDashLineStyle; AFillUnder: Boolean;
-  AFillAlpha: Byte);
+  AFillAlpha: Byte; APenWidth: Integer);
 var
   Count, i: Integer;
   Points, FillPts: array of TGPPointF;
@@ -134,7 +144,9 @@ begin
       Brush.Free;
     end;
   end;
-  Pen := TGPPen.Create(MakeColor(255, R, G, B), 2);
+  if APenWidth < 1 then
+    APenWidth := 1;
+  Pen := TGPPen.Create(MakeColor(255, R, G, B), APenWidth);
   try
     if ALineStyle = lsDash then
       Pen.SetDashStyle(DashStyleDash);
@@ -146,7 +158,7 @@ end;
 
 procedure DrawLineGdiFallback(ACanvas: TCanvas; const ARect: TRect;
   AHistory: TDashboardHistory; ALane: TDashboardLane; AColor: TColor;
-  AMaxY: Double; AFillUnder: Boolean; AFillAlpha: Byte);
+  AMaxY: Double; AFillUnder: Boolean; AFillAlpha: Byte; APenWidth: Integer);
 var
   Count, i: Integer;
   X, Y, V: Single;
@@ -184,7 +196,9 @@ begin
     ACanvas.Pen.Style := psSolid;
   end;
   ACanvas.Pen.Color := AColor;
-  ACanvas.Pen.Width := 2;
+  if APenWidth < 1 then
+    APenWidth := 1;
+  ACanvas.Pen.Width := APenWidth;
   ACanvas.Brush.Style := bsClear;
   for i := 0 to Count - 1 do
   begin
@@ -219,25 +233,27 @@ begin
     Graphics := TGPGraphics.Create(CanvasDc);
     try
       Graphics.SetSmoothingMode(SmoothingModeAntiAlias);
-      DrawGridGdi(Graphics, ARect, APalette.Grid);
+      DrawGridGdi(Graphics, ARect, APalette.Grid, AMetrics.GraphPenWidth div 2);
       DrawLineGdi(Graphics, ARect, AHistory, ALane, AColor, AMaxY, ALineStyle, True,
-        APalette.GraphFillAlpha);
+        APalette.GraphFillAlpha, AMetrics.GraphPenWidth);
     finally
       Graphics.Free;
     end;
   end
   else
     DrawLineGdiFallback(ACanvas, ARect, AHistory, ALane, AColor, AMaxY, True,
-      APalette.GraphFillAlpha);
+      APalette.GraphFillAlpha, AMetrics.GraphPenWidth);
 
   ACanvas.Font.Name := 'Segoe UI';
+  ACanvas.Font.PixelsPerInch := 96;
   ACanvas.Font.Size := AMetrics.AxisSize;
   ACanvas.Font.Color := APalette.TextMuted;
   ACanvas.Brush.Style := bsClear;
   SetBkMode(ACanvas.Handle, TRANSPARENT);
-  ACanvas.TextOut(ARect.Left + 4, ARect.Bottom + 2, AAxis5m);
-  ACanvas.TextOut(ARect.Right - ACanvas.TextWidth(AAxisNow) - 4,
-    ARect.Bottom + 2, AAxisNow);
+  ACanvas.TextOut(ARect.Left + GraphDip(AMetrics, 4), ARect.Bottom + GraphDip(AMetrics, 2),
+    AAxis5m);
+  ACanvas.TextOut(ARect.Right - ACanvas.TextWidth(AAxisNow) - GraphDip(AMetrics, 4),
+    ARect.Bottom + GraphDip(AMetrics, 2), AAxisNow);
 end;
 
 procedure DrawOverlayMetricGraph(ACanvas: TCanvas; const ARect: TRect;
@@ -258,27 +274,33 @@ begin
     Graphics := TGPGraphics.Create(CanvasDc);
     try
       Graphics.SetSmoothingMode(SmoothingModeAntiAlias);
-      DrawGridGdi(Graphics, ARect, APalette.Grid);
-      DrawLineGdi(Graphics, ARect, AHistory, ALane1, AColor1, AMaxY, AStyle1, False, 0);
-      DrawLineGdi(Graphics, ARect, AHistory, ALane2, AColor2, AMaxY, AStyle2, False, 0);
+      DrawGridGdi(Graphics, ARect, APalette.Grid, AMetrics.GraphPenWidth div 2);
+      DrawLineGdi(Graphics, ARect, AHistory, ALane1, AColor1, AMaxY, AStyle1, False, 0,
+        AMetrics.GraphPenWidth);
+      DrawLineGdi(Graphics, ARect, AHistory, ALane2, AColor2, AMaxY, AStyle2, False, 0,
+        AMetrics.GraphPenWidth);
     finally
       Graphics.Free;
     end;
   end
   else
   begin
-    DrawLineGdiFallback(ACanvas, ARect, AHistory, ALane1, AColor1, AMaxY, False, 0);
-    DrawLineGdiFallback(ACanvas, ARect, AHistory, ALane2, AColor2, AMaxY, False, 0);
+    DrawLineGdiFallback(ACanvas, ARect, AHistory, ALane1, AColor1, AMaxY, False, 0,
+      AMetrics.GraphPenWidth);
+    DrawLineGdiFallback(ACanvas, ARect, AHistory, ALane2, AColor2, AMaxY, False, 0,
+      AMetrics.GraphPenWidth);
   end;
 
   ACanvas.Font.Name := 'Segoe UI';
+  ACanvas.Font.PixelsPerInch := 96;
   ACanvas.Font.Size := AMetrics.AxisSize;
   ACanvas.Font.Color := APalette.TextMuted;
   ACanvas.Brush.Style := bsClear;
   SetBkMode(ACanvas.Handle, TRANSPARENT);
-  ACanvas.TextOut(ARect.Left + 4, ARect.Bottom + 2, AAxis5m);
-  ACanvas.TextOut(ARect.Right - ACanvas.TextWidth(AAxisNow) - 4,
-    ARect.Bottom + 2, AAxisNow);
+  ACanvas.TextOut(ARect.Left + GraphDip(AMetrics, 4), ARect.Bottom + GraphDip(AMetrics, 2),
+    AAxis5m);
+  ACanvas.TextOut(ARect.Right - ACanvas.TextWidth(AAxisNow) - GraphDip(AMetrics, 4),
+    ARect.Bottom + GraphDip(AMetrics, 2), AAxisNow);
 end;
 
 procedure DrawConcentricMeterFallback(ACanvas: TCanvas; const ABox: TRect;
@@ -302,7 +324,8 @@ begin
 end;
 
 procedure DrawConcentricMeter(ACanvas: TCanvas; const ARect: TRect;
-  ALevel: Double; AAccent: TColor; const APalette: THudPalette);
+  ALevel: Double; AAccent: TColor; const APalette: THudPalette;
+  const AMetrics: THudMetrics);
 var
   Graphics: TGPGraphics;
   Track, ValuePen, InnerPen: TGPPen;
@@ -310,7 +333,7 @@ var
   Side, PenW: Single;
   Level: Double;
   R: TRect;
-  RectW, RectH: Integer;
+  RectW, RectH, MinSide: Integer;
 begin
   Level := Clamp01(ALevel);
   RectW := ARect.Right - ARect.Left;
@@ -318,15 +341,18 @@ begin
   Side := RectW;
   if RectH < Side then
     Side := RectH;
-  if Side < 24 then
+  MinSide := AMetrics.MeterPenMin * 5;
+  if MinSide < 24 then
+    MinSide := 24;
+  if Side < MinSide then
     Exit;
   R.Left := ARect.Left + Round((RectW - Side) / 2);
   R.Top := ARect.Top + Round((RectH - Side) / 2);
   R.Right := R.Left + Round(Side);
   R.Bottom := R.Top + Round(Side);
   PenW := Side * 0.12;
-  if PenW < 5 then
-    PenW := 5;
+  if PenW < AMetrics.MeterPenMin then
+    PenW := AMetrics.MeterPenMin;
   Box.X := R.Left + PenW * 0.5;
   Box.Y := R.Top + PenW * 0.5;
   Box.Width := Side - PenW;
@@ -361,7 +387,8 @@ begin
       ValuePen.SetEndCap(LineCapRound);
       Graphics.DrawArc(ValuePen, Box, 135, Single(270.0 * Level));
     end;
-    if (Inner.Width > 8) and (Inner.Height > 8) then
+    if (Inner.Width > AMetrics.MeterPenMinInner * 2) and
+      (Inner.Height > AMetrics.MeterPenMinInner * 2) then
     begin
       InnerPen := TGPPen.Create(MakeColor(255, GetRValue(APalette.CardBorder),
         GetGValue(APalette.CardBorder), GetBValue(APalette.CardBorder)), 1);
@@ -403,14 +430,14 @@ end;
 
 procedure DrawDualConcentricMeter(ACanvas: TCanvas; const ARect: TRect;
   AOuterLevel, AInnerLevel: Double; AOuterAccent, AInnerAccent: TColor;
-  const APalette: THudPalette);
+  const APalette: THudPalette; const AMetrics: THudMetrics);
 var
   Graphics: TGPGraphics;
   OuterBox, InnerBox: TGPRectF;
   Side, OuterPen, InnerPenW, Gap: Single;
   OuterLv, InnerLv: Double;
   R: TRect;
-  RectW, RectH: Integer;
+  RectW, RectH, MinSide: Integer;
 begin
   OuterLv := Clamp01(AOuterLevel);
   InnerLv := Clamp01(AInnerLevel);
@@ -419,18 +446,21 @@ begin
   Side := RectW;
   if RectH < Side then
     Side := RectH;
-  if Side < 32 then
+  MinSide := AMetrics.MeterPenMin * 6;
+  if MinSide < 32 then
+    MinSide := 32;
+  if Side < MinSide then
     Exit;
   R.Left := ARect.Left + Round((RectW - Side) / 2);
   R.Top := ARect.Top + Round((RectH - Side) / 2);
   R.Right := R.Left + Round(Side);
   R.Bottom := R.Top + Round(Side);
   OuterPen := Side * 0.10;
-  if OuterPen < 5 then
-    OuterPen := 5;
+  if OuterPen < AMetrics.MeterPenMin then
+    OuterPen := AMetrics.MeterPenMin;
   InnerPenW := Side * 0.08;
-  if InnerPenW < 4 then
-    InnerPenW := 4;
+  if InnerPenW < AMetrics.MeterPenMinInner then
+    InnerPenW := AMetrics.MeterPenMinInner;
   Gap := OuterPen * 0.35;
   OuterBox.X := R.Left + OuterPen * 0.5;
   OuterBox.Y := R.Top + OuterPen * 0.5;
@@ -440,7 +470,7 @@ begin
   InnerBox.Y := OuterBox.Y + OuterPen * 0.5 + InnerPenW * 0.5 + Gap;
   InnerBox.Width := OuterBox.Width - OuterPen - InnerPenW - Gap * 2;
   InnerBox.Height := OuterBox.Height - OuterPen - InnerPenW - Gap * 2;
-  if InnerBox.Width < 12 then
+  if InnerBox.Width < AMetrics.MeterPenMinInner * 3 then
     Exit;
 
   if not GGdiOk then
