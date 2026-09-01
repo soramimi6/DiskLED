@@ -25,7 +25,7 @@ uses
 { Dashboard regions (docs/DESIGN.md, .cursor/rules/dashboard-regions.mdc):
   ヘッダー
   左カラム — セクション × 5 (ドーナツグラフ | 履歴グラフ)
-  右カラム — サブセクション × 5 (CPU / メモリ / 電源 / ディスクキュー / Ping)
+  右カラム — サブセクション × 5 (CPU / メモリ / 電源（左：電源 | 右：音量） / ディスクキュー / Ping)
   Do not put subsection facts inside a left-column section. }
 type
   TDashboardForm = class(TForm)
@@ -66,7 +66,6 @@ type
     procedure ApplyTheme;
     procedure ApplyDpiChrome;
     procedure ApplySavedDipBounds;
-    procedure PersistDashboardDip;
     function WindowDpi: Integer;
     function CurrentMetrics: THudMetrics;
     procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
@@ -78,6 +77,7 @@ type
     constructor Create(AOwner: TComponent; APipeline: TDisplayPipeline;
       AHistory: TDashboardHistory; ACollector: TMetricsCollector;
       ASettings: TAppSettings); reintroduce;
+    procedure PersistDashboardDip;
   end;
 
 implementation
@@ -228,8 +228,8 @@ var
 begin
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
-  Constraints.MinWidth := ScalePx(1280, Dpi);
-  Constraints.MinHeight := ScalePx(960, Dpi);
+  Constraints.MinWidth := ScalePx(800, Dpi);
+  Constraints.MinHeight := ScalePx(600, Dpi);
   if FHeaderPaint <> nil then
     FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
 end;
@@ -241,21 +241,50 @@ begin
   if FSettings = nil then
     Exit;
   Dpi := WindowDpi;
+  { Restore the normal (restored) rectangle first, then maximize if saved. }
+  WindowState := wsNormal;
   SetBounds(ScalePx(FSettings.DashboardX, Dpi), ScalePx(FSettings.DashboardY, Dpi),
     ScalePx(FSettings.DashboardW, Dpi), ScalePx(FSettings.DashboardH, Dpi));
+  if FSettings.DashboardMaximized then
+    WindowState := wsMaximized;
 end;
 
 procedure TDashboardForm.PersistDashboardDip;
 var
   Dpi: Integer;
+  Wp: TWindowPlacement;
+  R: TRect;
 begin
   if FSettings = nil then
     Exit;
   Dpi := WindowDpi;
-  FSettings.DashboardX := DipFromPx(Left, Dpi);
-  FSettings.DashboardY := DipFromPx(Top, Dpi);
-  FSettings.DashboardW := DipFromPx(Width, Dpi);
-  FSettings.DashboardH := DipFromPx(Height, Dpi);
+  FillChar(Wp, SizeOf(Wp), 0);
+  Wp.length := SizeOf(Wp);
+  { rcNormalPosition is the restore size even while maximized. Left/Top/Width/Height
+    while maximized would overwrite that with the full-screen frame. }
+  if HandleAllocated and GetWindowPlacement(Handle, Wp) then
+  begin
+    R := Wp.rcNormalPosition;
+    FSettings.DashboardX := DipFromPx(R.Left, Dpi);
+    FSettings.DashboardY := DipFromPx(R.Top, Dpi);
+    FSettings.DashboardW := DipFromPx(R.Right - R.Left, Dpi);
+    FSettings.DashboardH := DipFromPx(R.Bottom - R.Top, Dpi);
+    FSettings.DashboardMaximized :=
+      (Wp.showCmd = SW_SHOWMAXIMIZED) or
+      ((Wp.showCmd = SW_SHOWMINIMIZED) and
+        ((Wp.flags and WPF_RESTORETOMAXIMIZED) <> 0));
+  end
+  else
+  begin
+    if WindowState = wsNormal then
+    begin
+      FSettings.DashboardX := DipFromPx(Left, Dpi);
+      FSettings.DashboardY := DipFromPx(Top, Dpi);
+      FSettings.DashboardW := DipFromPx(Width, Dpi);
+      FSettings.DashboardH := DipFromPx(Height, Dpi);
+    end;
+    FSettings.DashboardMaximized := WindowState = wsMaximized;
+  end;
 end;
 
 procedure TDashboardForm.WMDpiChanged(var Message: TMessage);
@@ -445,6 +474,8 @@ begin
   ApplyDonutLevels;
   for i := 0 to 4 do
     FCards[i].InvalidateMeter;
+  if FPowerPaint <> nil then
+    FPowerPaint.Invalidate;
 end;
 
 procedure TDashboardForm.UiTimerTick(Sender: TObject);
@@ -493,8 +524,10 @@ begin
   if FPipeline = nil then
     Exit;
   DrawPowerPanel(FPowerPaint.Canvas, FPowerPaint.ClientRect, FPipeline.LastSnap,
+    FPipeline.State.AudioL, FPipeline.State.AudioR,
     S('dash.power'), S('dash.power_source'), S('dash.power_ac'),
     S('dash.power_battery'), S('dash.power_unknown'), S('dash.power_remain'),
+    S('dash.audio'), S('dash.audio_l'), S('dash.audio_r'),
     HudPalette, CurrentMetrics);
 end;
 
@@ -522,6 +555,11 @@ begin
   FUiTimer.Enabled := False;
   FMeterTimer.Enabled := False;
   PersistDashboardDip;
+  if FSettings <> nil then
+  try
+    FSettings.Save;
+  except
+  end;
 end;
 
 procedure TDashboardForm.FormResize(Sender: TObject);

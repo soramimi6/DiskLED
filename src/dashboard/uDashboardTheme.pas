@@ -30,6 +30,10 @@ type
     PingFair: TColor;
     PingSlow: TColor;
     PingTimeout: TColor;
+    VolGreen: TColor;
+    VolYellow: TColor;
+    VolRed: TColor;
+    VolOff: TColor;
     GraphFillAlpha: Byte;
   end;
 
@@ -147,6 +151,10 @@ begin
   Result.PingFair := RGB($66, $D1, $FF);
   Result.PingSlow := RGB($42, $8C, $FF);
   Result.PingTimeout := RGB($6D, $4D, $FF);
+  Result.VolGreen := RGB($32, $DC, $3C);
+  Result.VolYellow := RGB($F0, $C4, $14);
+  Result.VolRed := RGB($E8, $2A, $2A);
+  Result.VolOff := RGB($18, $10, $0C);
   Result.GraphFillAlpha := 80;
 end;
 
@@ -177,6 +185,10 @@ begin
   Result.PingFair := RGB($0D, $7A, $A8);
   Result.PingSlow := RGB($1E, $5E, $D4);
   Result.PingTimeout := RGB($5A, $3A, $C4);
+  Result.VolGreen := RGB($28, $9A, $2A);
+  Result.VolYellow := RGB($C4, $88, $12);
+  Result.VolRed := RGB($C4, $28, $28);
+  Result.VolOff := RGB($E0, $D6, $CC);
   Result.GraphFillAlpha := 56;
 end;
 

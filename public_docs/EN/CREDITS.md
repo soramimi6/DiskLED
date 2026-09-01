@@ -21,6 +21,12 @@ v1 visuals re-pack legacy DiskLED skin images as built-in display modes. Thanks 
 
 Release packages will credit original authors where possible. This file will be updated when correct attribution details are confirmed.
 
+## Display assets (new)
+
+| Mode | Origin |
+|------|--------|
+| Info Bar | Created for DiskLED 3 |
+
 ## Classic DiskLED 2.x
 
 Thanks to the XP-era DiskLED project and its help/skin community. 3.x is not a drop-in compatible port; it is a redesign with the same “resident lamp / meter” goal.

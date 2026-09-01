@@ -14,6 +14,8 @@ procedure FillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
   AColor: TColor);
 procedure StrokeRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
   AColor: TColor);
+procedure TextOutOutlined(ACanvas: TCanvas; AX, AY: Integer; const S: string;
+  AFill, AOutline: TColor; AOutlinePx: Integer);
 procedure DrawCardHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle: string;
   const AValue: string; AAccent: TColor; const APalette: THudPalette;
   const AMetrics: THudMetrics);
@@ -40,8 +42,9 @@ procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
   AWriteLbl, AActiveLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawPowerPanel(ACanvas: TCanvas; const ARect: TRect;
-  const ASnap: TMetricsSnapshot; const AHeading, ASourceLbl, AAcLbl, ABattLbl,
-  AUnknownLbl, ARemainLbl: string; const APalette: THudPalette;
+  const ASnap: TMetricsSnapshot; AAudioL, AAudioR: Double;
+  const AHeading, ASourceLbl, AAcLbl, ABattLbl, AUnknownLbl, ARemainLbl,
+  AVolHeading, ALeftLbl, ARightLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawPingPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHistory: TArray<TPingHistoryEntry>;
@@ -89,6 +92,25 @@ begin
   ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom,
     ARadius, ARadius);
   ACanvas.Brush.Style := bsSolid;
+end;
+
+procedure TextOutOutlined(ACanvas: TCanvas; AX, AY: Integer; const S: string;
+  AFill, AOutline: TColor; AOutlinePx: Integer);
+var
+  Dx, Dy: Integer;
+begin
+  if S = '' then
+    Exit;
+  if AOutlinePx < 1 then
+    AOutlinePx := 1;
+  TransparentText(ACanvas);
+  ACanvas.Font.Color := AOutline;
+  for Dy := -AOutlinePx to AOutlinePx do
+    for Dx := -AOutlinePx to AOutlinePx do
+      if (Dx <> 0) or (Dy <> 0) then
+        ACanvas.TextOut(AX + Dx, AY + Dy, S);
+  ACanvas.Font.Color := AFill;
+  ACanvas.TextOut(AX, AY, S);
 end;
 
 procedure DrawCardHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle: string;
@@ -547,25 +569,99 @@ begin
     AWriteLbl + ' ' + FormatIops(ASnap.DiskWriteIops));
 end;
 
+procedure DrawLedMeter(ACanvas: TCanvas; const ARect: TRect; ALevel: Double;
+  const APalette: THudPalette);
+const
+  CMinSlots = 12;
+  CMaxSlots = 24;
+var
+  Count, i, Gap, SegW, X, LitN, Extra, SlotW: Integer;
+  R: TRect;
+  C: TColor;
+  Frac: Double;
+begin
+  ALevel := Clamp01(ALevel);
+  Gap := 1;
+  if (ARect.Right - ARect.Left) >= 8 then
+    Gap := 2;
+  SlotW := ARect.Right - ARect.Left;
+  if (SlotW < 1) or (ARect.Bottom <= ARect.Top) then
+    Exit;
+  Count := SlotW div (Gap + 3);
+  if Count > CMaxSlots then
+    Count := CMaxSlots;
+  if Count < 1 then
+    Count := 1;
+  if (Count < CMinSlots) and (SlotW >= CMinSlots + Gap * (CMinSlots - 1)) then
+    Count := CMinSlots;
+  SegW := (SlotW - Gap * (Count - 1)) div Count;
+  if SegW < 1 then
+    SegW := 1;
+  Extra := SlotW - (SegW * Count + Gap * (Count - 1));
+  LitN := Round(ALevel * Count);
+  X := ARect.Left;
+  ACanvas.Pen.Style := psClear;
+  for i := 0 to Count - 1 do
+  begin
+    R := Rect(X, ARect.Top, X + SegW, ARect.Bottom);
+    if Extra > 0 then
+    begin
+      Inc(R.Right);
+      Dec(Extra);
+    end;
+    Frac := (i + 0.5) / Count;
+    if i < LitN then
+    begin
+      if Frac < 0.70 then
+        C := APalette.VolGreen
+      else if Frac < 0.90 then
+        C := APalette.VolYellow
+      else
+        C := APalette.VolRed;
+    end
+    else
+      C := APalette.VolOff;
+    ACanvas.Brush.Color := C;
+    ACanvas.FillRect(R);
+    X := R.Right + Gap;
+  end;
+  ACanvas.Pen.Style := psSolid;
+end;
+
 procedure DrawPowerPanel(ACanvas: TCanvas; const ARect: TRect;
-  const ASnap: TMetricsSnapshot; const AHeading, ASourceLbl, AAcLbl, ABattLbl,
-  AUnknownLbl, ARemainLbl: string; const APalette: THudPalette;
+  const ASnap: TMetricsSnapshot; AAudioL, AAudioR: Double;
+  const AHeading, ASourceLbl, AAcLbl, ABattLbl, AUnknownLbl, ARemainLbl,
+  AVolHeading, ALeftLbl, ARightLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 var
-  Src, BattTxt, RemainTxt: string;
+  Src, BattTxt, RemainTxt, NameTxt, Shown: string;
   Bar: TRect;
   Level: Double;
-  Y, LineH, LabelW, H, M: Integer;
+  Y, LineH, LabelW, H, M, Mid, Gap, BarH, BarY, BarLeft, ChanW, RowGap: Integer;
+  NameY, NameH, NameW, MaxNameW, LblY, InnerTop, InnerBot, BlockH: Integer;
+  LeftR, RightR: TRect;
 begin
-  FillRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.Card);
-  StrokeRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.CardBorder);
+  ACanvas.Brush.Color := APalette.Bg;
+  ACanvas.Pen.Color := APalette.Bg;
+  ACanvas.FillRect(ARect);
+  Gap := AMetrics.CardGap;
+  Mid := ARect.Left + (ARect.Right - ARect.Left) div 2;
+  LeftR := Rect(ARect.Left, ARect.Top, Mid - Gap div 2, ARect.Bottom);
+  RightR := Rect(Mid + Gap div 2, ARect.Top, ARect.Right, ARect.Bottom);
+  FillRoundRect(ACanvas, LeftR, AMetrics.CardRadius, APalette.Card);
+  StrokeRoundRect(ACanvas, LeftR, AMetrics.CardRadius, APalette.CardBorder);
+  FillRoundRect(ACanvas, RightR, AMetrics.CardRadius, APalette.Card);
+  StrokeRoundRect(ACanvas, RightR, AMetrics.CardRadius, APalette.CardBorder);
+
   TransparentText(ACanvas);
   ACanvas.Font.Name := 'Segoe UI';
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin, LeftR.Top + Dip(AMetrics, 8),
     UpperCase(AHeading));
+  ACanvas.TextOut(RightR.Left + AMetrics.Margin, RightR.Top + Dip(AMetrics, 8),
+    UpperCase(AVolHeading));
 
   if ASnap.PowerAc then
     Src := AAcLbl
@@ -595,30 +691,81 @@ begin
   if ACanvas.TextWidth(ABattLbl) > LabelW then
     LabelW := ACanvas.TextWidth(ABattLbl);
   Inc(LabelW, Dip(AMetrics, 12));
-  Y := ARect.Top + Dip(AMetrics, 44);
+  Y := LeftR.Top + Dip(AMetrics, 44);
   TransparentText(ACanvas);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ASourceLbl);
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin, Y, ASourceLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y, Src);
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin + LabelW, Y, Src);
   Inc(Y, LineH);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ABattLbl);
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin, Y, ABattLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y, BattTxt);
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin + LabelW, Y, BattTxt);
   if ASnap.PowerBatteryPresent and (ASnap.PowerBatteryPercent >= 0) then
     Level := ASnap.PowerBatteryPercent / 100.0
   else
     Level := 0;
-  Bar := Rect(ARect.Left + AMetrics.Margin, Y + LineH - Dip(AMetrics, 4),
-    ARect.Right - AMetrics.Margin, Y + LineH + Dip(AMetrics, 4));
-  DrawUsageBar(ACanvas, Bar, Level, APalette.Active, APalette.Grid, Dip(AMetrics, 4));
+  Bar := Rect(LeftR.Left + AMetrics.Margin, Y + LineH - Dip(AMetrics, 4),
+    LeftR.Right - AMetrics.Margin, Y + LineH + Dip(AMetrics, 4));
+  if Bar.Right > Bar.Left then
+    DrawUsageBar(ACanvas, Bar, Level, APalette.Active, APalette.Grid, Dip(AMetrics, 4));
   Inc(Y, LineH + Dip(AMetrics, 14));
   ACanvas.Font.Color := APalette.TextMuted;
   TransparentText(ACanvas);
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin, Y, ARemainLbl);
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin, Y, ARemainLbl);
   ACanvas.Font.Color := APalette.TextPrimary;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin + LabelW, Y, RemainTxt);
+  ACanvas.TextOut(LeftR.Left + AMetrics.Margin + LabelW, Y, RemainTxt);
+
+  ACanvas.Font.Style := [];
+  ACanvas.Font.Size := AMetrics.BodySize;
+  TransparentText(ACanvas);
+  if ASnap.AudioDeviceName <> '' then
+    NameTxt := ASnap.AudioDeviceName
+  else
+    NameTxt := #$2014;
+  NameH := ACanvas.TextHeight('Ag');
+  NameY := RightR.Bottom - AMetrics.Margin - NameH;
+  MaxNameW := (RightR.Right - RightR.Left) - AMetrics.Margin * 2;
+  if MaxNameW < 8 then
+    MaxNameW := 8;
+  ChanW := ACanvas.TextWidth(ALeftLbl);
+  if ACanvas.TextWidth(ARightLbl) > ChanW then
+    ChanW := ACanvas.TextWidth(ARightLbl);
+  Inc(ChanW, Dip(AMetrics, 8));
+  BarH := Dip(AMetrics, 16);
+  RowGap := Dip(AMetrics, 12);
+  InnerTop := RightR.Top + Dip(AMetrics, 36);
+  InnerBot := NameY - Dip(AMetrics, 8);
+  BlockH := BarH * 2 + RowGap;
+  BarY := InnerTop + ((InnerBot - InnerTop) - BlockH) div 2;
+  if BarY < InnerTop then
+    BarY := InnerTop;
+  BarLeft := RightR.Left + AMetrics.Margin + ChanW;
+  if BarLeft + Dip(AMetrics, 16) < RightR.Right - AMetrics.Margin then
+  begin
+    LblY := BarY + (BarH - NameH) div 2;
+    ACanvas.Font.Color := APalette.TextMuted;
+    TransparentText(ACanvas);
+    ACanvas.TextOut(RightR.Left + AMetrics.Margin, LblY, ALeftLbl);
+    Bar := Rect(BarLeft, BarY, RightR.Right - AMetrics.Margin, BarY + BarH);
+    if Bar.Right > Bar.Left then
+      DrawLedMeter(ACanvas, Bar, AAudioL, APalette);
+    Inc(BarY, BarH + RowGap);
+    LblY := BarY + (BarH - NameH) div 2;
+    ACanvas.Font.Color := APalette.TextMuted;
+    TransparentText(ACanvas);
+    ACanvas.TextOut(RightR.Left + AMetrics.Margin, LblY, ARightLbl);
+    Bar := Rect(BarLeft, BarY, RightR.Right - AMetrics.Margin, BarY + BarH);
+    if Bar.Right > Bar.Left then
+      DrawLedMeter(ACanvas, Bar, AAudioR, APalette);
+  end;
+  Shown := Ellipsize(ACanvas, NameTxt, MaxNameW);
+  NameW := ACanvas.TextWidth(Shown);
+  ACanvas.Font.Color := APalette.TextPrimary;
+  TransparentText(ACanvas);
+  ACanvas.TextOut(RightR.Left + ((RightR.Right - RightR.Left) - NameW) div 2,
+    NameY, Shown);
 end;
 
 function PingStatusText(const AEntry: TPingHistoryEntry): string;

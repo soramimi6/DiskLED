@@ -133,6 +133,7 @@
         <DCCReference Include="src\metrics\uDiskCollector.pas"/>
         <DCCReference Include="src\metrics\uNetCollector.pas"/>
         <DCCReference Include="src\metrics\uPingCollector.pas"/>
+        <DCCReference Include="src\metrics\uAudioCollector.pas"/>
         <DCCReference Include="src\metrics\uRangeEngine.pas"/>
         <DCCReference Include="src\metrics\uHistoryBuffer.pas"/>
         <DCCReference Include="src\metrics\uDashboardHistory.pas"/>

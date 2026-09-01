@@ -2,11 +2,11 @@ object DashboardForm: TDashboardForm
   Left = 0
   Top = 0
   Caption = 'DiskLED Dashboard'
-  ClientHeight = 1200
-  ClientWidth = 1440
+  ClientHeight = 720
+  ClientWidth = 960
   Color = clBlack
-  Constraints.MinHeight = 960
-  Constraints.MinWidth = 1280
+  Constraints.MinHeight = 600
+  Constraints.MinWidth = 800
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12

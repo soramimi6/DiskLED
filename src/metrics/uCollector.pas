@@ -8,7 +8,8 @@ uses
   uMemCollector,
   uDiskCollector,
   uNetCollector,
-  uPingCollector;
+  uPingCollector,
+  uAudioCollector;
 
 type
   TMetricsCollector = class
@@ -18,6 +19,7 @@ type
     FDisk: TDiskCollector;
     FNet: TNetCollector;
     FPing: TPingCollector;
+    FAudio: TAudioCollector;
   public
     constructor Create;
     destructor Destroy; override;
@@ -44,10 +46,12 @@ begin
   FDisk := TDiskCollector.Create;
   FNet := TNetCollector.Create;
   FPing := TPingCollector.Create;
+  FAudio := TAudioCollector.Create;
 end;
 
 destructor TMetricsCollector.Destroy;
 begin
+  FAudio.Free;
   FPing.Free;
   FNet.Free;
   FDisk.Free;
@@ -114,6 +118,15 @@ begin
     Result.NetLinkSpeedBps := 0;
   end;
   FPing.CopyTo(Result);
+  try
+    FAudio.Sample(Result.AudioPeakL, Result.AudioPeakR, Result.AudioPeak,
+      Result.AudioDeviceName);
+  except
+    Result.AudioPeak := 0;
+    Result.AudioPeakL := 0;
+    Result.AudioPeakR := 0;
+    Result.AudioDeviceName := '';
+  end;
   try
     FillChar(Power, SizeOf(Power), 0);
     if GetSystemPowerStatus(Power) then

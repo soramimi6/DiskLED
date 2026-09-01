@@ -111,7 +111,7 @@ var
   Pal: THudPalette;
   Met: THudMetrics;
   CardR, LeftR, MeterR, GraphR, ClipR: TRect;
-  TitleH, MeterTop, Tw, Th, Gap, Sw, Pad: Integer;
+  TitleH, MeterTop, Tw, Th, Gap, Sw, Pad, OutlinePx: Integer;
   ValueX, ValueY: Integer;
   DrawGraph: Boolean;
   SavedDc: Integer;
@@ -194,35 +194,37 @@ begin
   Canvas.Font.Style := [];
   Canvas.Brush.Style := bsClear;
   SetBkMode(Canvas.Handle, TRANSPARENT);
+  OutlinePx := MulDiv(1, Met.Margin, 12);
+  if OutlinePx < 1 then
+    OutlinePx := 1;
   if FDual then
   begin
-    Canvas.Font.Size := Met.BodySize + 1;
+    Canvas.Font.Size := MulDiv(Met.BodySize + 1, 3, 2);
     Th := Canvas.TextHeight('0');
     Gap := MulDiv(2, Met.Margin, 12);
     if Gap < 1 then
       Gap := 1;
-    Canvas.Font.Color := FAccent;
     Tw := Canvas.TextWidth(FValue);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
     ValueY := MeterR.Top + ((MeterR.Bottom - MeterR.Top) - (Th * 2 + Gap)) div 2;
-    Canvas.TextOut(ValueX, ValueY, FValue);
-    Canvas.Font.Color := FAccent2;
+    TextOutOutlined(Canvas, ValueX, ValueY, FValue, FAccent, clBlack, OutlinePx);
     Tw := Canvas.TextWidth(FValue2);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
-    Canvas.TextOut(ValueX, ValueY + Th + Gap, FValue2);
+    TextOutOutlined(Canvas, ValueX, ValueY + Th + Gap, FValue2, FAccent2, clBlack,
+      OutlinePx);
   end
   else
   begin
-    Canvas.Font.Size := Met.BigDigitSize;
-    Canvas.Font.Color := Pal.TextPrimary;
+    Canvas.Font.Size := MulDiv(Met.BigDigitSize, 3, 2);
     Tw := Canvas.TextWidth(FValue);
     if Tw > (MeterR.Right - MeterR.Left) * 3 div 5 then
-      Canvas.Font.Size := Met.BodySize;
+      Canvas.Font.Size := MulDiv(Met.BodySize, 3, 2);
     Tw := Canvas.TextWidth(FValue);
     Th := Canvas.TextHeight(FValue);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
     ValueY := MeterR.Top + ((MeterR.Bottom - MeterR.Top) - Th) div 2;
-    Canvas.TextOut(ValueX, ValueY, FValue);
+    TextOutOutlined(Canvas, ValueX, ValueY, FValue, Pal.TextPrimary, clBlack,
+      OutlinePx);
   end;
 
   GraphR := Rect(Met.MeterPaneWidth, Met.CardPad + MulDiv(4, Met.Margin, 12),

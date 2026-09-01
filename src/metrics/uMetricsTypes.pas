@@ -44,6 +44,10 @@ type
     PingLevel: TPingLevel;
     PingEnabled: Boolean;
     PingTarget: string; { host actually used for last/next probe }
+    AudioPeak: Double; { 0..1 mono equivalent: max of all metering channels }
+    AudioPeakL: Double; { 0..1 front left (channel 0) }
+    AudioPeakR: Double; { 0..1 front right (channel 1); 0 if mono device }
+    AudioDeviceName: string; { default render endpoint friendly name }
     TickMs: Cardinal;
   end;
 
@@ -62,6 +66,9 @@ type
     DiskWrite: TBallisticParams;
     NetIn: TBallisticParams;
     NetOut: TBallisticParams;
+    Audio: TBallisticParams;
+    AudioL: TBallisticParams;
+    AudioR: TBallisticParams;
   end;
 
   { Range-normalized 0..1, before ballistic follow. Graph history uses this. }
@@ -73,6 +80,9 @@ type
     DiskWrite: Double;
     NetIn: Double;
     NetOut: Double;
+    Audio: Double;
+    AudioL: Double;
+    AudioR: Double;
   end;
 
   TDisplayState = record
@@ -87,6 +97,9 @@ type
     DiskWrite: Double;
     NetIn: Double;
     NetOut: Double;
+    Audio: Double;
+    AudioL: Double;
+    AudioR: Double;
     DiskReadOn: Boolean;
     DiskWriteOn: Boolean;
     DiskRWOn: Boolean;
@@ -271,6 +284,10 @@ begin
   Result.DiskWrite := P;
   Result.NetIn := P;
   Result.NetOut := P;
+  Result.Audio := P;
+  Result.Audio.Kind := bkPeak;
+  Result.AudioL := Result.Audio;
+  Result.AudioR := Result.Audio;
 end;
 
 end.

@@ -139,7 +139,7 @@ end;
 
 procedure ReadBallistics(Ini: TCustomIniFile; var ALayout: TViewLayout);
 var
-  Def: TBallisticParams;
+  Def, AudioDef: TBallisticParams;
 begin
   Def := DefaultBallisticParams;
   if Ini.ValueExists('Ballistic', 'Default') then
@@ -154,6 +154,13 @@ begin
   ALayout.Ballistics.DiskWrite := ReadBallisticChannel(Ini, 'DiskWriteMeter', Def);
   ALayout.Ballistics.NetIn := ReadBallisticChannel(Ini, 'NetInMeter', Def);
   ALayout.Ballistics.NetOut := ReadBallisticChannel(Ini, 'NetOutMeter', Def);
+  AudioDef := DefaultBallisticParams;
+  AudioDef.Kind := bkPeak;
+  ALayout.Ballistics.Audio := ReadBallisticChannel(Ini, 'Audio', AudioDef);
+  ALayout.Ballistics.AudioL := ReadBallisticChannel(Ini, 'AudioL',
+    ALayout.Ballistics.Audio);
+  ALayout.Ballistics.AudioR := ReadBallisticChannel(Ini, 'AudioR',
+    ALayout.Ballistics.Audio);
 end;
 
 function ReadSprite(Ini: TCustomIniFile; const ASection: string): TSpriteStrip;
@@ -238,6 +245,9 @@ begin
   ALayout.DiskWriteMeter := ReadSprite(Ini, 'DiskWriteMeter');
   ALayout.NetInMeter := ReadSprite(Ini, 'NetInMeter');
   ALayout.NetOutMeter := ReadSprite(Ini, 'NetOutMeter');
+  ALayout.Audio := ReadSprite(Ini, 'Audio');
+  ALayout.AudioL := ReadSprite(Ini, 'AudioL');
+  ALayout.AudioR := ReadSprite(Ini, 'AudioR');
   ALayout.CpuVal := ReadDigitValue(Ini, 'Cpu');
   ALayout.MemVal := ReadDigitValue(Ini, 'Mem');
   ALayout.SwapVal := ReadDigitValue(Ini, 'Swap');

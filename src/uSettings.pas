@@ -32,6 +32,7 @@ type
     FDashboardY: Integer;
     FDashboardW: Integer;
     FDashboardH: Integer;
+    FDashboardMaximized: Boolean;
     class function ExeIniPath: string; static;
     class function AppDataIniPath: string; static;
     class function CanWriteDir(const ADir: string): Boolean; static;
@@ -64,6 +65,9 @@ type
     property DashboardY: Integer read FDashboardY write FDashboardY;
     property DashboardW: Integer read FDashboardW write FDashboardW;
     property DashboardH: Integer read FDashboardH write FDashboardH;
+    { Restored bounds are 96dpi DIP. Maximized is stored separately so a
+      maximized frame is not written as WindowW/WindowH. }
+    property DashboardMaximized: Boolean read FDashboardMaximized write FDashboardMaximized;
   end;
 
 implementation
@@ -142,8 +146,9 @@ begin
   FDashboardOpen := False;
   FDashboardX := 100;
   FDashboardY := 100;
-  FDashboardW := 1440;
-  FDashboardH := 1200;
+  FDashboardW := 960;
+  FDashboardH := 720;
+  FDashboardMaximized := False;
 end;
 
 procedure TAppSettings.ResolvePath;
@@ -196,13 +201,13 @@ begin
   { Dashboard size/pos are 96dpi DIP. Clamp leftover physical pixels from
     earlier PMv2 builds that stored window pixels instead of DIP. }
   if FDashboardW > 3840 then
-    FDashboardW := 1440;
+    FDashboardW := 960;
   if FDashboardH > 2400 then
-    FDashboardH := 1200;
-  if FDashboardW < 1280 then
-    FDashboardW := 1280;
-  if FDashboardH < 960 then
-    FDashboardH := 960;
+    FDashboardH := 720;
+  if FDashboardW < 800 then
+    FDashboardW := 800;
+  if FDashboardH < 600 then
+    FDashboardH := 600;
 end;
 
 procedure TAppSettings.Load;
@@ -243,6 +248,7 @@ begin
     FDashboardY := Ini.ReadInteger('Dashboard', 'WindowY', FDashboardY);
     FDashboardW := Ini.ReadInteger('Dashboard', 'WindowW', FDashboardW);
     FDashboardH := Ini.ReadInteger('Dashboard', 'WindowH', FDashboardH);
+    FDashboardMaximized := Ini.ReadBool('Dashboard', 'Maximized', FDashboardMaximized);
   finally
     Ini.Free;
   end;
@@ -291,6 +297,7 @@ begin
     Ini.WriteInteger('Dashboard', 'WindowY', FDashboardY);
     Ini.WriteInteger('Dashboard', 'WindowW', FDashboardW);
     Ini.WriteInteger('Dashboard', 'WindowH', FDashboardH);
+    Ini.WriteBool('Dashboard', 'Maximized', FDashboardMaximized);
     Ini.UpdateFile;
   finally
     Ini.Free;

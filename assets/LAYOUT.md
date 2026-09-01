@@ -69,7 +69,7 @@ assets/
 |---|---|
 | Default | 既定プロファイル `vu` / `bar` / `peak` |
 | Strength | 既定の上昇強度 0–100（大きいほど速く追いつく。下降速度はプロファイル固定） |
-| Cpu / Mem / Swap / DiskReadMeter / DiskWriteMeter / NetInMeter / NetOutMeter | `vu` または `vu,60`（プロファイル,強度） |
+| Cpu / Mem / Swap / DiskReadMeter / DiskWriteMeter / NetInMeter / NetOutMeter / Audio / AudioL / AudioR | `vu` または `vu,60`（プロファイル,強度） |
 
 | プロファイル | 想定 | 上昇（Strength 50） | 下降 |
 |---|---|---|---|
@@ -77,11 +77,11 @@ assets/
 | `bar` | 粗い LED バー | 指数・中 | フルスケール約 0.5 秒 |
 | `peak` | スパイク用 | 指数・最速 | フルスケール約 1.3 秒 |
 
-上昇は指数、下降は定速スルーレート。経過時間ベースなので表示 fps を変えても時間あたりの動きは揃う。
+上昇は指数、下降は定速スルーレート。経過時間ベースなので表示 fps を変えても時間あたりの動きは揃う。`Audio` / `AudioL` / `AudioR` は再生ピーク（MONO / L / R）。`Audio` 省略時は `peak` / `50`（他メーターの Default とは別）。`AudioL` / `AudioR` 省略時は `Audio` を継承。
 
 ## パーツ節
 
-`Cpu` `Mem` `Swap` `Ping` `DiskRead` `DiskWrite` `DiskRW` `NetIn` `NetOut` `NetActivity` `NetTotal` `DiskReadMeter` `DiskWriteMeter` `NetInMeter` `NetOutMeter`
+`Cpu` `Mem` `Swap` `Ping` `DiskRead` `DiskWrite` `DiskRW` `NetIn` `NetOut` `NetActivity` `NetTotal` `DiskReadMeter` `DiskWriteMeter` `NetInMeter` `NetOutMeter` `Audio` `AudioL` `AudioR`
 
 | キー | 内容 |
 |---|---|
@@ -93,6 +93,7 @@ assets/
 
 - `DiskRW`: Disk Read **または** Write で点灯
 - `NetTotal`: Net In **または** Out で点灯（`NetActivity` と同条件・別スプライト）
+- `Audio` / `AudioL` / `AudioR`: 再生ピーク 0..1（MONO＝全チャンネル最大、L＝ch0、R＝ch1）。CPU メーターと同じ縦ストリップ。`File` が空なら描かない。同梱では Info Bar が `AudioL` / `AudioR` を使用（Original / Crystal / Metalic は未使用）
 - `Ping` Frames=4: Timeout → Slow → Fair → Normal（上から 0..3）
 
 画像は縦ストリップ（上から低→高）を想定しています。

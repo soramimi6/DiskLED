@@ -22,6 +22,9 @@ type
     FDirDiskWrite: TMeterFollowDir;
     FDirNetIn: TMeterFollowDir;
     FDirNetOut: TMeterFollowDir;
+    FDirAudio: TMeterFollowDir;
+    FDirAudioL: TMeterFollowDir;
+    FDirAudioR: TMeterFollowDir;
     FFollowTick: Cardinal;
     FHasFollowTick: Boolean;
     FStartupTick: Cardinal;
@@ -99,6 +102,9 @@ begin
   FBallistics.DiskWrite.Strength := ClampStrength(FBallistics.DiskWrite.Strength);
   FBallistics.NetIn.Strength := ClampStrength(FBallistics.NetIn.Strength);
   FBallistics.NetOut.Strength := ClampStrength(FBallistics.NetOut.Strength);
+  FBallistics.Audio.Strength := ClampStrength(FBallistics.Audio.Strength);
+  FBallistics.AudioL.Strength := ClampStrength(FBallistics.AudioL.Strength);
+  FBallistics.AudioR.Strength := ClampStrength(FBallistics.AudioR.Strength);
 end;
 
 function TDisplayPipeline.ApplySpeedScale(AScale: TSpeedScale): Boolean;
@@ -222,7 +228,7 @@ end;
 procedure TDisplayPipeline.Update(const ASnap: TMetricsSnapshot);
 var
   CpuT, MemT, SwapT: Double;
-  DiskRT, DiskWT, NetIT, NetOT: Double;
+  DiskRT, DiskWT, NetIT, NetOT, AudioT, AudioLT, AudioRT: Double;
   Progress: Double;
   NowTick: Cardinal;
   DtSec: Double;
@@ -237,6 +243,9 @@ begin
   DiskWT := FRange.DiskWriteNorm(ASnap);
   NetIT := FRange.NetInNorm(ASnap);
   NetOT := FRange.NetOutNorm(ASnap);
+  AudioT := Clamp01(ASnap.AudioPeak);
+  AudioLT := Clamp01(ASnap.AudioPeakL);
+  AudioRT := Clamp01(ASnap.AudioPeakR);
 
   FNormalized.Cpu := CpuT;
   FNormalized.Mem := MemT;
@@ -245,6 +254,9 @@ begin
   FNormalized.DiskWrite := DiskWT;
   FNormalized.NetIn := NetIT;
   FNormalized.NetOut := NetOT;
+  FNormalized.Audio := AudioT;
+  FNormalized.AudioL := AudioLT;
+  FNormalized.AudioR := AudioRT;
 
   FState.DiskReadOn := IsActiveBps(ASnap.DiskReadBps);
   FState.DiskWriteOn := IsActiveBps(ASnap.DiskWriteBps);
@@ -281,6 +293,9 @@ begin
     FState.DiskWrite := Clamp01(DiskWT * Progress);
     FState.NetIn := Clamp01(NetIT * Progress);
     FState.NetOut := Clamp01(NetOT * Progress);
+    FState.Audio := Clamp01(AudioT * Progress);
+    FState.AudioL := Clamp01(AudioLT * Progress);
+    FState.AudioR := Clamp01(AudioRT * Progress);
     RefreshDigits(True);
     Exit;
   end;
@@ -292,6 +307,9 @@ begin
   FState.DiskWrite := Follow(FState.DiskWrite, DiskWT, FBallistics.DiskWrite, FDirDiskWrite, DtSec);
   FState.NetIn := Follow(FState.NetIn, NetIT, FBallistics.NetIn, FDirNetIn, DtSec);
   FState.NetOut := Follow(FState.NetOut, NetOT, FBallistics.NetOut, FDirNetOut, DtSec);
+  FState.Audio := Follow(FState.Audio, AudioT, FBallistics.Audio, FDirAudio, DtSec);
+  FState.AudioL := Follow(FState.AudioL, AudioLT, FBallistics.AudioL, FDirAudioL, DtSec);
+  FState.AudioR := Follow(FState.AudioR, AudioRT, FBallistics.AudioR, FDirAudioR, DtSec);
 
   RefreshDigits(False);
 end;

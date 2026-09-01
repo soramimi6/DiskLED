@@ -11,7 +11,22 @@ uses
 const
   CEdgeSnapPx = 16;
 
+type
+  { Grab origin for WM_MOVING. Snap must follow the mouse from click, not
+    the last snapped rect — otherwise a message delta never exceeds SnapPx
+    and the window sticks to the work-area edge (thin skins especially). }
+  TGadgetDragState = record
+    Active: Boolean;
+    GrabMouse: TPoint;
+    GrabLeft: Integer;
+    GrabTop: Integer;
+  end;
+
 procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer = 96);
+procedure BeginGadgetDrag(var State: TGadgetDragState; const ABounds: TRect);
+procedure ApplyGadgetDragRect(const State: TGadgetDragState; var R: TRect;
+  ADpi: Integer);
+procedure EndGadgetDrag(var State: TGadgetDragState);
 
 implementation
 
@@ -32,23 +47,9 @@ begin
     SystemParametersInfo(SPI_GETWORKAREA, 0, @Result, 0);
 end;
 
-procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer);
-var
-  Work: TRect;
-  W, H: Integer;
-  Left, Top: Integer;
-  SnapPx: Integer;
+procedure ConstrainToWorkArea(var Left, Top: Integer; W, H: Integer;
+  const Work: TRect);
 begin
-  W := R.Right - R.Left;
-  H := R.Bottom - R.Top;
-  if (W <= 0) or (H <= 0) then
-    Exit;
-
-  SnapPx := SnapPixels(ADpi);
-  Work := WorkAreaForRect(R);
-  Left := R.Left;
-  Top := R.Top;
-
   if W >= (Work.Right - Work.Left) then
     Left := Work.Left
   else
@@ -68,7 +69,13 @@ begin
     if Top + H > Work.Bottom then
       Top := Work.Bottom - H;
   end;
+end;
 
+procedure SnapToWorkAreaEdges(var Left, Top: Integer; W, H: Integer;
+  const Work: TRect; SnapPx: Integer);
+begin
+  if SnapPx < 1 then
+    Exit;
   if Abs(Left - Work.Left) <= SnapPx then
     Left := Work.Left;
   if Abs((Left + W) - Work.Right) <= SnapPx then
@@ -77,11 +84,72 @@ begin
     Top := Work.Top;
   if Abs((Top + H) - Work.Bottom) <= SnapPx then
     Top := Work.Bottom - H;
+end;
+
+procedure ApplyPlacement(var R: TRect; ADpi: Integer; ASnap: Boolean);
+var
+  Work: TRect;
+  W, H: Integer;
+  Left, Top: Integer;
+begin
+  W := R.Right - R.Left;
+  H := R.Bottom - R.Top;
+  if (W <= 0) or (H <= 0) then
+    Exit;
+
+  Work := WorkAreaForRect(R);
+  Left := R.Left;
+  Top := R.Top;
+  ConstrainToWorkArea(Left, Top, W, H, Work);
+  if ASnap then
+    SnapToWorkAreaEdges(Left, Top, W, H, Work, ScalePx(CEdgeSnapPx, ADpi));
 
   R.Left := Left;
   R.Top := Top;
   R.Right := Left + W;
   R.Bottom := Top + H;
+end;
+
+procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer);
+begin
+  ApplyPlacement(R, ADpi, True);
+end;
+
+procedure BeginGadgetDrag(var State: TGadgetDragState; const ABounds: TRect);
+begin
+  State.GrabLeft := ABounds.Left;
+  State.GrabTop := ABounds.Top;
+  State.Active := GetCursorPos(State.GrabMouse);
+end;
+
+procedure ApplyGadgetDragRect(const State: TGadgetDragState; var R: TRect;
+  ADpi: Integer);
+var
+  Mouse: TPoint;
+  W, H: Integer;
+begin
+  W := R.Right - R.Left;
+  H := R.Bottom - R.Top;
+  if (W <= 0) or (H <= 0) then
+    Exit;
+
+  if State.Active and GetCursorPos(Mouse) then
+  begin
+    { Ideal position from the click, so snap/unsnap uses total mouse travel. }
+    R.Left := State.GrabLeft + (Mouse.X - State.GrabMouse.X);
+    R.Top := State.GrabTop + (Mouse.Y - State.GrabMouse.Y);
+    R.Right := R.Left + W;
+    R.Bottom := R.Top + H;
+    ApplyPlacement(R, ADpi, True);
+  end
+  else
+    { Keyboard / no cursor: keep on-screen only. Snap on mouse-up. }
+    ApplyPlacement(R, ADpi, False);
+end;
+
+procedure EndGadgetDrag(var State: TGadgetDragState);
+begin
+  State.Active := False;
 end;
 
 end.

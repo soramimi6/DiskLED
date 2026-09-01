@@ -80,6 +80,9 @@ type
     DiskWriteMeter: TSpriteStrip;
     NetInMeter: TSpriteStrip;
     NetOutMeter: TSpriteStrip;
+    Audio: TSpriteStrip;
+    AudioL: TSpriteStrip;
+    AudioR: TSpriteStrip;
     CpuVal: TDigitValue;
     MemVal: TDigitValue;
     SwapVal: TDigitValue;

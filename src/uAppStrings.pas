@@ -152,6 +152,9 @@ begin
   AddStr('dash.power_battery', 'バッテリ', 'Battery');
   AddStr('dash.power_unknown', '不明', 'Unknown');
   AddStr('dash.power_remain', '残時間', 'Remaining');
+  AddStr('dash.audio', '音量', 'Volume');
+  AddStr('dash.audio_l', 'L', 'L');
+  AddStr('dash.audio_r', 'R', 'R');
   AddStr('dash.dhcp', 'DHCP', 'DHCP');
   AddStr('dash.static', '固定', 'Static');
   AddStr('dash.gw', 'GW', 'GW');
@@ -215,7 +218,7 @@ end;
 
 function GetProductVersionText: string;
 const
-  CFallback = '3.0.1';
+  CFallback = '3.1.0';
 var
   Path: string;
   Size: DWORD;

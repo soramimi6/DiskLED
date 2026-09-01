@@ -21,7 +21,8 @@ uses
   uSettings,
   uHoverTip,
   uMeterRenderer,
-  uDashboardForm;
+  uDashboardForm,
+  uWindowPlacement;
 
 type
   TMainForm = class(TForm)
@@ -60,6 +61,7 @@ type
     FHoverDelay: TTimer;
     FHoverArmed: Boolean;
     FDragging: Boolean;
+    FGadgetDrag: TGadgetDragState;
     FVersionText: string;
     FHoverHeldText: string;
     FHoverTextTick: Cardinal;
@@ -143,7 +145,6 @@ uses
   uAppStrings,
   uDisplayModes,
   uGraphRenderer,
-  uWindowPlacement,
   uOptionsForm,
   uStartup,
   uMetricsTypes,
@@ -387,6 +388,8 @@ begin
   CaptureWindowPosToSettings;
   if FLayout.ModeId <> '' then
     FSettings.Mode := FLayout.ModeId;
+  if FDashboardForm <> nil then
+    FDashboardForm.PersistDashboardDip;
   try
     FSettings.Save;
   except
@@ -912,13 +915,14 @@ end;
 
 procedure TMainForm.WMMoving(var Message: TMessage);
 begin
-  ConstrainAndSnapRect(PRect(Message.LParam)^, FMonitorDpi);
+  ApplyGadgetDragRect(FGadgetDrag, PRect(Message.LParam)^, FMonitorDpi);
   Message.Result := 1;
 end;
 
 procedure TMainForm.WMEnterSizeMove(var Message: TMessage);
 begin
   FDragging := True;
+  BeginGadgetDrag(FGadgetDrag, BoundsRect);
   HideHoverTip;
   inherited;
 end;
@@ -926,6 +930,7 @@ end;
 procedure TMainForm.WMExitSizeMove(var Message: TMessage);
 begin
   FDragging := False;
+  EndGadgetDrag(FGadgetDrag);
   ApplyWindowBounds;
   PersistSettings;
   inherited;

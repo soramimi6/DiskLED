@@ -18,6 +18,7 @@ uses
   uDiskCollector in 'src\metrics\uDiskCollector.pas',
   uNetCollector in 'src\metrics\uNetCollector.pas',
   uPingCollector in 'src\metrics\uPingCollector.pas',
+  uAudioCollector in 'src\metrics\uAudioCollector.pas',
   uRangeEngine in 'src\metrics\uRangeEngine.pas',
   uHistoryBuffer in 'src\metrics\uHistoryBuffer.pas',
   uDashboardHistory in 'src\metrics\uDashboardHistory.pas',

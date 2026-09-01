@@ -17,6 +17,9 @@ type
     DiskWriteMeter: Integer;
     NetInMeter: Integer;
     NetOutMeter: Integer;
+    Audio: Integer;
+    AudioL: Integer;
+    AudioR: Integer;
     DiskReadOn: Boolean;
     DiskWriteOn: Boolean;
     DiskRWOn: Boolean;
@@ -83,6 +86,9 @@ begin
   Result.DiskWriteMeter := StripFrame(ALayout.DiskWriteMeter, AState.DiskWrite);
   Result.NetInMeter := StripFrame(ALayout.NetInMeter, AState.NetIn);
   Result.NetOutMeter := StripFrame(ALayout.NetOutMeter, AState.NetOut);
+  Result.Audio := StripFrame(ALayout.Audio, AState.Audio);
+  Result.AudioL := StripFrame(ALayout.AudioL, AState.AudioL);
+  Result.AudioR := StripFrame(ALayout.AudioR, AState.AudioR);
   Result.DiskReadOn := VisibleLed(ALayout.DiskRead, AState.DiskReadOn);
   Result.DiskWriteOn := VisibleLed(ALayout.DiskWrite, AState.DiskWriteOn);
   Result.DiskRWOn := VisibleLed(ALayout.DiskRW, AState.DiskRWOn);
@@ -106,6 +112,7 @@ begin
     (A.Cpu = B.Cpu) and (A.Mem = B.Mem) and (A.Swap = B.Swap) and
     (A.DiskReadMeter = B.DiskReadMeter) and (A.DiskWriteMeter = B.DiskWriteMeter) and
     (A.NetInMeter = B.NetInMeter) and (A.NetOutMeter = B.NetOutMeter) and
+    (A.Audio = B.Audio) and (A.AudioL = B.AudioL) and (A.AudioR = B.AudioR) and
     (A.DiskReadOn = B.DiskReadOn) and (A.DiskWriteOn = B.DiskWriteOn) and
     (A.DiskRWOn = B.DiskRWOn) and
     (A.NetInOn = B.NetInOn) and (A.NetOutOn = B.NetOutOn) and
@@ -207,6 +214,9 @@ begin
   DrawStrip(ADest, ALayout, AAssets, ALayout.DiskWriteMeter, AState.DiskWrite);
   DrawStrip(ADest, ALayout, AAssets, ALayout.NetInMeter, AState.NetIn);
   DrawStrip(ADest, ALayout, AAssets, ALayout.NetOutMeter, AState.NetOut);
+  DrawStrip(ADest, ALayout, AAssets, ALayout.Audio, AState.Audio);
+  DrawStrip(ADest, ALayout, AAssets, ALayout.AudioL, AState.AudioL);
+  DrawStrip(ADest, ALayout, AAssets, ALayout.AudioR, AState.AudioR);
 
   DrawLed(ADest, ALayout, AAssets, ALayout.DiskRead, AState.DiskReadOn);
   DrawLed(ADest, ALayout, AAssets, ALayout.DiskWrite, AState.DiskWriteOn);

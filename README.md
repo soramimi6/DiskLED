@@ -8,8 +8,8 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 - **開発環境**: Delphi Community Edition（個人開発・無料配布）／**VCL**・64-bit
 - **対象**: Windows 10 / 11
-- **外観**: ユーザー導入の旧スキン（`.dla`）は非対応。内部は **layout.cfg ベースの表示モード**（Original / Crystal / Metalic）。`assets/<id>/layout.cfg` を足せばモード追加可能
-- **スキンリソース**: 旧版から引き継いだ画像を `assets/original`・`assets/crystal`・`assets/metalic` に配置（座標は各 `layout.cfg`）。`assets/` 以下は旧版開発者と同一の著作物
+- **外観**: ユーザー導入の旧スキン（`.dla`）は非対応。内部は **layout.cfg ベースの表示モード**（Original / Crystal / Metalic / Info Bar）。`assets/<id>/layout.cfg` を足せばモード追加可能
+- **スキンリソース**: 旧版から引き継いだ画像を `assets/original`・`assets/crystal`・`assets/metalic` に配置。`assets/infobar` は DiskLED 3 向け新規。座標は各 `layout.cfg`。`assets/` 以下は旧版開発者と同一の著作物
 - **更新頻度**: 最低 **10 fps**、デフォルト **15 fps**。見た目のコマが変わらないときは再描画しない
 - **プロセス**: **単一起動のみ**（2つ目以降は起動を抑制し、既存へフォーカス等）
 - **スケール**:
@@ -26,7 +26,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 **含める**
 
-- 表示モード切替（Original / Crystal / Metalic）
+- 表示モード切替（Original / Crystal / Metalic / Info Bar）
 - CPU、MEM、SWAP（仮想メモリ）メーター
 - Disk R/W LED＋速度バー
 - Net 送受信 LED＋速度バー
@@ -37,6 +37,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - スタートアップ登録機能
 - 単一起動の強制
 - **高 DPI（Per-Monitor V2）**。ガジェットは 0.5 刻み、ダッシュボードは実 DPI、オプションは VCL Scaled
+- **ダッシュボード**（別ウィンドウ。ドーナツ約 5Hz、数字・履歴 1Hz）
 
 **含めない（今後検討）**
 
@@ -48,7 +49,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - 手動速度レンジ UI
 - 手動言語切替（ini / メニュー）
 
-フル／コンパクト＋推移グラフは **Phase5（実装済み）**。Crystal はコンパクトのみ。
+フル／コンパクト＋推移グラフは **Phase5（実装済み）**。Crystal / Info Bar はコンパクトのみ。
 
 ### 監視対象
 
@@ -68,8 +69,8 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 ### 配布・その他
 
 - **配布形態**:
-  - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_3.0.1.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
-  - 併せてポータブル zip（`DiskLED-3.0.1-portable.zip`）も利用可能とする
+  - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_3.1.0.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
+  - 併せてポータブル zip（`DiskLED-3.1.0-portable.zip`）も利用可能とする
 - **言語**: 既定は英語。OS の UI 言語が日本語のときだけ日本語
 - **ライセンス**: 著作権は SoRaMiMi（旧版開発者と同一）。`assets/` 以下も同様。公式配布物は無償利用可。ソースの改変・再配布は不可。改善・デバッグの協力は共同開発者（リポジトリ編集権限の付与）として行う。詳細は `LICENSE.txt`
 
@@ -78,12 +79,13 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - CPU／物理メモリ／SWAP のリアルタイム表示
 - ディスク I/O（LED・速度バー）
 - ネットワーク送受信（LED・速度バー）
-- Ping（応答段階表示・手動即時更新）
+- Ping（応答段階表示・手動即時更新。オプションでオフ／ゲートウェイ／閾値）
 - 速度レンジの自動決定（デバイス情報 → 実測推定）
 - 表示モード切替（`assets/*/layout.cfg`。今後追加可）
 - 最前面・トレイアイコン・スタートアップ
 - 単一起動の抑制
 - 設定の ini 保存
+- ダッシュボード（別ウィンドウ）と Per-Monitor V2 高 DPI
 
 ## 参考
 
@@ -104,8 +106,8 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
 
 - **Development environment**: Delphi Community Edition (personal development, free distribution) / **VCL** · 64-bit
 - **Target**: Windows 10 / 11
-- **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic). Modes can be added by placing `assets/<id>/layout.cfg`
-- **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic` (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
+- **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic / Info Bar). Modes can be added by placing `assets/<id>/layout.cfg`
+- **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic`. `assets/infobar` is new for DiskLED 3 (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
 - **Refresh rate**: Minimum **10 fps**, default **15 fps**. The window is not redrawn while sprite frames stay the same
 - **Process**: **Single instance only** (later launches are suppressed and focus is given to the existing instance, etc.)
 - **Scales**:
@@ -122,7 +124,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 
 **Include**
 
-- Display mode switching (Original / Crystal / Metalic)
+- Display mode switching (Original / Crystal / Metalic / Info Bar)
 - CPU, MEM, SWAP (virtual memory) meters
 - Disk R/W LED + speed bar
 - Net in/out LEDs + speed bar
@@ -133,6 +135,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - Startup registration
 - Enforce single instance
 - **High DPI (Per-Monitor V2)**. Gadget uses 0.5-step scale; dashboard follows real DPI; Options use VCL Scaled
+- **Dashboard** (separate window; donuts about 5 Hz, numbers and history 1 Hz)
 
 **Do not include (consider later)**
 
@@ -144,7 +147,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - Manual speed-range UI
 - Manual language switching (ini / menu)
 
-Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-only.
+Full/compact + history graphs are **Phase5 (implemented)**. Crystal / Info Bar are compact-only.
 
 ### What is monitored
 
@@ -164,8 +167,8 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-o
 ### Distribution and other
 
 - **Distribution**:
-  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_3.0.1.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
-  - A portable zip (`DiskLED-3.0.1-portable.zip`) is also available
+  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_3.1.0.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
+  - A portable zip (`DiskLED-3.1.0-portable.zip`) is also available
 - **Language**: English by default. Japanese only when the OS UI language is Japanese
 - **License**: Copyright is SoRaMiMi (same as the previous version’s author). Same for `assets/`. Official packages may be used free of charge. Modification and redistribution of the source are not permitted. Help with improvements and debugging is as a co-developer (granted repository write access). Details in `LICENSE.txt`
 
@@ -174,12 +177,13 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal is compact-o
 - Real-time CPU / physical memory / SWAP display
 - Disk I/O (LED · speed bar)
 - Network send/receive (LED · speed bar)
-- Ping (level display · manual immediate refresh)
+- Ping (level display · manual immediate refresh. Options: off / gateway / thresholds)
 - Automatic speed range (device info → measured estimate)
 - Display mode switching (`assets/*/layout.cfg`; more can be added later)
 - Always-on-top, tray icon, startup
 - Suppress extra instances
 - Settings saved to ini
+- Dashboard (separate window) and Per-Monitor V2 high DPI
 
 ## References
 
