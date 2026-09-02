@@ -18,6 +18,7 @@ Windows 10 / 11 向け DiskLED 3.x の更新（64-bit）。
 - 表示モード **Info Bar** を追加（531×16・コンパクトのみ）。CPU / メモリ / SWAP / ディスク読取・書込 / ネット送受信 / 再生音量 L / R を横向き LED バーで表示（活動 LED なし）
 - 表示モード（`layout.cfg`）でガジェットに音量メーター `Audio` / `AudioL` / `AudioR`（0〜100%）を定義できる。同梱では **Info Bar** が L / R バーを使用（Original / Crystal / Metalic は未使用）
 - オプション画面は高 DPI で自動スケール
+- 起動時に GitHub Releases の Latest を 1 回確認。新しい安定版があればトレイ通知は版ごとに 1 回、右クリック（終了の直上）に「新しい DiskLED 3.x.x の情報を見る」を入れるまで出す。クリックでそのリリースページを開く（自動入手・入れ替えはしない。オプションでオフ可）
 - 配布: `DiskLED_Setup_3.1.0.exe` と `DiskLED-3.1.0-portable.zip`
 
 ## 3.0.1

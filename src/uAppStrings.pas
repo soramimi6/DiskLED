@@ -54,6 +54,9 @@ begin
   AddStr('menu.full', 'フル', 'Full');
   AddStr('menu.exit', '終了', 'Exit');
   AddStr('menu.options', 'オプション', 'Options');
+  AddStr('menu.update', '新しい DiskLED %s の情報を見る', 'View DiskLED %s release info');
+  AddStr('tray.update_title', 'DiskLED からのお知らせ', 'A notice from DiskLED');
+  AddStr('tray.update', 'DiskLED %s が公開されています', 'DiskLED %s is available');
   AddStr('hover.ping_off', 'オフ', 'off');
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
@@ -64,6 +67,7 @@ begin
   AddStr('opt.group.thresholds', 'Ping 判定しきい値', 'Ping level thresholds');
   AddStr('opt.stay_on_top', '常に手前に表示', 'Always on top');
   AddStr('opt.startup', 'スタートアップに登録', 'Run at Windows startup');
+  AddStr('opt.update_check', '起動時に新しい版を確認する', 'Check for a new version at startup');
   AddStr('opt.fps', '表示頻度 (fps)', 'Refresh rate (fps)');
   AddStr('opt.graph_rate', 'グラフ更新 (Hz)', 'Graph update (Hz)');
   AddStr('opt.speed_scale', 'ネット速度の反応', 'Network speed response');

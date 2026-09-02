@@ -1,4 +1,4 @@
-unit uOptionsForm;
+﻿unit uOptionsForm;
 
 interface
 
@@ -18,6 +18,7 @@ type
     LblSecWindow: TLabel;
     ChkStayOnTop: TCheckBox;
     ChkStartup: TCheckBox;
+    ChkUpdateCheck: TCheckBox;
     CardFps: TPanel;
     LblSecFps: TLabel;
     RbFps10: TRadioButton;
@@ -167,6 +168,7 @@ begin
   LblSecWindow.Caption := S('opt.group.window');
   ChkStayOnTop.Caption := S('opt.stay_on_top');
   ChkStartup.Caption := S('opt.startup');
+  ChkUpdateCheck.Caption := S('opt.update_check');
   LblSecFps.Caption := S('opt.fps');
   LblSecGraph.Caption := S('opt.graph_rate');
   LblSecScale.Caption := S('opt.speed_scale');
@@ -234,6 +236,7 @@ begin
     Exit;
   ChkStayOnTop.Checked := FSettings.StayOnTop;
   ChkStartup.Checked := TStartup.IsRegistered or FSettings.Startup;
+  ChkUpdateCheck.Checked := FSettings.UpdateEnabled;
   case FSettings.Fps of
     10:
       RbFps10.Checked := True;
@@ -347,6 +350,7 @@ begin
 
   FSettings.StayOnTop := ChkStayOnTop.Checked;
   FSettings.Startup := ChkStartup.Checked;
+  FSettings.UpdateEnabled := ChkUpdateCheck.Checked;
   if RbFps10.Checked then
     FSettings.Fps := 10
   else if RbFps20.Checked then

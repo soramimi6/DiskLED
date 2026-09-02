@@ -22,7 +22,8 @@ uses
   uHoverTip,
   uMeterRenderer,
   uDashboardForm,
-  uWindowPlacement;
+  uWindowPlacement,
+  uUpdateCheck;
 
 type
   TMainForm = class(TForm)
@@ -73,6 +74,10 @@ type
     FDashboardLastPushTick: Cardinal;
     FHasDashboardPushTick: Boolean;
     FDashboardForm: TDashboardForm;
+    FMiUpdate: TMenuItem;
+    FUpdateDelay: TTimer;
+    FUpdateGen: Integer;
+    FClosing: Boolean;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
@@ -93,8 +98,10 @@ type
     procedure miPingClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
     procedure miDashboardClick(Sender: TObject);
+    procedure miUpdateClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure TrayDblClick(Sender: TObject);
+    procedure TrayBalloonClick(Sender: TObject);
     procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMNCHitTest(var Message: TWMNCHitTest); message WM_NCHITTEST;
     procedure WMNCRButtonUp(var Message: TWMNCRButtonUp); message WM_NCRBUTTONUP;
@@ -125,6 +132,13 @@ type
     procedure HideHoverTip;
     procedure HoverDelayTick(Sender: TObject);
     procedure RefreshHoverText;
+    procedure SyncUpdateMenu;
+    procedure ScheduleUpdateCheck;
+    procedure CancelUpdateCheck;
+    procedure UpdateDelayTick(Sender: TObject);
+    procedure ApplyUpdateCheckResult(AGen: Integer; const AResult: TUpdateCheckResult);
+    procedure OpenUpdatePage;
+    procedure ShowUpdateBalloon(const AVersion: string);
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -148,7 +162,8 @@ uses
   uOptionsForm,
   uStartup,
   uMetricsTypes,
-  uDpiScale;
+  uDpiScale,
+  Winapi.ShellAPI;
 
 procedure TMainForm.CreateParams(var Params: TCreateParams);
 begin
@@ -212,6 +227,8 @@ begin
   DoubleBuffered := True;
   Scaled := False;
   FReadyToPersist := False;
+  FClosing := False;
+  FUpdateGen := 0;
   { poDesigned: do not let VCL recenter and wipe restored Left/Top. }
   Position := poDesigned;
 
@@ -288,6 +305,14 @@ begin
 
   if (FSettings <> nil) and FSettings.DashboardOpen then
     ShowDashboard;
+
+  FUpdateDelay := TTimer.Create(Self);
+  FUpdateDelay.Enabled := False;
+  FUpdateDelay.Interval := 5000;
+  FUpdateDelay.OnTimer := UpdateDelayTick;
+  SyncUpdateMenu;
+  if (FSettings <> nil) and FSettings.UpdateEnabled then
+    ScheduleUpdateCheck;
 end;
 
 procedure TMainForm.FormShow(Sender: TObject);
@@ -321,6 +346,7 @@ begin
   FTray.Hint := 'DiskLED';
   FTray.PopupMenu := FPopup;
   FTray.OnDblClick := TrayDblClick;
+  FTray.OnBalloonClick := TrayBalloonClick;
   FTray.Visible := True;
 end;
 
@@ -408,6 +434,10 @@ end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
+  FClosing := True;
+  Inc(FUpdateGen);
+  if FUpdateDelay <> nil then
+    FUpdateDelay.Enabled := False;
   if FHoverDelay <> nil then
     FHoverDelay.Enabled := False;
   HideHoverTip;
@@ -486,15 +516,15 @@ begin
   Sep.Caption := '-';
   FPopup.Items.Add(Sep);
 
-  miPing := TMenuItem.Create(FPopup);
-  miPing.Caption := S('menu.ping');
-  miPing.OnClick := miPingClick;
-  FPopup.Items.Add(miPing);
-
   miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.dashboard');
   miOpt.OnClick := miDashboardClick;
   FPopup.Items.Add(miOpt);
+
+  miPing := TMenuItem.Create(FPopup);
+  miPing.Caption := S('menu.ping');
+  miPing.OnClick := miPingClick;
+  FPopup.Items.Add(miPing);
 
   miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.options');
@@ -504,6 +534,12 @@ begin
   Sep := TMenuItem.Create(FPopup);
   Sep.Caption := '-';
   FPopup.Items.Add(Sep);
+
+  FMiUpdate := TMenuItem.Create(FPopup);
+  FMiUpdate.Caption := S('menu.update');
+  FMiUpdate.Visible := False;
+  FMiUpdate.OnClick := miUpdateClick;
+  FPopup.Items.Add(FMiUpdate);
 
   miExit := TMenuItem.Create(FPopup);
   miExit.Caption := S('menu.exit');
@@ -827,8 +863,140 @@ begin
   begin
     ApplySettingsToUi;
     PersistSettings;
+    if FSettings.UpdateEnabled then
+      ScheduleUpdateCheck
+    else
+      CancelUpdateCheck;
+    SyncUpdateMenu;
   end;
   EnsureNoTaskbarButton;
+end;
+
+procedure TMainForm.SyncUpdateMenu;
+var
+  Ver: string;
+begin
+  if FMiUpdate = nil then
+    Exit;
+  if (FSettings = nil) or (not FSettings.UpdateEnabled) then
+  begin
+    FMiUpdate.Visible := False;
+    Exit;
+  end;
+  Ver := NormalizeVersionText(FSettings.UpdateLatestKnown);
+  if (Ver <> '') and VersionIsNewer(Ver, GetProductVersionText) then
+  begin
+    FMiUpdate.Caption := Format(S('menu.update'), [Ver]);
+    FMiUpdate.Visible := True;
+  end
+  else
+    FMiUpdate.Visible := False;
+end;
+
+procedure TMainForm.ScheduleUpdateCheck;
+begin
+  Inc(FUpdateGen);
+  if FUpdateDelay = nil then
+    Exit;
+  FUpdateDelay.Enabled := False;
+  FUpdateDelay.Interval := 5000;
+  FUpdateDelay.Enabled := True;
+end;
+
+procedure TMainForm.CancelUpdateCheck;
+begin
+  Inc(FUpdateGen);
+  if FUpdateDelay <> nil then
+    FUpdateDelay.Enabled := False;
+end;
+
+procedure TMainForm.UpdateDelayTick(Sender: TObject);
+var
+  Gen: Integer;
+begin
+  if FUpdateDelay <> nil then
+    FUpdateDelay.Enabled := False;
+  if FClosing or (FSettings = nil) or (not FSettings.UpdateEnabled) then
+    Exit;
+  Gen := FUpdateGen;
+  TThread.CreateAnonymousThread(
+    procedure
+    var
+      R: TUpdateCheckResult;
+    begin
+      R.Found := False;
+      R.Version := '';
+      R.PageUrl := '';
+      try
+        TryFetchLatestRelease(R);
+      except
+        R.Found := False;
+      end;
+      TThread.Queue(nil,
+        procedure
+        begin
+          ApplyUpdateCheckResult(Gen, R);
+        end);
+    end).Start;
+end;
+
+procedure TMainForm.ApplyUpdateCheckResult(AGen: Integer;
+  const AResult: TUpdateCheckResult);
+var
+  Local, Remote: string;
+begin
+  if FClosing or (csDestroying in ComponentState) then
+    Exit;
+  if AGen <> FUpdateGen then
+    Exit;
+  if (FSettings = nil) or (not FSettings.UpdateEnabled) then
+    Exit;
+  Local := GetProductVersionText;
+  if AResult.Found then
+  begin
+    Remote := NormalizeVersionText(AResult.Version);
+    FSettings.UpdateLatestKnown := Remote;
+    if VersionIsNewer(Remote, Local) and
+      (not SameText(NormalizeVersionText(FSettings.UpdateLastNotified), Remote)) then
+    begin
+      ShowUpdateBalloon(Remote);
+      FSettings.UpdateLastNotified := Remote;
+    end;
+    PersistSettings;
+  end;
+  SyncUpdateMenu;
+end;
+
+procedure TMainForm.ShowUpdateBalloon(const AVersion: string);
+begin
+  if FTray = nil then
+    Exit;
+  FTray.BalloonTitle := S('tray.update_title');
+  FTray.BalloonHint := Format(S('tray.update'), [AVersion]);
+  FTray.BalloonFlags := bfInfo;
+  FTray.ShowBalloonHint;
+end;
+
+procedure TMainForm.OpenUpdatePage;
+var
+  Url: string;
+begin
+  if FSettings = nil then
+    Exit;
+  Url := UpdateReleasePageUrl(FSettings.UpdateLatestKnown);
+  if Url = '' then
+    Exit;
+  ShellExecute(Handle, 'open', PChar(Url), nil, nil, SW_SHOWNORMAL);
+end;
+
+procedure TMainForm.miUpdateClick(Sender: TObject);
+begin
+  OpenUpdatePage;
+end;
+
+procedure TMainForm.TrayBalloonClick(Sender: TObject);
+begin
+  OpenUpdatePage;
 end;
 
 procedure TMainForm.miExitClick(Sender: TObject);

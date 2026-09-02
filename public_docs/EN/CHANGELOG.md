@@ -18,6 +18,7 @@ Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 - Display mode **Info Bar** added (531×16, compact only). CPU / memory / SWAP / disk read·write / network in·out / playback volume L / R as horizontal LED bars (no activity LEDs)
 - Display modes (`layout.cfg`) can define gadget volume meters `Audio` / `AudioL` / `AudioR` (0–100%). Bundled **Info Bar** uses L / R bars; Original / Crystal / Metalic do not
 - Options dialog auto-scales on high DPI
+- One GitHub Releases Latest check at startup. A newer stable release gets a tray balloon once per version, and a right-click item above Exit (**View DiskLED 3.x.x release info**) until you install it. Click opens that release page (no download or self-update; can be turned off in Options)
 - Distribution: `DiskLED_Setup_3.1.0.exe` and `DiskLED-3.1.0-portable.zip`
 
 ## 3.0.1

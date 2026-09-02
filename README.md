@@ -38,6 +38,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - 単一起動の強制
 - **高 DPI（Per-Monitor V2）**。ガジェットは 0.5 刻み、ダッシュボードは実 DPI、オプションは VCL Scaled
 - **ダッシュボード**（別ウィンドウ。ドーナツ約 5Hz、数字・履歴 1Hz）
+- **新しい版の通知**（起動時に GitHub Latest を 1 回。トレイは版ごとに 1 回、メニューは入れるまで。ページを開くだけ）
 
 **含めない（今後検討）**
 
@@ -86,6 +87,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - 単一起動の抑制
 - 設定の ini 保存
 - ダッシュボード（別ウィンドウ）と Per-Monitor V2 高 DPI
+- 起動時の新しい版の確認（GitHub Latest。通知とリリースページ。自動入れ替えなし）
 
 ## 参考
 
@@ -136,6 +138,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - Enforce single instance
 - **High DPI (Per-Monitor V2)**. Gadget uses 0.5-step scale; dashboard follows real DPI; Options use VCL Scaled
 - **Dashboard** (separate window; donuts about 5 Hz, numbers and history 1 Hz)
+- **New version notice** (one GitHub Latest check at startup. Tray once per version; menu until you install. Opens the release page only)
 
 **Do not include (consider later)**
 
@@ -184,6 +187,7 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal / Info Bar a
 - Suppress extra instances
 - Settings saved to ini
 - Dashboard (separate window) and Per-Monitor V2 high DPI
+- New-version check at startup (GitHub Latest; notice and release page; no self-update)
 
 ## References
 

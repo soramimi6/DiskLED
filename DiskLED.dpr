@@ -28,6 +28,7 @@ uses
   uDpiScale in 'src\uDpiScale.pas',
   uSettings in 'src\uSettings.pas',
   uStartup in 'src\uStartup.pas',
+  uUpdateCheck in 'src\uUpdateCheck.pas',
   uHoverTip in 'src\uHoverTip.pas',
   uOptionsForm in 'src\uOptionsForm.pas' {OptionsForm},
   uDashboardTheme in 'src\dashboard\uDashboardTheme.pas',

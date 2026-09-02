@@ -1,4 +1,4 @@
-unit uDashboardCard;
+﻿unit uDashboardCard;
 
 interface
 
@@ -194,7 +194,7 @@ begin
   Canvas.Font.Style := [];
   Canvas.Brush.Style := bsClear;
   SetBkMode(Canvas.Handle, TRANSPARENT);
-  OutlinePx := MulDiv(1, Met.Margin, 12);
+  OutlinePx := MulDiv(2, Met.Margin, 12);
   if OutlinePx < 1 then
     OutlinePx := 1;
   if FDual then

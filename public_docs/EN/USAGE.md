@@ -30,9 +30,10 @@ The window is a tool window and usually does not appear on the taskbar (resident
 | Original / Crystal / Metalic / Info Bar | Switch display mode (exclusive) |
 | Compact / コンパクト | Compact view (always available) |
 | Full / フル | Full view (enabled only when the mode defines full layout) |
-| Refresh Ping / Ping 更新 | Send one Ping immediately |
 | Dashboard / ダッシュボード | Separate window with left and right columns. Remembers position, size, and maximized state. Reopens on next launch if it was open at exit |
-| Options / オプション | Always-on-top, startup, fps, graph rate, network speed response (linear / log), Ping settings |
+| Refresh Ping / Ping 更新 | Send one Ping immediately |
+| Options / オプション | Always-on-top, startup, check for a new version at startup, fps, graph rate, network speed response (linear / log), Ping settings |
+| View DiskLED 3.x.x release info / 新しい DiskLED 3.x.x の情報を見る | Shown above Exit only when a newer stable release exists. Click opens that GitHub release page (stays until you install it). The tray balloon is once per version |
 | Exit / 終了 | Quit the app |
 
 Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese). A tray icon shows that DiskLED is running (same right-click menu; double-click brings the window forward). Hovering the tray shows the same tooltip as the window (version, usage, I/O, Ping). There is no taskbar button.
@@ -82,6 +83,7 @@ Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply
 |------|--------|
 | Always on top | Gadget window only (on by default). Does not apply to the dashboard |
 | Run at Windows startup | Writes the Run key on Apply and on a normal exit |
+| Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item |
 | Refresh rate (fps) | 10 / 15 (default) / 20. No redraw while sprite frames stay the same |
 | Graph update (Hz) | 0.5 / 1 (default) / 2 for Original / Metalic **full-view** history. Dashboard history is always 1 second |
 | Network speed response | Linear (link speed = 100%, default) or logarithmic. Switching clears gadget and dashboard network history |

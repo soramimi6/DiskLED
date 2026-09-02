@@ -33,6 +33,9 @@ type
     FDashboardW: Integer;
     FDashboardH: Integer;
     FDashboardMaximized: Boolean;
+    FUpdateEnabled: Boolean;
+    FUpdateLastNotified: string;
+    FUpdateLatestKnown: string;
     class function ExeIniPath: string; static;
     class function AppDataIniPath: string; static;
     class function CanWriteDir(const ADir: string): Boolean; static;
@@ -68,6 +71,10 @@ type
     { Restored bounds are 96dpi DIP. Maximized is stored separately so a
       maximized frame is not written as WindowW/WindowH. }
     property DashboardMaximized: Boolean read FDashboardMaximized write FDashboardMaximized;
+    { GitHub Latest check at startup. LastNotified is balloon-once; LatestKnown keeps the menu. }
+    property UpdateEnabled: Boolean read FUpdateEnabled write FUpdateEnabled;
+    property UpdateLastNotified: string read FUpdateLastNotified write FUpdateLastNotified;
+    property UpdateLatestKnown: string read FUpdateLatestKnown write FUpdateLatestKnown;
   end;
 
 implementation
@@ -149,6 +156,9 @@ begin
   FDashboardW := 960;
   FDashboardH := 720;
   FDashboardMaximized := False;
+  FUpdateEnabled := True;
+  FUpdateLastNotified := '';
+  FUpdateLatestKnown := '';
 end;
 
 procedure TAppSettings.ResolvePath;
@@ -249,6 +259,9 @@ begin
     FDashboardW := Ini.ReadInteger('Dashboard', 'WindowW', FDashboardW);
     FDashboardH := Ini.ReadInteger('Dashboard', 'WindowH', FDashboardH);
     FDashboardMaximized := Ini.ReadBool('Dashboard', 'Maximized', FDashboardMaximized);
+    FUpdateEnabled := Ini.ReadBool('Update', 'Enabled', FUpdateEnabled);
+    FUpdateLastNotified := Trim(Ini.ReadString('Update', 'LastNotified', FUpdateLastNotified));
+    FUpdateLatestKnown := Trim(Ini.ReadString('Update', 'LatestKnown', FUpdateLatestKnown));
   finally
     Ini.Free;
   end;
@@ -298,6 +311,9 @@ begin
     Ini.WriteInteger('Dashboard', 'WindowW', FDashboardW);
     Ini.WriteInteger('Dashboard', 'WindowH', FDashboardH);
     Ini.WriteBool('Dashboard', 'Maximized', FDashboardMaximized);
+    Ini.WriteBool('Update', 'Enabled', FUpdateEnabled);
+    Ini.WriteString('Update', 'LastNotified', FUpdateLastNotified);
+    Ini.WriteString('Update', 'LatestKnown', FUpdateLatestKnown);
     Ini.UpdateFile;
   finally
     Ini.Free;

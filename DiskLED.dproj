@@ -143,6 +143,7 @@
         <DCCReference Include="src\uDpiScale.pas"/>
         <DCCReference Include="src\uSettings.pas"/>
         <DCCReference Include="src\uStartup.pas"/>
+        <DCCReference Include="src\uUpdateCheck.pas"/>
         <DCCReference Include="src\uHoverTip.pas"/>
         <DCCReference Include="src\uOptionsForm.pas">
             <Form>OptionsForm</Form>

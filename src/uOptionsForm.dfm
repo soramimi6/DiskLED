@@ -4,8 +4,8 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 776
-  ClientWidth = 440
+  ClientHeight = 466
+  ClientWidth = 859
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -13,25 +13,25 @@ object OptionsForm: TOptionsForm
   Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
-  Scaled = True
-  PixelsPerInch = 96
   OnCreate = FormCreate
   TextHeight = 15
   object PnlContent: TPanel
     Left = 0
     Top = 0
-    Width = 440
-    Height = 720
+    Width = 859
+    Height = 410
     Align = alClient
     BevelOuter = bvNone
     Color = 15921906
     ParentBackground = False
     TabOrder = 0
+    ExplicitWidth = 440
+    ExplicitHeight = 746
     object CardWindow: TPanel
       Left = 20
       Top = 16
       Width = 400
-      Height = 100
+      Height = 126
       BevelOuter = bvNone
       Color = clWhite
       ParentBackground = False
@@ -39,7 +39,7 @@ object OptionsForm: TOptionsForm
       object LblSecWindow: TLabel
         Left = 20
         Top = 12
-        Width = 55
+        Width = 51
         Height = 17
         Caption = 'Window'
         Font.Charset = DEFAULT_CHARSET
@@ -65,10 +65,18 @@ object OptionsForm: TOptionsForm
         Caption = 'Run at Windows startup'
         TabOrder = 1
       end
+      object ChkUpdateCheck: TCheckBox
+        Left = 20
+        Top = 92
+        Width = 360
+        Height = 21
+        Caption = 'Check for a new version at startup'
+        TabOrder = 2
+      end
     end
     object CardFps: TPanel
       Left = 20
-      Top = 128
+      Top = 154
       Width = 400
       Height = 128
       BevelOuter = bvNone
@@ -78,9 +86,22 @@ object OptionsForm: TOptionsForm
       object LblSecFps: TLabel
         Left = 20
         Top = 12
-        Width = 108
+        Width = 107
         Height = 17
         Caption = 'Refresh rate (fps)'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Segoe UI'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object LblSecGraph: TLabel
+        Left = 20
+        Top = 72
+        Width = 114
+        Height = 17
+        Caption = 'Graph update (Hz)'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -113,19 +134,6 @@ object OptionsForm: TOptionsForm
         Height = 21
         Caption = '20'
         TabOrder = 2
-      end
-      object LblSecGraph: TLabel
-        Left = 20
-        Top = 72
-        Width = 160
-        Height = 17
-        Caption = 'Graph update (Hz)'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -13
-        Font.Name = 'Segoe UI'
-        Font.Style = [fsBold]
-        ParentFont = False
       end
       object PnlGraphRates: TPanel
         Left = 12
@@ -166,7 +174,7 @@ object OptionsForm: TOptionsForm
     end
     object CardScale: TPanel
       Left = 20
-      Top = 268
+      Top = 294
       Width = 400
       Height = 96
       BevelOuter = bvNone
@@ -176,7 +184,7 @@ object OptionsForm: TOptionsForm
       object LblSecScale: TLabel
         Left = 20
         Top = 12
-        Width = 200
+        Width = 151
         Height = 17
         Caption = 'Network speed response'
         Font.Charset = DEFAULT_CHARSET
@@ -206,8 +214,8 @@ object OptionsForm: TOptionsForm
       end
     end
     object CardPing: TPanel
-      Left = 20
-      Top = 376
+      Left = 436
+      Top = 16
       Width = 400
       Height = 328
       BevelOuter = bvNone
@@ -227,6 +235,20 @@ object OptionsForm: TOptionsForm
         Font.Style = [fsBold]
         ParentFont = False
       end
+      object LblHost: TLabel
+        Left = 20
+        Top = 96
+        Width = 50
+        Height = 15
+        Caption = 'Ping host'
+      end
+      object LblInterval: TLabel
+        Left = 20
+        Top = 146
+        Width = 115
+        Height = 15
+        Caption = 'Interval (sec, min 300)'
+      end
       object ChkPingEnabled: TCheckBox
         Left = 20
         Top = 40
@@ -245,26 +267,12 @@ object OptionsForm: TOptionsForm
         TabOrder = 1
         OnClick = ChkAutoGwClick
       end
-      object LblHost: TLabel
-        Left = 20
-        Top = 96
-        Width = 52
-        Height = 15
-        Caption = 'Ping host'
-      end
       object EdHost: TEdit
         Left = 20
         Top = 114
         Width = 360
         Height = 23
         TabOrder = 2
-      end
-      object LblInterval: TLabel
-        Left = 20
-        Top = 146
-        Width = 120
-        Height = 15
-        Caption = 'Interval (sec, min 300)'
       end
       object EdInterval: TEdit
         Left = 20
@@ -285,7 +293,7 @@ object OptionsForm: TOptionsForm
         object LblSecThresholds: TLabel
           Left = 12
           Top = 10
-          Width = 180
+          Width = 115
           Height = 15
           Caption = 'Ping level thresholds'
           Font.Charset = DEFAULT_CHARSET
@@ -298,9 +306,23 @@ object OptionsForm: TOptionsForm
         object LblFair: TLabel
           Left = 12
           Top = 36
-          Width = 100
+          Width = 46
           Height = 15
           Caption = 'Fair (ms)'
+        end
+        object LblSlow: TLabel
+          Left = 100
+          Top = 36
+          Width = 52
+          Height = 15
+          Caption = 'Slow (ms)'
+        end
+        object LblTimeout: TLabel
+          Left = 188
+          Top = 36
+          Width = 45
+          Height = 15
+          Caption = 'Timeout'
         end
         object EdFair: TEdit
           Left = 12
@@ -309,26 +331,12 @@ object OptionsForm: TOptionsForm
           Height = 23
           TabOrder = 0
         end
-        object LblSlow: TLabel
-          Left = 100
-          Top = 36
-          Width = 100
-          Height = 15
-          Caption = 'Slow (ms)'
-        end
         object EdSlow: TEdit
           Left = 100
           Top = 54
           Width = 72
           Height = 23
           TabOrder = 1
-        end
-        object LblTimeout: TLabel
-          Left = 188
-          Top = 36
-          Width = 80
-          Height = 15
-          Caption = 'Timeout'
         end
         object EdTimeout: TEdit
           Left = 188
@@ -351,25 +359,28 @@ object OptionsForm: TOptionsForm
   end
   object PnlButtons: TPanel
     Left = 0
-    Top = 612
-    Width = 440
+    Top = 410
+    Width = 859
     Height = 56
     Align = alBottom
     BevelOuter = bvNone
     Color = clWhite
     ParentBackground = False
     TabOrder = 1
+    ExplicitTop = 746
+    ExplicitWidth = 440
     object ShpButtonTop: TShape
       Left = 0
       Top = 0
-      Width = 440
+      Width = 859
       Height = 1
       Align = alTop
       Pen.Color = 14211288
+      ExplicitWidth = 440
     end
     object BtnOk: TButton
-      Left = 232
-      Top = 12
+      Left = 632
+      Top = 7
       Width = 96
       Height = 32
       Caption = 'Apply'
@@ -378,8 +389,8 @@ object OptionsForm: TOptionsForm
       OnClick = BtnOkClick
     end
     object BtnCancel: TButton
-      Left = 336
-      Top = 12
+      Left = 748
+      Top = 7
       Width = 88
       Height = 32
       Cancel = True

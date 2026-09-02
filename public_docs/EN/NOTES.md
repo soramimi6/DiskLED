@@ -36,5 +36,5 @@ The author accepts no liability for any damage arising from use of this software
 
 - No ads; no silently installing other software
 - No collection/sending of personal data as a product purpose
-- No regular outbound traffic other than Ping (Ping target and on/off are configurable in Options)
+- The only regular outbound traffic is **Ping** (target and on/off in Options) and **one GitHub Releases Latest lookup at startup** (new-version check; can be turned off). No personal data is sent besides the app version in the User-Agent
 - No microphone. No audio data other than the playback-mix L / R / mono-equivalent peak numbers
