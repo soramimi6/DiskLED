@@ -2,13 +2,13 @@
 
 公開ドキュメント（`public_docs/`）には予定している内容は書かない。実装が入り、利用者に見えるようになってから CHANGELOG / USAGE / NOTES / INSTALL（JA+EN）へ「実装済み」として書く。
 
-3.1.1 のスコープは 1〜6 の 6 項目に確定（2026-09-05）。うち 3 は「追加しない」という決定のみで実装プランはない。3.1.1 で見送った他の機能アイデアは `docs/PLANNED-3.2.0.md` へ移動した。
+3.1.1 のスコープは次の 6 項目。3.1.1 で扱わない機能アイデアは `docs/PLANNED-3.2.0.md` を参照。
 
-### 着手順・運用メモ（2026-09-05）
+### 着手順・運用メモ
 
-- 着手順: **5 → 1 → 2 → 6 → 4**（リスクの低い項目から）。5（ディスクレイテンシ）で作業フローを確立し、1（Store判定）・2（アイコン）の小規模改修で慣らしてから、6（Tracert）・4（タスクトレイ）の大物に進む
+- 着手順: **4 → 1 → 2 → 6 → 5 → 3**（リスクの低い項目から）。4（ディスクレイテンシ）で作業フローを確立し、1（Store判定）・2（アイコン）・6（雑多な動作改修）の小規模改修で慣らしてから、5（Tracert）・3（タスクトレイ）の大物に進む
 - ビルド確認: この開発機の Delphi は **Community Edition** で CLI ビルド不可、RAD Studio IDE も常時起動はしていない。各項目の実装が終わるたびに、ユーザーが IDE で Win64 Release をビルドして確認する（`/code-review` はコードレビューであり、コンパイル成否の保証にはならないため）
-- タスクトレイ用 LED アイコン（項目 4）: 本番素材ができるまでは、既存モード別 LED 色を元にした単色円アイコンをスクリプトで機械生成したプレースホルダーで進める。詳細は項目 4 内に記載
+- タスクトレイ用 LED アイコン（項目 3）: 本番素材ができるまでは、既存モード別 LED 色を元にした単色円アイコンをスクリプトで機械生成したプレースホルダーで進める。詳細は項目 3 内に記載
 
 ## 1. 最優先
 
@@ -64,7 +64,7 @@
 
 - `DiskLED.dproj` は既に `Icon_MainIcon` に `assets\MAINICON.ico` を指している（[DiskLED.dproj:64](../DiskLED.dproj#L64)）。ファイルの中身を差し替えれば IDE の Win64 Release ビルドがそのまま新アイコンを埋め込む
 - `docs/DESIGN.md` 8.4 節より、タスクトレイ（コンパクト／フル時）も同じ `assets/MAINICON.ico` を表示している。つまり **`MAINICON.ico` を 1 回差し替えるだけで exe アイコンとトレイアイコンの両方に反映される**
-- `packaging/msix/PackageAssets/*.png`（Square150x150Logo / Square44x44Logo / StoreLogo / Wide310x150Logo）は目視確認済み（2026-09-05）。`packaging/msix/masters/icon.png` と同一デザインで、正しく作成されている。**再生成不要**
+- `packaging/msix/PackageAssets/*.png`（Square150x150Logo / Square44x44Logo / StoreLogo / Wide310x150Logo）は目視確認済み。`packaging/msix/masters/icon.png` と同一デザインで、正しく作成されている。**再生成不要**
 - ico 変換ツール: 環境に ImageMagick は無いが、Python 3.12 + Pillow（`pip install pillow` 一回）で 16/32/48/256 の多重解像度 ico を生成できることを確認した。外部ツールの導入判断は不要
 
 手順:
@@ -74,17 +74,9 @@
 3. IDE で Win64 Release をビルドし、exe アイコン（Explorer・タスクバー・Alt+Tab）とタスクトレイアイコンをライト／ダーク双方のタスクバーで目視確認する
 4. `tools/make-portable.ps1` / `tools/make-installer.ps1` で配布物を再生成し、ポータブル zip・インストーラー双方でアイコンが更新されていることを確認する（`docs/DESIGN.md` 15 節）
 
-見積り: 半日程度（変換とライト/ダーク・複数 DPI での目視確認が主）。「表示サイズ タスクトレイ」用の LED アイコン（項目 4）とは別素材・別作業。
+見積り: 半日程度（変換とライト/ダーク・複数 DPI での目視確認が主）。「表示サイズ タスクトレイ」用の LED アイコン（項目 3）とは別素材・別作業。
 
-## 3. 表示モード Minimal（3.1.1 は追加しない）
-
-**3.1.1 では表示モード `Minimal` の追加を取りやめる。**
-
-- （3.1.1 では表示モード `Minimal` の追加を取りやめたため記載なし）
-
-実装プランなし（不採用の記録のみ）。
-
-## 4. 表示サイズ タスクトレイ（ディスクアクセス LED）
+## 3. 表示サイズ タスクトレイ（ディスクアクセス LED）
 
 **コンパクト／フルに第 3 の表示サイズ「タスクトレイ」を追加する。** 選択するとメインウィンドウを画面から消し、通知領域のアイコン自体をディスクアクセス LED として動かす。素材は表示モードごとに `assets/<id>/` へ置く。
 
@@ -92,17 +84,16 @@
 
 ### 実装プラン（着手順）
 
-下の各節（利用者から見た動き〜未決）に技術検討済みの詳細がある。着手時は次の順で進める:
+下の各節（利用者から見た動き〜決定事項）に技術検討済みの詳細がある。着手時は次の順で進める:
 
-1. **「未決」節の 3 項目を先に決める。** ダブルクリック挙動・二重起動時の扱い・`[Tray]` 欠落時の扱いはコードの分岐設計に直結するため、実装前にブロッカーとして解消する
-2. `DiskLED.ini` の `[View] Size=compact|full|tray` 読み書きを `uSettings.pas` に追加し、旧 `[View] Compact` はキーが無いときだけフォールバックとして読む
-3. 右クリックメニューの表示サイズ選択を排他 3 択に変更する（`uMainForm.pas` のモード切替メニュー生成部）
-4. メインウィンドウの非表示／復元ロジックを実装する。非表示は `Visible := False` / `ShowWindow(SW_HIDE)`（HWND は残す）。位置の記憶・復元は既存の `uWindowPlacement.pas` をそのまま使う
-5. トレイサイズ用の Off/On ico 素材を `assets/<id>/TrayOff.ico` / `TrayOn.ico` として用意し、`layout.cfg` の `[Tray]` セクション読み込みを `uSkinLoader.pas`（または `uDisplayModes.pas`）に追加する。対象は Original / Crystal / Metalic / Info Bar の全モード
-6. `TTrayIcon` の LED 差し替えロジックを実装する。**「表示更新頻度」節の実装方針 1〜5** に従う: トレイサイズのときだけ状態変化時に `NIM_MODIFY`（`NIF_ICON`）、HICON はモード切替・DPI 変更時に Off/On を事前生成、サンプリングは既存の表示 fps（10/15/20）に乗せる、Hint 更新とアイコン更新は分ける
-7. トレイサイズ中はガジェットの `Render`/`Invalidate` をスキップする。ダッシュボードと計測タイマーは変更なしで動作継続することを確認する
-8. **実機検証**（「表示更新頻度」節の実機チェックリストに従う）: Windows 10/11 × 100/150/200%、小ファイル連打コピー時の点滅、`explorer.exe` の CPU 使用率、隠れアイコン、更新バルーンとの干渉
-9. 公開ドキュメント更新（「公開ドキュメント（実装後）」節のとおり USAGE/FEATURES/CHANGELOG/NOTES/`assets/LAYOUT.md`）は実装完了後に行う
+1. `DiskLED.ini` の `[View] Size=compact|full|tray` 読み書きを `uSettings.pas` に追加し、旧 `[View] Compact` はキーが無いときだけフォールバックとして読む
+2. 右クリックメニューの表示サイズ選択を排他 3 択に変更する（`uMainForm.pas` のモード切替メニュー生成部）
+3. メインウィンドウの非表示／復元ロジックを実装する。非表示は `Visible := False` / `ShowWindow(SW_HIDE)`（HWND は残す）。位置の記憶・復元は既存の `uWindowPlacement.pas` をそのまま使う
+4. トレイサイズ用の Off/On ico 素材を `assets/<id>/TrayOff.ico` / `TrayOn.ico` として用意し、`layout.cfg` の `[Tray]` セクション読み込みを `uSkinLoader.pas`（または `uDisplayModes.pas`）に追加する。対象は Original / Crystal / Metalic / Info Bar の全モード
+5. `TTrayIcon` の LED 差し替えロジックを実装する。**「表示更新頻度」節の実装方針 1〜5** に従う: トレイサイズのときだけ状態変化時に `NIM_MODIFY`（`NIF_ICON`）、HICON はモード切替・DPI 変更時に Off/On を事前生成、サンプリングは既存の表示 fps（10/15/20）に乗せる、Hint 更新とアイコン更新は分ける
+6. トレイサイズ中はガジェットの `Render`/`Invalidate` をスキップする。ダッシュボードと計測タイマーは変更なしで動作継続することを確認する
+7. **実機検証**（「表示更新頻度」節の実機チェックリストに従う）: Windows 10/11 × 100/150/200%、小ファイル連打コピー時の点滅、`explorer.exe` の CPU 使用率、隠れアイコン、更新バルーンとの干渉
+8. 公開ドキュメント更新（「公開ドキュメント（実装後）」節のとおり USAGE/FEATURES/CHANGELOG/NOTES/`assets/LAYOUT.md`）は実装完了後に行う
 
 ### 利用者から見た動き（予定）
 
@@ -179,12 +170,17 @@ On=TrayOn.ico
 - 欠けるモードはアプリアイコン固定（点灯しない）にフォールバックする（前述の決定事項）。2 枚そろえるのが本来の姿だが、無くても機能停止にはしない
 - 点灯色はモードごとの素材（筐体 HDD ランプ相当の単色でよい。緑／赤の分割はしない）
 
-**素材の用意（プレースホルダー方針、2026-09-05 決定）:**
+**素材の用意（プレースホルダー方針）:**
 
 本番の絵作りはデザイン作業のため、まず機械生成のプレースホルダーで実装を先に進める。
 
 - 既存の各モードの活動 LED 色を基準色にする: Original は `Original_LedGreen.png` 相当の緑、Crystal は `Crystal_Green.bmp` 相当の緑、Metalic は `Metalic_LedB.bmp`（青系）を基準にする。Info Bar は活動 LED 資産が現状無いため、他モードと揃える形で仮に緑を割り当てる
-- 生成方法: Python（Pillow、`uAppStrings`側の実装とは無関係な使い捨てスクリプト）で 16/32/48/256 の透過円を描き、Off は暗い/くすんだ色、On は基準色を明るく発光させた見た目にして ico 化する。スクリプトは `tools/` 配下に置くかその場限りにするかは実装時に決める
+- 見た目: 単なる塗りつぶし円ではなく、**筐体に埋め込まれた丸形 LED 風**にする。`packaging/msix/masters/icon.png`（アプリアイコンのマスター）がすでにこの意匠（黒いベゼル・中心のグロー・左上寄りのハイライト）なので、それと同じ視覚言語に揃える
+  - 中心から縁へ向かうラジアルグラデーション（中心はやや明るい基準色、縁は暗く落とした基準色）で球面的な立体感を出す
+  - 左上寄りに小さく白いハイライト（半透明の楕円、縁をぼかす）を重ね、光の反射があるように見せる
+  - 円の外周に細い暗色のリング（ベゼル）を1本添え、「面に埋め込まれている」印象にする
+  - Off はハイライトを弱める／消し、基準色を暗く彩度を落として無灯火に見せる。On はハイライトを保ったまま基準色を明るくする
+- 生成方法: Python（Pillow、`uAppStrings`側の実装とは無関係な使い捨てスクリプト）で 256×256 を1枚描画（グラデーション・ハイライト・ベゼルを高解像度で作った方がきれいに縮小できる）し、そこから 48/32/16 へ `LANCZOS` でダウンサンプルして ico 化する。スクリプトは `tools/` 配下に置くかその場限りにするかは実装時に決める
 - 本番素材に差し替える際は `assets/<id>/TrayOff.ico` / `TrayOn.ico` をファイル単位で置き換えるだけで済む（コード・`layout.cfg` の参照方法は変わらない）
 
 ### 表示更新頻度（調査。実機検証は実装時）
@@ -194,7 +190,7 @@ Microsoft は `NIM_MODIFY` の上限 Hz を書いていない。各回は explor
 実測に近い手がかり:
 
 - 本アプリのガジェットは **10 / 15（既定）/ 20 fps**。LED は即時、見た目が同じなら再描画しない
-- 同名の別ソフト Helge Klein *DiskLED*（トレイ専用の HDD LED）は既定 **UpdateInterval=30 ms（約 33 Hz）**。2026 年時点でもその説明のまま
+- 類似アプリ（トレイ専用の HDD LED）は既定 **UpdateInterval=30 ms（約 33 Hz）**。2026 年時点でもその説明のまま
 - VCL `TTrayIcon.AnimateInterval` の既定は 1000 ms（常駐ランプ用途には遅すぎる）
 - Windows 11 の通知領域は XAML 経由のため、10 のクラシックシェルより 1 フレーム遅れやすい、という報告はある。公式の「何 Hz まで」は無い
 
@@ -223,12 +219,12 @@ Microsoft は `NIM_MODIFY` の上限 Hz を書いていない。各回は explor
 - トレイサイズをやめたら、トレイアイコンをアプリアイコンへ戻し、以降は LED 差し替えをしない
 - ポップアップは常に既存の `FPopup`（`FTray.PopupMenu` と本体の `PopupMenu`）。表示サイズで差し替えない
 - 表示モード切替中もトレイサイズなら、新しいモードの Off / On ico に載せ替える
-- 単一起動の 2 つ目は現状ウィンドウを前面化する。トレイサイズ中にどうするかは未決
+- 単一起動の 2 つ目は現状ウィンドウを前面化する。トレイサイズ中も同様に前面化を試みる（後述の決定事項）
 - Store 版でもトレイ LED は出す（「最優先」で止めるのは GitHub 確認だけ）
 
-### 決定事項（2026-09-05、実装前に確定）
+### 決定事項
 
-- トレイアイコンの **ダブルクリック**: (A) 直前のコンパクト／フルに戻す。（旧案の推奨候補どおり採用）
+- トレイアイコンの **ダブルクリック**: 直前のコンパクト／フルに戻す
 - **2 つ目の起動**: トレイサイズ中でも通常どおり前面化を試みる＝コンパクト／フルへ復帰してウィンドウを出す（既存の「2 つ目は前面化」という挙動と一貫させ、隠れたままにしない）
 - **`[Tray]` 欠落時**: エラーにせず、アプリアイコン固定（点灯なし）にフォールバックする。トレイサイズ自体は選べる（機能を丸ごと止めない）
 
@@ -243,7 +239,7 @@ Microsoft は `NIM_MODIFY` の上限 Hz を書いていない。各回は explor
 
 ---
 
-## 5. ディスク遅延（レイテンシ）
+## 4. ディスク遅延（レイテンシ）
 
 ディスクセクションにキュー長とレイテンシを追加する。
 
@@ -273,36 +269,72 @@ Microsoft は `NIM_MODIFY` の上限 Hz を書いていない。各回は explor
 
 見積り: 半日〜1 日。
 
-## 6. Ping 時の Tracert
+## 5. Ping 時の Tracert（専用ウィンドウ表示）
 
-Ping が悪化したときに、手動でトリガーして経路をダッシュボードに展開表示する。
+Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動させない**。TraceRouteResult ウィンドウを開いたとき、および同ウィンドウのボタン押下時にだけ実行する。ダッシュボードではなく、専用の「TraceRouteResult」ウィンドウに表示する。
 
-- `IcmpSendEcho2` で TTL を変えながら投げれば自前実装可能（一般権限で動作する）
-- 常時監視ではなく「Ping 悪化時に手動トリガー → 結果をダッシュボードで展開」の形が現実的
-- 実行には 10〜20 秒以上かかること、途中ホップが ICMP を返さない場合があることを考慮
-- 経路変化（ホップ数・中継 IP が変わった）の検知まで実装できるとさらに有用
+### 仕様
 
-**検証結果:**
-
-- `src/metrics/uPingCollector.pas` に既に「専用ワーカースレッド＋ロック＋非同期送信」のパターンが実装済み（`docs/DESIGN.md` 5.5／11 節）。Tracert 用のワーカーもこれをそのまま踏襲でき、`IcmpSendEcho2` に TTL（`IP_OPTION_INFORMATION`）を指定していく実装は自前実装として現実的
-- ダッシュボードにはまだ「進捗を伴う複数ホップの一覧表示」という UI が無い。ただし行数はホップ数（多くて 30 程度）に収まるため規模は小さい
-- 実行時間が 10〜20 秒以上かかる点は、既存の Ping が非同期・UI 非ブロッキングである設計方針と地続きなので、同じ考え方（ワーカー完了時にスナップショット/専用状態を更新）で吸収できる
+- **実行タイミング**: (a) TraceRouteResult ウィンドウを開いたとき、(b) 同ウィンドウの「Ping/TraceRoute 更新」ボタン押下時、の2つのみ。定期 Ping（5 分間隔）には連動しない — 普段の Ping 動作の負荷・通信量を増やさないため
+- **右クリックメニュー**: 既存の「Ping 更新」項目を撤廃し、代わりに「Ping結果表示」項目にする。選択すると TraceRouteResult ウィンドウを開く（開いた瞬間に (a) の Tracert 実行がかかる）
+- **ウィンドウ**:
+  - 初期サイズはオプション画面程度（実装後に微調整）
+  - ユーザーがドラッグしてリサイズできる（`bsSizeable`。ダッシュボードと同様に最小サイズ制約を設ける）
+  - デザインはダッシュボードに倣う（`uDashboardTheme.pas` のパレットを使い、VCL Style は使わず自前描画。ライト/ダーク対応）
+- **表示内容**:
+  - トレース先のホスト名と IP
+  - ホップ数、トータル ms
+  - 各ホップの TTL・IP・ホスト名のリスト（約 20 行表示。超えたらスクロールで閲覧可能）
+  - **左下**に「Ping/TraceRoute 更新」ボタン（押すと即時 Ping と Tracert の両方を実行し直す。旧「Ping 更新」メニューの役割をここへ移す）
+  - **右下**に閉じるボタン
 
 ### 実装プラン
 
-1. **ICMP 共通宣言の切り出し**: `uPingCollector.pas` に既にある `IcmpCreateFile` / `IcmpSendEcho2` 等の `external 'icmp.dll'` 宣言と関連構造体を、新規ユニット `src/metrics/uIcmpApi.pas` へ切り出す（Tracert 側と重複させないため）。`ResolveIPv4` などの共有ヘルパーも同様に検討
-2. **新規ユニット `src/metrics/uTracertCollector.pas`**
-   - `type TTracertHop = record Hop: Integer; Addr: string; RttMs: Double; Ok: Boolean; TimedOut: Boolean; end;`
-   - 常駐コレクタではなく単発トリガー関数として実装する: `procedure RunTracert(const AHost: string; AMaxHops: Integer; const AOnHop: TProc<TTracertHop>; const AOnDone: TProc);`
-   - `TThread.CreateAnonymousThread` 上で TTL を 1→`AMaxHops`（既定 30）まで incrementing しながら `IcmpSendEcho2` を送信。各ホップの結果は `TThread.Queue` で UI スレッドに戻し `AOnHop` を呼ぶ（`uMainForm.UpdateDelayTick` の `TThread.Queue` パターンを踏襲、全体完了を待たず逐次表示するため）
-   - 終端判定: 宛先到達（応答が最終ホップと一致）で打ち切り。連続 N 回（例 5 回）応答なしなら諦めて打ち切るヒューリスティックを入れる（ファイアウォールで経路上が無応答のケースの対策）
-3. **トリガー導線**: ダッシュボードの Ping パネル（`uDashboardPainter.DrawPingPanel`）内に小さな「Tracert」トリガー領域を描画し、`TDashboardForm` のマウスクリックハンドラでヒットテストして `RunTracert` を起動する。実行中は Ping パネル内に `dash.tracert_running`（例:「計測中… (hop N/30)」）を表示する
-4. **結果表示**: `uDashboardPainter.pas` に `DrawTracertHops` を新設し、`DrawPingPanel` が使っている行描画（ホップ#・アドレス・RTT・状態色）を流用する。Ping 履歴リストの表示領域を一時的に Tracert 結果へ切り替える案を軸に、実装時に画面を見ながら確定する（新規パネル追加でレイアウトを広げる案は右カラム幅 `SideColWidth` の制約で採用しにくい）
-5. **状態保持**: `TDashboardForm` に `FTracertBusy: Boolean`、`FTracertHops: TArray<TTracertHop>` を追加し、`RunTracert` のコールバックで更新・`Invalidate`
-6. **文字列**: `src/uAppStrings.pas` に `dash.tracert` / `dash.tracert_running` / `dash.tracert_timeout` 等を JA/EN で追加（既存 `dash.*` / `hover.*` の id 命名規則に合わせる）
-7. **決定事項（2026-09-05）**
-   - トリガー UI: **ダッシュボード内クリック領域のみ**。メインウィンドウ右クリックメニューには項目を追加しない（メニューを肥大化させない。ダッシュボードを開いていないと使えない機能として割り切る）
-   - 表示方法: **Ping 履歴リストと排他的に切り替える**（右カラム幅を広げない）
-   - 完了後の結果保持: **ダッシュボードを閉じるまで保持**。次の Tracert 実行、または Ping 表示への切り戻しで破棄する
+1. **ICMP 共通宣言の切り出し**: `uPingCollector.pas` に既にある `IcmpCreateFile` / `IcmpSendEcho2` 等の `external 'icmp.dll'` 宣言と関連構造体を、新規ユニット `src/metrics/uIcmpApi.pas` へ切り出す（Tracert 側と重複させないため）
+2. **新規ユニット `src/metrics/uTracertCollector.pas`（独立したオンデマンド実行）**
+   - 定期 Ping のワーカーとは連動させない。TraceRouteResult ウィンドウを開いたとき・ボタン押下時にだけ、**専用のワーカースレッド**（`TThread.CreateAnonymousThread`）でトレースを実行する（都度起動でよい。常駐スレッドにしない）
+   - ターゲットホストは `TPingCollector` が既に解決している対象（`FLastTarget` 相当。自動ゲートウェイ or 設定ホスト）をそのまま再利用する。`TPingCollector` に現在のターゲットを返す公開メソッドを追加し、`uTracertCollector` はそれを読むだけにする（ゲートウェイ判定ロジックを複製しない）
+   - TTL を 1→`AMaxHops`（既定 30）まで incrementing しながら `IcmpSendEcho2` を送信。宛先到達で打ち切り、連続 N 回（例 5 回）応答なしなら諦めて打ち切る
+   - 各ホップの逆引きホスト名解決を追加する（`GetNameInfoW` など、`ws2_32.dll`）。1 ホップあたりの逆引きタイムアウトを短く区切り、応答の無いホップで全体が長時間止まらないようにする
+   - 結果は `TTracertResult`（トレース先ホスト名／IP、ホップ数、トータル ms、`TArray<TTracertHop>`（TTL・IP・ホスト名・RTT・成否））として保持し、完了時に `TThread.Queue` で UI スレッドへコールバックする（`uMainForm.UpdateDelayTick` と同じパターン）
+3. **新規フォーム `src/uTraceRouteForm.pas` / `.dfm`**
+   - `BorderStyle = bsSizeable`、初期サイズはオプション画面相当、`Constraints.MinWidth/MinHeight` をダッシュボードに合わせて設定
+   - ヘッダー（トレース先ホスト名・IP、ホップ数、トータル ms）とホップ一覧を `uDashboardTheme.pas` のパレットで自前描画するか、VCL の `TListView`/`TStringGrid` をオーナードローでテーマに合わせるかは実装時に画面を見て決める
+   - リスト部は 20 行表示を基準に高さを決め、超過分はスクロールで見せる
+   - `FormShow`（初回表示時）で `uTracertCollector` の実行を1回キックする。実行中は「計測中…」的な状態を表示する
+   - 左下に「Ping/TraceRoute 更新」ボタン（`OnClick` で `FCollector.RequestPing` と `uTracertCollector` の実行を両方キックし直す）
+   - 右下に閉じるボタン（`Close` するだけ。`ModalResult` は不要）
+   - Tracert 完了のコールバックで結果を保持し `Invalidate`。ウィンドウを閉じて再度開いたときは、その時点で改めて 1 回実行する（バックグラウンドでの継続更新はしない）
+4. **開き方・既存メニューの置き換え**: `src/uMainForm.pas` の `BuildPopup`（[uMainForm.pas:524-527](../src/uMainForm.pas#L524-L527)）にある `miPing`（キャプション `S('menu.ping')`＝「Ping 更新」、クリックで `FCollector.RequestPing` を直接呼んでいる）を廃止し、同じ位置に「Ping結果表示」項目を置く。クリックハンドラは `RequestPing` を呼ばず、`TTraceRouteForm` を（無ければ生成して）表示するだけにする（表示時の `FormShow` が Tracert を起動する）
+5. **文字列**: `menu.ping`（「Ping 更新」）を「Ping結果表示」の文言に差し替え、`src/uAppStrings.pas` に `trace.*` 系の新規 id（ウィンドウ内の見出し・ボタン等）を JA/EN で追加
 
-見積り: 2〜3 日（ワーカー実装 1 日、UI・表示切替 1〜2 日、検証込み）。
+### 設計メモ
+
+- 通常の Ping サイクルに連動させない設計にしたことで、Tracert（最大 30 ホップ＋ホップごとの逆引き DNS）による通信量・負荷は「ウィンドウを開いたとき」「更新ボタンを押したとき」だけに限定される。普段の待機中は追加の通信を発生させない
+- リスト部をカスタム描画にするか `TListView` 流用にするかは、実装時の見た目次第で決める
+
+見積り: 3〜4 日（Tracert 用ワーカーの新規実装＋逆引き DNS＋新規ウィンドウの UI 一式のため、当初のダッシュボード内表示案よりやや増加）。
+
+## 6. 雑多な動作改修
+
+**マウスオーバー時のホバーポップアップが画面外・モニター境界にはみ出す** ／ **解像度変更などで本体ウィンドウが画面外・タスクバー下に隠れて操作不能になる** の2件を修正する。
+
+### 6-1. ホバーポップアップの表示位置
+
+- **原因確認済み**: `src/uHoverTip.pas` の `THoverTip.ShowAtCursor`（[uHoverTip.pas:98-114](../src/uHoverTip.pas#L98-L114)）はカーソル座標に固定オフセット（`Y+18`）を足しただけの位置へ `TTM_TRACKPOSITION` で直接出しており、画面端・モニター境界のクランプが無い。`TTF_ABSOLUTE` 指定のため OS 側の自動調整もかからない
+- **実装プラン**:
+  1. `TTM_UPDATETIPTEXT` の後、`TTM_GETBUBBLESIZE` で現在のテキストに対するツールチップの実サイズを取得
+  2. カーソル位置＋オフセットとそのサイズから候補矩形を作る
+  3. カーソル直下のモニター（`MonitorFromPoint`）の作業領域でクランプ（右/下へはみ出るなら左/上へ寄せる）
+  4. クランプ後の座標で `TTM_TRACKPOSITION`
+  5. `src/uWindowPlacement.pas` の既存クランプロジック（`MonitorFromRect` + `GetMonitorInfo(...).rcWork`）と同じ考え方を再利用する。矩形をモニター作業領域内へ収めるだけの関数を同ユニットに公開追加し、ガジェット本体側とツールチップ側の両方から使う
+
+### 6-2. 画面外に隠れて操作不能になる問題への対策
+
+- **確認できたこと**: 起動時（`TMainForm.FormCreate`）には既に `ApplyWindowBounds`（[uMainForm.pas:687-695](../src/uMainForm.pas#L687-L695)）が `ConstrainAndSnapRect` でモニター作業領域内へクランプしており、**次回起動時は自動復旧する**
+- **残っている穴**: 起動したまま解像度・モニター構成を変えた場合に再クランプする仕組みが無い（`WM_DISPLAYCHANGE` ハンドラが本体に無い）。本体はボーダーレス・タスクバーボタン無しのため、OS標準の「ウィンドウを画面内に戻す」操作も使えない
+- **実装プラン**:
+  1. `TMainForm` に `WM_DISPLAYCHANGE` メッセージハンドラを追加し、受信時に既存の `ApplyWindowBounds` を呼ぶ（解像度変更の瞬間に自動クランプ）
+  2. 右クリックメニューに「位置をリセット」的な項目を追加し、`ApplyWindowBounds`（または画面中央への再配置）を手動で呼べるようにする。タスクトレイのアイコンは本体が画面外でも常に操作できるので、確実な復旧手段になる
+
+見積り: 半日程度（2件とも既存の `uWindowPlacement.pas` ロジックを再利用するため小規模）。

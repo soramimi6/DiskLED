@@ -10,7 +10,7 @@ DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI �
 | `feature/x.y.z` | そのバージョンの統合ブランチ。`docs/PLANNED-x.y.z.md` の全項目をここに積む | バージョン出荷まで |
 | `work/x.y.z-<項番>-<要約>` | `PLANNED-x.y.z.md` の番号付き項目 1 つに対応する作業ブランチ | 対応する PR がマージされるまで |
 
-例: `docs/PLANNED-3.1.1.md` の「5. ディスク遅延（レイテンシ）」に着手する場合 → `work/3.1.1-5-disk-latency`
+例: `docs/PLANNED-3.1.1.md` の「4. ディスク遅延（レイテンシ）」に着手する場合 → `work/3.1.1-4-disk-latency`
 
 `master` と `feature/x.y.z` は今までどおりの前例（`work/3.0.1` 等）を踏襲した命名。
 
@@ -18,11 +18,11 @@ DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI �
 
 1. `feature/x.y.z` から `work/x.y.z-<項番>-<要約>` を作る
 2. その項目の「実装プラン」（`PLANNED-x.y.z.md` 内）に沿って実装する
-2.5. **ビルド確認**: 開発機の Delphi は Community Edition の場合 CLI ビルド不可のことがある。その場合は実装者が RAD Studio IDE で Win64 Release をビルドし、コンパイルが通ることを確認してから次へ進む（PR 前に必ず 1 回）
-3. `work/...` → `feature/x.y.z` 宛てに PR を作る。説明文は対応する `PLANNED-x.y.z.md` の項番リンクのみで簡潔に（what/why の本文は squash merge 時のコミットメッセージ側が正本になるため、ここで二重に書かない）
-4. `/code-review`（規模が大きい・リスクが高い項目は `/code-review ultra`）を通し、指摘を反映する
-5. **squash merge** で `feature/x.y.z` に取り込み、`work/...` ブランチは削除する。GitHub の squash merge ダイアログは既定でブランチ内の各コミットメッセージを箇条書き連結するので、確定前に下記フォーマットへ手動で書き直す
-6. 誤字修正やドキュメントのみの変更など、番号付き項目に対応しない軽微な修正は PR を作らず `feature/x.y.z` へ直接コミットしてよい
+3. **ビルド確認**: 開発機の Delphi は Community Edition の場合 CLI ビルド不可のことがある。その場合は実装者が RAD Studio IDE で Win64 Release をビルドし、コンパイルが通ることを確認してから次へ進む（PR 前に必ず 1 回）
+4. `work/...` → `feature/x.y.z` 宛てに PR を作る。説明文は対応する `PLANNED-x.y.z.md` の項番リンクのみで簡潔に（what/why の本文は squash merge 時のコミットメッセージ側が正本になるため、ここで二重に書かない）
+5. `/code-review`（規模が大きい・リスクが高い項目は `/code-review ultra`）を通し、指摘を反映する
+6. **squash merge** で `feature/x.y.z` に取り込み、`work/...` ブランチは削除する。GitHub の squash merge ダイアログは既定でブランチ内の各コミットメッセージを箇条書き連結するので、確定前に下記フォーマットへ手動で書き直す
+7. 誤字修正やドキュメントのみの変更など、番号付き項目に対応しない軽微な修正は PR を作らず `feature/x.y.z` へ直接コミットしてよい
 
 ## リリース時（バージョン完了時）
 
