@@ -55,4 +55,9 @@ dist/
 # Local-only (not published on GitHub)
 .cursor/
 legacy/
-docs/
+docs/*
+!docs/CONTRIBUTING.md
+!docs/PLANNED-*.md
+!docs/DESIGN.md
+!docs/MAINTAINING-PUBLIC-DOCS.md
+!docs/LISTING.md
