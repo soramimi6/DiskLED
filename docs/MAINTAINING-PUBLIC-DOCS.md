@@ -30,10 +30,8 @@
 | `public_docs/*.md` / `EN/*.md` | 利用者 | 機能・使い方・制限・クレジット。内部モジュール名は最小限 |
 | `README.md`（リポジトリ根） | 開発者 | 確定方針・MVP 表（前半日本語・後半英語。日本語を変えたら英訳も同じ変更で更新） |
 | `docs/DESIGN.md` | 開発者 | モジュール・API・フェーズ |
-| `docs/PLANNED-3.1.1.md` | 開発者 | 3.1.1 の未実装予定。公開ドキュメントには書かない |
-| `docs/Microsoft_Store.md` | オーナー | Microsoft Store の初回登録・申請内容・更新手順。GitHub には上げない |
-| `docs/LISTING.md` | オーナー | 掲載サイト向け文案 |
-| `docs/VECTOR.md` | オーナー | Vector（DiskLED3）の差し替え申請手順。GitHub には上げない |
+| `docs/PLANNED-x.y.z.md` | 開発者 | 各バージョンの未実装予定。公開ドキュメントには書かない |
+| `docs/LISTING.md` | 開発者 | 掲載サイト向け文案 |
 | `assets/LAYOUT.md` | 開発者 | layout.cfg 書式 |
 
 ## 同期が必要な変更
