@@ -53,6 +53,7 @@ out/
 dist/
 
 # Local-only (not published on GitHub)
+.claude/
 .cursor/
 legacy/
 docs/*
