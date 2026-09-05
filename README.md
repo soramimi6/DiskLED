@@ -17,30 +17,28 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
   - ディスク／ネット速度 … デバイス上限 → だめなら実測オートセンス（手動レンジは二期）
   - Ping … 応答時間を 4 段階（正常／やや遅い／遅い／タイムアウト）で表示
 - **非採用**: ユーザー向けスキン配布（`.dla`）、SSTP、**サウンド全般**、フローティング、複数起動
-- **Phase5**: コンパクト／フル切替（ダブルクリック）と CPU／MEM／SWAP 推移グラフ（Original / Metalic）
-- **Phase6**: ユーザー権限インストーラー（Inno Setup）＋ポータブル zip（`tools/make-*.ps1`）
+- **Phase5（実装済み）**: コンパクト／フル切替（ダブルクリック）と CPU／MEM／SWAP 推移グラフ（Original / Metalic）
+- **Phase6（実装済み）**: ユーザー権限インストーラー（Inno Setup）＋ポータブル zip（`tools/make-*.ps1`）
 
-## MVP（第1版）
+## 主な機能
 
-「今アクセスしているか／どのくらい負荷か」が一目で分かる常駐デスクトップガジェット。単独アプリケーションとして必要最小限の機能を備えた初版。
-
-**含める**
+「今アクセスしているか／どのくらい負荷か」が一目で分かる常駐デスクトップガジェット。
 
 - 表示モード切替（Original / Crystal / Metalic / Info Bar）
+- 表示サイズ：コンパクト／フル／**タスクトレイ**（トレイアイコン自体がディスクアクセス LED）の排他 3 択（3.1.1〜）
 - CPU、MEM、SWAP（仮想メモリ）メーター
-- Disk R/W LED＋速度バー
-- Net 送受信 LED＋速度バー
-- **Ping 表示**（両モード）
-- 最前面表示機能
+- Disk R/W LED＋速度バー、Net 送受信 LED＋速度バー
+- **Ping**：応答段階表示。専用ウィンドウで Tracert のようにホップごとの経路（TTL・IP・ホスト名・RTT）を表示（3.1.1〜）
+- 最前面表示、トレイアイコン、スタートアップ登録、単一起動の強制
+- 右クリックメニューから**位置をリセット**（画面外に外れた本体ウィンドウの復旧、3.1.1〜）
 - 設定の簡易永続化（ini）
-- トレイアイコン（起動中）表示
-- スタートアップ登録機能
-- 単一起動の強制
 - **高 DPI（Per-Monitor V2）**。ガジェットは 0.5 刻み、ダッシュボードは実 DPI、オプションは VCL Scaled
-- **ダッシュボード**（別ウィンドウ。ドーナツ約 5Hz、数字・履歴 1Hz）
-- **新しい版の通知**（起動時に GitHub Latest を 1 回。トレイは版ごとに 1 回、メニューは入れるまで。ページを開くだけ）
+- **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、電源（再生音量）、Ping 履歴などを表示
+- 起動時の新しい版の通知（GitHub Latest を 1 回確認。Microsoft Store 版では無効、3.1.1〜）
 
-**含めない（今後検討）**
+Crystal / Info Bar はコンパクトのみ。
+
+## 今後の検討事項
 
 - フローティング
 - サウンド
@@ -49,8 +47,6 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - OwnerDraw メニュー
 - 手動速度レンジ UI
 - 手動言語切替（ini / メニュー）
-
-フル／コンパクト＋推移グラフは **Phase5（実装済み）**。Crystal / Info Bar はコンパクトのみ。
 
 ### 監視対象
 
@@ -70,27 +66,14 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 ### 配布・その他
 
 - **配布形態**:
-  - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_3.1.0.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
-  - 併せてポータブル zip（`DiskLED-3.1.0-portable.zip`）も利用可能とする
+  - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_<version>.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
+  - 併せてポータブル zip（`DiskLED-<version>-portable.zip`）も利用可能とする
 - **言語**: 既定は英語。OS の UI 言語が日本語のときだけ日本語
 - **ライセンス**: 著作権は SoRaMiMi（旧版開発者と同一）。`assets/` 以下も同様。公式配布物は無償利用可。ソースの改変・再配布は不可。改善・デバッグの協力は共同開発者（リポジトリ編集権限の付与）として行う。詳細は `LICENSE.txt`
 
-## 想定機能（MVP）
-
-- CPU／物理メモリ／SWAP のリアルタイム表示
-- ディスク I/O（LED・速度バー）
-- ネットワーク送受信（LED・速度バー）
-- Ping（応答段階表示・手動即時更新。オプションでオフ／ゲートウェイ／閾値）
-- 速度レンジの自動決定（デバイス情報 → 実測推定）
-- 表示モード切替（`assets/*/layout.cfg`。今後追加可）
-- 最前面・トレイアイコン・スタートアップ
-- 単一起動の抑制
-- 設定の ini 保存
-- ダッシュボード（別ウィンドウ）と Per-Monitor V2 高 DPI
-- 起動時の新しい版の確認（GitHub Latest。通知とリリースページ。自動入れ替えなし）
-
 ## 参考
 
+- 変更履歴: `public_docs/CHANGELOG.md`（日本語）/ `public_docs/EN/CHANGELOG.md`（英語）
 - 利用者向け説明: `public_docs/`（日本語）と `public_docs/EN/`（英語）
 - 表示モード定義: `assets/LAYOUT.md`
 - ビルド補助: `tools/build.ps1`（**Community Edition は CLI コンパイル不可**。IDE の F9 / Shift+F9 が正）
@@ -117,30 +100,28 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
   - Disk / network speed … device maximum → if that fails, measured auto-sense (manual range is a later phase)
   - Ping … response time shown in 4 levels (OK / somewhat slow / slow / timeout)
 - **Not adopted**: User-facing skin distribution (`.dla`), SSTP, **sound in general**, floating, multiple instances
-- **Phase5**: Compact/full toggle (double-click) and CPU / MEM / SWAP history graphs (Original / Metalic)
-- **Phase6**: Per-user installer (Inno Setup) + portable zip (`tools/make-*.ps1`)
+- **Phase5 (implemented)**: Compact/full toggle (double-click) and CPU / MEM / SWAP history graphs (Original / Metalic)
+- **Phase6 (implemented)**: Per-user installer (Inno Setup) + portable zip (`tools/make-*.ps1`)
 
-## MVP (first edition)
+## Key features
 
-A resident desktop gadget that shows at a glance whether something is being accessed and how much load there is. First edition with the minimum features needed as a standalone application.
-
-**Include**
+A resident desktop gadget that shows at a glance whether something is being accessed and how much load there is.
 
 - Display mode switching (Original / Crystal / Metalic / Info Bar)
+- Display size: Compact / Full / **Task tray** (the tray icon itself becomes a disk-access LED), a mutually exclusive 3-way choice (since 3.1.1)
 - CPU, MEM, SWAP (virtual memory) meters
-- Disk R/W LED + speed bar
-- Net in/out LEDs + speed bar
-- **Ping display** (both modes)
-- Always-on-top
+- Disk R/W LED + speed bar, Net in/out LEDs + speed bar
+- **Ping**: response-level display. A dedicated window shows the hop-by-hop route (TTL, IP, hostname, RTT) like Tracert (since 3.1.1)
+- Always-on-top, tray icon, startup registration, enforce single instance
+- **Reset position** from the right-click menu (recovers a main window that has drifted off-screen, since 3.1.1)
 - Simple settings persistence (ini)
-- Tray icon (while running)
-- Startup registration
-- Enforce single instance
 - **High DPI (Per-Monitor V2)**. Gadget uses 0.5-step scale; dashboard follows real DPI; Options use VCL Scaled
-- **Dashboard** (separate window; donuts about 5 Hz, numbers and history 1 Hz)
-- **New version notice** (one GitHub Latest check at startup. Tray once per version; menu until you install. Opens the release page only)
+- **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), power (playback volume), Ping history, and more
+- New version notice at startup (checks GitHub Latest once; disabled on the Microsoft Store build, since 3.1.1)
 
-**Do not include (consider later)**
+Crystal / Info Bar are compact-only.
+
+## Future considerations
 
 - Floating
 - Sound
@@ -149,8 +130,6 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - OwnerDraw menus
 - Manual speed-range UI
 - Manual language switching (ini / menu)
-
-Full/compact + history graphs are **Phase5 (implemented)**. Crystal / Info Bar are compact-only.
 
 ### What is monitored
 
@@ -170,27 +149,14 @@ Full/compact + history graphs are **Phase5 (implemented)**. Crystal / Info Bar a
 ### Distribution and other
 
 - **Distribution**:
-  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_3.1.0.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
-  - A portable zip (`DiskLED-3.1.0-portable.zip`) is also available
+  - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_<version>.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
+  - A portable zip (`DiskLED-<version>-portable.zip`) is also available
 - **Language**: English by default. Japanese only when the OS UI language is Japanese
 - **License**: Copyright is SoRaMiMi (same as the previous version’s author). Same for `assets/`. Official packages may be used free of charge. Modification and redistribution of the source are not permitted. Help with improvements and debugging is as a co-developer (granted repository write access). Details in `LICENSE.txt`
 
-## Intended features (MVP)
-
-- Real-time CPU / physical memory / SWAP display
-- Disk I/O (LED · speed bar)
-- Network send/receive (LED · speed bar)
-- Ping (level display · manual immediate refresh. Options: off / gateway / thresholds)
-- Automatic speed range (device info → measured estimate)
-- Display mode switching (`assets/*/layout.cfg`; more can be added later)
-- Always-on-top, tray icon, startup
-- Suppress extra instances
-- Settings saved to ini
-- Dashboard (separate window) and Per-Monitor V2 high DPI
-- New-version check at startup (GitHub Latest; notice and release page; no self-update)
-
 ## References
 
+- Changelog: `public_docs/CHANGELOG.md` (Japanese) / `public_docs/EN/CHANGELOG.md` (English)
 - End-user docs: `public_docs/` (Japanese) and `public_docs/EN/` (English)
 - Display mode definition: `assets/LAYOUT.md`
 - Build helper: `tools/build.ps1` (**Community Edition cannot compile from the command line**. IDE F9 / Shift+F9 is authoritative)
