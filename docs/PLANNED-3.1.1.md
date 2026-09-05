@@ -338,4 +338,15 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 - **実装済み**: `TMainForm.FormCreate` の `Position := poDesigned;` の直後に `DefaultMonitor := dmDesktop;` を追加した（[uMainForm.pas:242-249](../src/uMainForm.pas#L242-L249)）。`SetWindowToMonitor` の冒頭ガード（`if (FDefaultMonitor <> dmDesktop) and ...`）によりこの関数自体が無効化され、VCL による自動モニター追従は発生しなくなる。位置管理は既存の `ConstrainAndSnapRect`（`uWindowPlacement.pas`）に一本化される
 - あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にした（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）。`TMainForm.CreateParams`（[uMainForm.pas:168-181](../src/uMainForm.pas#L168-L181)）は VCL 標準どおり「現在の Left/Top を使う」動作のままで、座標の明示注入はしていない（HWND 再生成のたびに保存済み座標へ巻き戻ると、その時点の実位置と食い違う恐れがあるため）
 
+### 6-4. 項目5（Tracert）の `/code-review ultra` で見つかった軽微な改善事項（未着手）
+
+主題（Tracert機能そのもの）とは直接関係しない、コード品質・堅牢性の改善提案。
+
+- `TPingCollector.CurrentTarget`（`uPingCollector.pas`）は起動直後・自動ゲートウェイ有効時、初回Ping完了前は設定ホストを返す（ゲートウェイではない）。実害は数秒待てば解消する程度
+- `TTracertCollector.RunAsync`（`uTracertCollector.pas`）は `TThread.CreateAnonymousThread(...).Start` が例外を投げた場合 `FRunning` が戻らず、以後そのインスタンスで二度と実行できなくなる
+- `uTracertCollector.pas` の `ResolveIPv4` が `uPingCollector.pas` の同名関数とほぼ同一のコピーになっている。本来は共通ユニット `uIcmpApi.pas` に置くべき
+- `uTraceRouteForm.pas` の `CreateWnd` オーバーライド＋`WM_SETTINGCHANGE`（ダークモード追従）が `uDashboardForm.pas` と全く同じ内容で重複している。共通化の余地あり
+- `menu.ping` の文字列ID・`miPingClick` ハンドラ名が「Ping更新」時代のまま残っており、「Ping結果表示（ウィンドウを開く）」という現在の役割と合っていない
+- `uTracertCollector.pas` の `StartReverseLookup` はホップごとに新規スレッドを生成する（最大30本）。1つのワーカー/プールで捌く設計の方が効率的（実用上の速度差は小さい）
+
 見積り: 半日程度（3件とも既存の `uWindowPlacement.pas` ロジックを再利用する、または呼び出し順序の変更のみで小規模）。
