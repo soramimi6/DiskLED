@@ -66,12 +66,13 @@
 
 手順:
 
-1. `packaging/msix/masters/icon.png`（32bit ARGB）から `assets/MAINICON.ico` を生成する（Python + Pillow、16/32/48/256 を同梱）
+1. `packaging/msix/masters/icon.png`（1024×1024、不透明な正方形デザイン）から `assets/MAINICON.ico` を生成する（Python + Pillow、16/32/48/256 を個別に LANCZOS リサンプルして同梱）
 2. 生成した ico で `assets/MAINICON.ico` を置き換える
-3. IDE で Win64 Release をビルドし、exe アイコン（Explorer・タスクバー・Alt+Tab）とタスクトレイアイコンをライト／ダーク双方のタスクバーで目視確認する
-4. `tools/make-portable.ps1` / `tools/make-installer.ps1` で配布物を再生成し、ポータブル zip・インストーラー双方でアイコンが更新されていることを確認する（`docs/DESIGN.md` 15 節）
+3. IDE でビルドし、exe アイコン（Explorer・タスクバー・Alt+Tab）とタスクトレイアイコンを目視確認する
 
-見積り: 半日程度（変換とライト/ダーク・複数 DPI での目視確認が主）。「表示サイズ タスクトレイ」用の LED アイコン（項目 3）とは別素材・別作業。
+**実装済み**（手順1〜3）。`tools/make-portable.ps1` / `tools/make-installer.ps1` によるポータブル zip・インストーラーへの反映確認は、3.1.1 の全項目が完了した後の Win64 Release ビルド・配布物再生成時（`docs/CONTRIBUTING.md` の「リリース時」節、`docs/DESIGN.md` 15 節）にまとめて行う。項目単位では実施しない（Release ビルドはリリース直前に一度だけ行えば十分なため）。
+
+見積り: 半日程度。「表示サイズ タスクトレイ」用の LED アイコン（項目 3）とは別素材・別作業。
 
 ## 3. 表示サイズ タスクトレイ（ディスクアクセス LED）
 
