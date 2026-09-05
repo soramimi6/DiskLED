@@ -25,6 +25,8 @@ type
     HasFull: Boolean;
     Layout: TViewLayout;
     FullLayout: TViewLayout;
+    TrayOffFile: string;
+    TrayOnFile: string;
   end;
 
 procedure LoadDisplayModes(const AAssetsRoot: string);
@@ -106,6 +108,8 @@ begin
       Def.Layout.ModeId := Def.Id;
       Def.FullLayout := Meta.FullLayout;
       Def.FullLayout.ModeId := Def.Id;
+      Def.TrayOffFile := Meta.TrayOffFile;
+      Def.TrayOnFile := Meta.TrayOnFile;
 
       for i := 0 to List.Count - 1 do
         if SameText(List[i].Id, Def.Id) then
