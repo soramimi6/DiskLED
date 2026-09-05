@@ -377,7 +377,13 @@ begin
   FUpdateDelay.Enabled := False;
   FUpdateDelay.Interval := 5000;
   FUpdateDelay.OnTimer := UpdateDelayTick;
-  SyncUpdateMenu;
+  { Menu item starts hidden (BuildPopup's default) and stays that way until
+    this session's own check confirms a newer version via
+    ApplyUpdateCheckResult -> SyncUpdateMenu. Do not call SyncUpdateMenu here:
+    it would show the item immediately based on last session's persisted
+    UpdateLatestKnown, which can be stale (an old GitHub check result, or a
+    leftover from an earlier debug run) until this session's check overwrites
+    it a few seconds later. }
   if UpdateCheckEnabled then
     ScheduleUpdateCheck;
 end;
@@ -1215,8 +1221,11 @@ begin
   begin
     Remote := NormalizeVersionText(AResult.Version);
     FSettings.UpdateLatestKnown := Remote;
+    { CDebugForceNewerRelease: always re-show the balloon while testing,
+      ignoring whether this version was already notified. }
     if VersionIsNewer(Remote, Local) and
-      (not SameText(NormalizeVersionText(FSettings.UpdateLastNotified), Remote)) then
+      (CDebugForceNewerRelease or
+       (not SameText(NormalizeVersionText(FSettings.UpdateLastNotified), Remote))) then
     begin
       ShowUpdateBalloon(Remote);
       FSettings.UpdateLastNotified := Remote;
