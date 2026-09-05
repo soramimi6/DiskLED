@@ -516,7 +516,8 @@ begin
     Exit;
   DrawDiskQueue(FQueuePaint.Canvas, FQueuePaint.ClientRect, FPipeline.LastSnap,
     S('dash.queue'), S('dash.queue_depth'), S('dash.iops_read'),
-    S('dash.iops_write'), S('dash.disk_active'), HudPalette, CurrentMetrics);
+    S('dash.iops_write'), S('dash.disk_active'), S('dash.latency'),
+    HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.PowerPaint(Sender: TObject);

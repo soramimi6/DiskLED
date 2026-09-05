@@ -39,7 +39,7 @@ procedure DrawMemAmounts(ACanvas: TCanvas; const ARect: TRect;
   const APalette: THudPalette; const AMetrics: THudMetrics);
 procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, AQueueLbl, AReadLbl,
-  AWriteLbl, AActiveLbl: string; const APalette: THudPalette;
+  AWriteLbl, AActiveLbl, ALatencyLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawPowerPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; AAudioL, AAudioR: Double;
@@ -518,11 +518,11 @@ end;
 
 procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, AQueueLbl, AReadLbl,
-  AWriteLbl, AActiveLbl: string; const APalette: THudPalette;
+  AWriteLbl, AActiveLbl, ALatencyLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 var
-  QTxt, ActiveTxt: string;
-  QY, IopsY, Gap, QW: Integer;
+  QTxt, ActiveTxt, QueueLine: string;
+  QY, IopsY, Gap, QW, LineMaxW: Integer;
 begin
   FillRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.Card);
   StrokeRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.CardBorder);
@@ -553,7 +553,11 @@ begin
   ACanvas.TextOut(ARect.Left + AMetrics.Margin, QY, QTxt);
   ACanvas.Font.Size := AMetrics.BodySize;
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(ARect.Left + AMetrics.Margin + QW + AMetrics.CardPad, QY + AMetrics.BodySize, AQueueLbl);
+  QueueLine := AQueueLbl + '  ・  ' + ALatencyLbl + ' ' + FormatLatencyMs(ASnap.DiskLatencyMs);
+  LineMaxW := ARect.Right - (ARect.Left + AMetrics.Margin + QW + AMetrics.CardPad) - AMetrics.Margin;
+  if LineMaxW > 0 then
+    QueueLine := Ellipsize(ACanvas, QueueLine, LineMaxW);
+  ACanvas.TextOut(ARect.Left + AMetrics.Margin + QW + AMetrics.CardPad, QY + AMetrics.BodySize, QueueLine);
 
   if ASnap.DiskActivePct >= 0 then
     ActiveTxt := Format('%s %.0f%%', [AActiveLbl, ASnap.DiskActivePct])

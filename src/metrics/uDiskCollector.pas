@@ -16,17 +16,21 @@ type
     FReadIopsCounter: THandle;
     FWriteIopsCounter: THandle;
     FIdleCounter: THandle;
+    FLatencyCounter: THandle;
     FPdhReady: Boolean;
     FPdhQueueOk: Boolean;
     FPdhIdleOk: Boolean;
+    FPdhLatencyOk: Boolean;
     FLastQueue: Double;
     FLastReadIops: Double;
     FLastWriteIops: Double;
     FLastActivePct: Double;
+    FLastLatencyMs: Double;
     FPrevReadBytes: UInt64;
     FPrevWriteBytes: UInt64;
     FPrevReadCount: UInt64;
     FPrevWriteCount: UInt64;
+    FPrevServiceTicks: UInt64;
     FPrevTick: Cardinal;
     FHasPrevIo: Boolean;
     FLastReadBps: Double;
@@ -34,16 +38,16 @@ type
     function InitPdh: Boolean;
     procedure ClosePdh;
     function SamplePdh(out AReadBps, AWriteBps, AQueue, AReadIops,
-      AWriteIops, AActivePct: Double): Boolean;
+      AWriteIops, AActivePct, ALatencyMs: Double): Boolean;
     function SampleIoCtl(out AReadBps, AWriteBps, AQueue, AReadIops,
-      AWriteIops, AActivePct: Double): Boolean;
+      AWriteIops, AActivePct, ALatencyMs: Double): Boolean;
     function SumDiskPerformance(out AReadBytes, AWriteBytes, AReadCount,
-      AWriteCount: UInt64; out AQueue: Double): Boolean;
+      AWriteCount: UInt64; out AQueue: Double; out AServiceTimeTicks: UInt64): Boolean;
   public
     constructor Create;
     destructor Destroy; override;
     procedure Sample(out AReadBps, AWriteBps, AQueue, AReadIops,
-      AWriteIops, AActivePct: Double);
+      AWriteIops, AActivePct, ALatencyMs: Double);
   end;
 
 implementation
@@ -116,9 +120,11 @@ begin
   FReadIopsCounter := 0;
   FWriteIopsCounter := 0;
   FIdleCounter := 0;
+  FLatencyCounter := 0;
   FPdhReady := False;
   FPdhQueueOk := False;
   FPdhIdleOk := False;
+  FPdhLatencyOk := False;
   FLastActivePct := -1;
   if PdhOpenQueryW(nil, 0, FQuery) <> 0 then
   begin
@@ -146,6 +152,8 @@ begin
       '\PhysicalDisk(_Total)\Disk Writes/sec', 0, FWriteIopsCounter) = 0);
   FPdhIdleOk := PdhAddEnglishCounterW(FQuery,
     '\PhysicalDisk(_Total)\% Idle Time', 0, FIdleCounter) = 0;
+  FPdhLatencyOk := PdhAddEnglishCounterW(FQuery,
+    '\PhysicalDisk(_Total)\Avg. Disk sec/Transfer', 0, FLatencyCounter) = 0;
   { First collect establishes a baseline; values are valid from the second call. }
   PdhCollectQueryData(FQuery);
   FPdhReady := False;
@@ -165,15 +173,18 @@ begin
   FReadIopsCounter := 0;
   FWriteIopsCounter := 0;
   FIdleCounter := 0;
+  FLatencyCounter := 0;
   FPdhReady := False;
   FPdhQueueOk := False;
   FPdhIdleOk := False;
+  FPdhLatencyOk := False;
 end;
 
 function TDiskCollector.SamplePdh(out AReadBps, AWriteBps, AQueue, AReadIops,
-  AWriteIops, AActivePct: Double): Boolean;
+  AWriteIops, AActivePct, ALatencyMs: Double): Boolean;
 var
-  ReadVal, WriteVal, QueueVal, ReadIopsVal, WriteIopsVal, IdleVal: TPdhFmtCounterValue;
+  ReadVal, WriteVal, QueueVal, ReadIopsVal, WriteIopsVal, IdleVal,
+    LatencyVal: TPdhFmtCounterValue;
 begin
   Result := False;
   AReadBps := FLastReadBps;
@@ -182,6 +193,7 @@ begin
   AReadIops := FLastReadIops;
   AWriteIops := FLastWriteIops;
   AActivePct := FLastActivePct;
+  ALatencyMs := FLastLatencyMs;
   if FQuery = 0 then
     Exit;
   if PdhCollectQueryData(FQuery) <> 0 then
@@ -249,11 +261,22 @@ begin
       FLastActivePct := AActivePct;
     end;
   end;
+  if FPdhLatencyOk then
+  begin
+    if PdhGetFormattedCounterValue(FLatencyCounter, PDH_FMT_DOUBLE, nil, LatencyVal) = 0 then
+    begin
+      if LatencyVal.DoubleValue < 0 then
+        ALatencyMs := 0
+      else
+        ALatencyMs := LatencyVal.DoubleValue * 1000.0; { seconds -> ms }
+      FLastLatencyMs := ALatencyMs;
+    end;
+  end;
   Result := True;
 end;
 
 function TDiskCollector.SumDiskPerformance(out AReadBytes, AWriteBytes, AReadCount,
-  AWriteCount: UInt64; out AQueue: Double): Boolean;
+  AWriteCount: UInt64; out AQueue: Double; out AServiceTimeTicks: UInt64): Boolean;
 var
   i: Integer;
   Path: string;
@@ -267,6 +290,7 @@ begin
   AReadCount := 0;
   AWriteCount := 0;
   AQueue := 0;
+  AServiceTimeTicks := 0;
   for i := 0 to 31 do
   begin
     Path := '\\.\PhysicalDrive' + IntToStr(i);
@@ -286,6 +310,10 @@ begin
         Inc(AReadCount, Perf.ReadCount);
         Inc(AWriteCount, Perf.WriteCount);
         AQueue := AQueue + Perf.QueueDepth;
+        if Perf.ReadTime > 0 then
+          Inc(AServiceTimeTicks, UInt64(Perf.ReadTime));
+        if Perf.WriteTime > 0 then
+          Inc(AServiceTimeTicks, UInt64(Perf.WriteTime));
         Result := True;
       end;
     finally
@@ -295,11 +323,12 @@ begin
 end;
 
 function TDiskCollector.SampleIoCtl(out AReadBps, AWriteBps, AQueue, AReadIops,
-  AWriteIops, AActivePct: Double): Boolean;
+  AWriteIops, AActivePct, ALatencyMs: Double): Boolean;
 var
-  ReadBytes, WriteBytes, ReadCount, WriteCount: UInt64;
+  ReadBytes, WriteBytes, ReadCount, WriteCount, ServiceTicks: UInt64;
   Tick: Cardinal;
   ElapsedSec: Double;
+  DeltaCount, DeltaTicks: Int64;
 begin
   Result := False;
   AReadBps := FLastReadBps;
@@ -308,7 +337,9 @@ begin
   AReadIops := FLastReadIops;
   AWriteIops := FLastWriteIops;
   AActivePct := FLastActivePct;
-  if not SumDiskPerformance(ReadBytes, WriteBytes, ReadCount, WriteCount, AQueue) then
+  ALatencyMs := FLastLatencyMs;
+  if not SumDiskPerformance(ReadBytes, WriteBytes, ReadCount, WriteCount, AQueue,
+    ServiceTicks) then
     Exit;
 
   Tick := GetTickCount;
@@ -321,17 +352,28 @@ begin
       AWriteBps := (WriteBytes - FPrevWriteBytes) / ElapsedSec;
       AReadIops := (ReadCount - FPrevReadCount) / ElapsedSec;
       AWriteIops := (WriteCount - FPrevWriteCount) / ElapsedSec;
+      DeltaCount := Int64(ReadCount - FPrevReadCount) + Int64(WriteCount - FPrevWriteCount);
+      DeltaTicks := Int64(ServiceTicks - FPrevServiceTicks);
+      if DeltaCount > 0 then
+        ALatencyMs := (DeltaTicks * 0.0001) / DeltaCount { 100ns ticks -> ms }
+      else
+        ALatencyMs := 0;
+      if ALatencyMs < 0 then
+        ALatencyMs := 0;
       FLastReadBps := AReadBps;
       FLastWriteBps := AWriteBps;
       FLastQueue := AQueue;
       FLastReadIops := AReadIops;
       FLastWriteIops := AWriteIops;
+      FLastLatencyMs := ALatencyMs;
       Result := True;
     end;
   end
   else
   begin
     FLastQueue := AQueue;
+    ALatencyMs := 0;
+    FLastLatencyMs := 0;
     Result := True;
   end;
 
@@ -339,12 +381,13 @@ begin
   FPrevWriteBytes := WriteBytes;
   FPrevReadCount := ReadCount;
   FPrevWriteCount := WriteCount;
+  FPrevServiceTicks := ServiceTicks;
   FPrevTick := Tick;
   FHasPrevIo := True;
 end;
 
 procedure TDiskCollector.Sample(out AReadBps, AWriteBps, AQueue, AReadIops,
-  AWriteIops, AActivePct: Double);
+  AWriteIops, AActivePct, ALatencyMs: Double);
 begin
   AReadBps := FLastReadBps;
   AWriteBps := FLastWriteBps;
@@ -352,14 +395,17 @@ begin
   AReadIops := FLastReadIops;
   AWriteIops := FLastWriteIops;
   AActivePct := FLastActivePct;
+  ALatencyMs := FLastLatencyMs;
   if FUsePdh then
   begin
-    if SamplePdh(AReadBps, AWriteBps, AQueue, AReadIops, AWriteIops, AActivePct) then
+    if SamplePdh(AReadBps, AWriteBps, AQueue, AReadIops, AWriteIops, AActivePct,
+      ALatencyMs) then
       Exit;
     FUsePdh := False;
     ClosePdh;
   end;
-  SampleIoCtl(AReadBps, AWriteBps, AQueue, AReadIops, AWriteIops, AActivePct);
+  SampleIoCtl(AReadBps, AWriteBps, AQueue, AReadIops, AWriteIops, AActivePct,
+    ALatencyMs);
 end;
 
 end.

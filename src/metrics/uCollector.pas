@@ -101,7 +101,7 @@ begin
   try
     FDisk.Sample(Result.DiskReadBps, Result.DiskWriteBps,
       Result.DiskQueue, Result.DiskReadIops, Result.DiskWriteIops,
-      Result.DiskActivePct);
+      Result.DiskActivePct, Result.DiskLatencyMs);
   except
     Result.DiskReadBps := 0;
     Result.DiskWriteBps := 0;
@@ -109,6 +109,7 @@ begin
     Result.DiskReadIops := 0;
     Result.DiskWriteIops := 0;
     Result.DiskActivePct := -1;
+    Result.DiskLatencyMs := 0;
   end;
   try
     FNet.Sample(Result.NetInBps, Result.NetOutBps, Result.NetLinkSpeedBps);
