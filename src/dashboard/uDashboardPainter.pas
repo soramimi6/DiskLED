@@ -39,8 +39,8 @@ procedure DrawMemAmounts(ACanvas: TCanvas; const ARect: TRect;
   const APalette: THudPalette; const AMetrics: THudMetrics);
 procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, AQueueLbl, AReadLbl,
-  AWriteLbl, AActiveLbl, ALatencyLbl: string; const APalette: THudPalette;
-  const AMetrics: THudMetrics);
+  AWriteLbl, AActiveLbl, AQueueTopLbl, ALatencyTopLbl: string;
+  const APalette: THudPalette; const AMetrics: THudMetrics);
 procedure DrawPowerPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; AAudioL, AAudioR: Double;
   const AHeading, ASourceLbl, AAcLbl, ABattLbl, AUnknownLbl, ARemainLbl,
@@ -518,11 +518,11 @@ end;
 
 procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, AQueueLbl, AReadLbl,
-  AWriteLbl, AActiveLbl, ALatencyLbl: string; const APalette: THudPalette;
-  const AMetrics: THudMetrics);
+  AWriteLbl, AActiveLbl, AQueueTopLbl, ALatencyTopLbl: string;
+  const APalette: THudPalette; const AMetrics: THudMetrics);
 var
   QTxt, LatTxt, ActiveTxt: string;
-  QY, IopsY, Gap, QW, LatW, HalfW, QX, LX, LabelMaxW: Integer;
+  QY, IopsY, Gap, QW, LatW, HalfW, QX, LX, LabelMaxW, TopY: Integer;
 begin
   FillRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.Card);
   StrokeRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.CardBorder);
@@ -550,15 +550,22 @@ begin
   if Gap > 0 then
     QY := QY + Gap;
 
-  { Queue and Latency share the headline row as two same-size big-digit columns. }
+  { Queue and Latency share the headline row as two same-size big-digit columns,
+    each captioned above (キュー/レイテンシ) and unit-labeled to the right (Queue/ms). }
   QX := ARect.Left + AMetrics.Margin;
   HalfW := (ARect.Right - ARect.Left - AMetrics.Margin * 2 - AMetrics.CardPad) div 2;
   LX := QX + HalfW + AMetrics.CardPad;
+  TopY := QY - Dip(AMetrics, 2) - AMetrics.BodySize;
 
   ACanvas.Font.Style := [];
+  ACanvas.Font.Size := AMetrics.BodySize;
+  ACanvas.Font.Color := APalette.TextMuted;
+  TransparentText(ACanvas);
+  ACanvas.TextOut(QX, TopY, Ellipsize(ACanvas, AQueueTopLbl, HalfW));
+  ACanvas.TextOut(LX, TopY, Ellipsize(ACanvas, ALatencyTopLbl, HalfW));
+
   ACanvas.Font.Size := AMetrics.QueueDigitSize;
   ACanvas.Font.Color := APalette.Disk;
-  TransparentText(ACanvas);
   QW := ACanvas.TextWidth(QTxt);
   ACanvas.TextOut(QX, QY, QTxt);
   ACanvas.Font.Size := AMetrics.BodySize;
@@ -577,7 +584,7 @@ begin
   LabelMaxW := ARect.Right - AMetrics.Margin - (LX + LatW + AMetrics.CardPad);
   if LabelMaxW > 0 then
     ACanvas.TextOut(LX + LatW + AMetrics.CardPad, QY + AMetrics.BodySize,
-      Ellipsize(ACanvas, ALatencyLbl + ' ms', LabelMaxW));
+      Ellipsize(ACanvas, 'ms', LabelMaxW));
 
   if ASnap.DiskActivePct >= 0 then
     ActiveTxt := Format('%s %.0f%%', [AActiveLbl, ASnap.DiskActivePct])
