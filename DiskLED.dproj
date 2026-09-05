@@ -67,7 +67,7 @@
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
         <DCC_UnitSearchPath>src;src\view;src\metrics;src\dashboard;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1041</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=DiskLED;FileVersion=3.1.0.0;InternalName=DiskLED;LegalCopyright=;LegalTrademarks=;OriginalFilename=DiskLED.exe;ProductName=DiskLED;ProductVersion=3.1.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=DiskLED;FileVersion=3.1.1.0;InternalName=DiskLED;LegalCopyright=;LegalTrademarks=;OriginalFilename=DiskLED.exe;ProductName=DiskLED;ProductVersion=3.1.1.0;Comments=</VerInfo_Keys>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <DCC_E>false</DCC_E>
         <DCC_N>false</DCC_N>

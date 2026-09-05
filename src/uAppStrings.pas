@@ -241,7 +241,7 @@ end;
 
 function GetProductVersionText: string;
 const
-  CFallback = '3.1.0';
+  CFallback = '3.1.1';
 var
   Path: string;
   Size: DWORD;
