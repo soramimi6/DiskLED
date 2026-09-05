@@ -317,7 +317,7 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 
 ## 6. 雑多な動作改修
 
-**マウスオーバー時のホバーポップアップが画面外・モニター境界にはみ出す** ／ **解像度変更などで本体ウィンドウが画面外・タスクバー下に隠れて操作不能になる** の2件を修正する。
+**マウスオーバー時のホバーポップアップが画面外・モニター境界にはみ出す** ／ **解像度変更などで本体ウィンドウが画面外・タスクバー下に隠れて操作不能になる** ／ **サブモニターに置いた本体ウィンドウが、終了して再起動するとメインモニターへ移動してしまう** の3件を修正する。
 
 ### 6-1. ホバーポップアップの表示位置
 
@@ -337,4 +337,11 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
   1. `TMainForm` に `WM_DISPLAYCHANGE` メッセージハンドラを追加し、受信時に既存の `ApplyWindowBounds` を呼ぶ（解像度変更の瞬間に自動クランプ）
   2. 右クリックメニューに「位置をリセット」的な項目を追加し、`ApplyWindowBounds`（または画面中央への再配置）を手動で呼べるようにする。タスクトレイのアイコンは本体が画面外でも常に操作できるので、確実な復旧手段になる
 
-見積り: 半日程度（2件とも既存の `uWindowPlacement.pas` ロジックを再利用するため小規模）。
+### 6-3. サブモニターに置いた本体ウィンドウが再起動でメインモニターへ移動する
+
+- **再現条件確認済み**: 本体ウィンドウをサブモニター、ダッシュボードをメインモニターに置いた状態で終了→起動すると、本体がダッシュボード側のモニターへ引き寄せられる（本体とダッシュボードが同じモニターなら発生しない）
+- **原因確認済み**（VCL ソース `Vcl.Forms.pas` を直接確認）: `TCustomForm.SetVisible`（`Vcl.Forms.pas:6241-6260`）は `Visible` が False→True になる瞬間、`inherited Visible := Value` を実行する**前**に `SetWindowToMonitor`（`Vcl.Forms.pas:7510-7571`）を呼ぶ。この関数は `DefaultMonitor` プロパティ（既定値 `dmActiveForm`。`TMainForm` は明示指定していないため既定のまま）が `dmDesktop` でない限り動作し、「アクティブなフォームが乗っているモニター」（`Screen.ActiveCustomForm.Monitor`）と「このウィンドウ自身が乗っているモニター」が異なる場合、**`Position = poDesigned` であっても関係なく**ウィンドウを強制的に前者のモニターへ再配置する（`FPosition = poScreenCenter` / `poMainFormCenter` のときだけ別処理になり、それ以外は全部この再配置分岐に入る）。`TMainForm.FormCreate` 内の `ShowDashboard`（[uMainForm.pas:309-310](../src/uMainForm.pas#L309-L310)、`FSettings.DashboardOpen` が真の場合に呼ばれる）は本体が可視化される前に実行されるため、ダッシュボードが先に「アクティブなフォーム」になり、そのモニターへ本体が引き寄せられる。`.dpr` の `Application.Run`（[DiskLED.dpr:61](../DiskLED.dpr#L61)）が呼ぶ `FMainForm.Visible := True` がこのトリガーであり、`TMainForm.FormCreate` の外（`Application.CreateForm` が返った後）で発生するため、`FormCreate` 内の処理順序をどう変えても防げない
+- **実装済み**: `TMainForm.FormCreate` の `Position := poDesigned;` の直後に `DefaultMonitor := dmDesktop;` を追加した（[uMainForm.pas:242-249](../src/uMainForm.pas#L242-L249)）。`SetWindowToMonitor` の冒頭ガード（`if (FDefaultMonitor <> dmDesktop) and ...`）によりこの関数自体が無効化され、VCL による自動モニター追従は発生しなくなる。位置管理は既存の `ConstrainAndSnapRect`（`uWindowPlacement.pas`）に一本化される
+- あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にし（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）、`TMainForm.CreateParams`（[uMainForm.pas:168-188](../src/uMainForm.pas#L168-L188)）でも `FSettings.WindowX/WindowY` を `Params.X/Y` に直接注入し、HWND 生成時点の座標を保険として保証している
+
+見積り: 半日程度（3件とも既存の `uWindowPlacement.pas` ロジックを再利用する、または呼び出し順序の変更のみで小規模）。

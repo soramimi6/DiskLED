@@ -34,6 +34,7 @@ type
     DiskReadIops: Double;
     DiskWriteIops: Double;
     DiskActivePct: Double; { 0..100; -1 unknown }
+    DiskLatencyMs: Double; { Avg. Disk sec/Transfer, converted to ms }
     PowerAc: Boolean;
     PowerBatteryPresent: Boolean;
     PowerBatteryPercent: Integer; { 0..100; -1 unknown }

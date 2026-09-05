@@ -146,10 +146,12 @@ begin
   AddStr('dash.lg_in', 'In', 'In');
   AddStr('dash.lg_out', 'Out', 'Out');
   AddStr('dash.disk_active', 'アクティブ', 'Active');
-  AddStr('dash.queue', 'ディスクキュー', 'Disk queue');
+  AddStr('dash.queue', 'ディスク情報', 'Disk Info');
   AddStr('dash.queue_depth', 'Queue', 'Queue');
+  AddStr('dash.queue_word', 'キュー', 'Queue');
   AddStr('dash.iops_read', '読取 IOPS', 'Read IOPS');
   AddStr('dash.iops_write', '書込 IOPS', 'Write IOPS');
+  AddStr('dash.latency', 'レイテンシ', 'Latency');
   AddStr('dash.power', '電源', 'Power');
   AddStr('dash.power_source', 'ソース', 'Source');
   AddStr('dash.power_ac', 'AC', 'AC');

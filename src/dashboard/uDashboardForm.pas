@@ -228,8 +228,8 @@ var
 begin
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
-  Constraints.MinWidth := ScalePx(800, Dpi);
-  Constraints.MinHeight := ScalePx(600, Dpi);
+  Constraints.MinWidth := ScalePx(1000, Dpi);
+  Constraints.MinHeight := ScalePx(900, Dpi);
   if FHeaderPaint <> nil then
     FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
 end;
@@ -516,7 +516,8 @@ begin
     Exit;
   DrawDiskQueue(FQueuePaint.Canvas, FQueuePaint.ClientRect, FPipeline.LastSnap,
     S('dash.queue'), S('dash.queue_depth'), S('dash.iops_read'),
-    S('dash.iops_write'), S('dash.disk_active'), HudPalette, CurrentMetrics);
+    S('dash.iops_write'), S('dash.disk_active'), S('dash.queue_word'),
+    S('dash.latency'), HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.PowerPaint(Sender: TObject);

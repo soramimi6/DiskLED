@@ -168,7 +168,14 @@ uses
 procedure TMainForm.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
-  { Unowned + APPWINDOW => taskbar. Owned tool window => no button. }
+  { Unowned + APPWINDOW => taskbar. Owned tool window => no button.
+    Params.X/Y are left at the inherited default (the control's current
+    Left/Top): FormCreate restores the saved position into Left/Top before
+    the first handle is ever created (see the comment there), so injecting
+    FSettings.WindowX/Y here is unnecessary for that first creation and
+    actively harmful for any later recreation (e.g. a FormStyle toggle in
+    Options) — it would snap the window back to a possibly-stale saved
+    position instead of wherever it currently is on screen. }
   Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
   Params.WndParent := Application.Handle;
   StrLCopy(Params.WinClassName, 'DiskLEDMainWnd', High(Params.WinClassName));
@@ -231,6 +238,13 @@ begin
   FUpdateGen := 0;
   { poDesigned: do not let VCL recenter and wipe restored Left/Top. }
   Position := poDesigned;
+  { dmDesktop: DefaultMonitor otherwise defaults to dmActiveForm, and
+    TCustomForm.SetVisible calls SetWindowToMonitor on the first Show
+    (from Application.Run). If some other form (e.g. the dashboard, opened
+    earlier in this same FormCreate via ShowDashboard) is on a different
+    monitor, SetWindowToMonitor force-relocates this window onto that
+    monitor regardless of Position — poDesigned does not guard against it. }
+  DefaultMonitor := dmDesktop;
 
   FSettings := TAppSettings.Create;
   FSettings.Load;
@@ -276,10 +290,15 @@ begin
   SetupTray;
   EnsureNoTaskbarButton;
 
-  ApplySettingsToUi;
-  { Size for mode first, then apply saved position (no Persist yet). }
-  ApplyMode(FSettings.Mode);
+  { Restore the saved position before ApplySettingsToUi: its FormStyle
+    assignment can recreate the window handle (see the comment there), and
+    ApplyMode's own "keep position" step reads the current Left/Top too. If
+    either ran first, the real window would be created/moved using the
+    form's design-time default (100, 100) — which sits on the primary
+    monitor — instead of the restored (possibly secondary) monitor. }
   SetBounds(FSettings.WindowX, FSettings.WindowY, Width, Height);
+  ApplySettingsToUi;
+  ApplyMode(FSettings.Mode);
   ApplyWindowBounds;
   CaptureWindowPosToSettings;
   FReadyToPersist := True;
