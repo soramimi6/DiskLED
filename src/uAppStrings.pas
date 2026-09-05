@@ -54,6 +54,7 @@ begin
   AddStr('menu.full', 'フル', 'Full');
   AddStr('menu.exit', '終了', 'Exit');
   AddStr('menu.options', 'オプション', 'Options');
+  AddStr('menu.reset_position', '位置をリセット', 'Reset Position');
   AddStr('menu.update', '新しい DiskLED %s の情報を見る', 'View DiskLED %s release info');
   AddStr('tray.update_title', 'DiskLED からのお知らせ', 'A notice from DiskLED');
   AddStr('tray.update', 'DiskLED %s が公開されています', 'DiskLED %s is available');

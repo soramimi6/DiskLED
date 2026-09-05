@@ -23,6 +23,7 @@ type
   end;
 
 procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer = 96);
+procedure ClampRectToWindowMonitor(var R: TRect; AWnd: HWND);
 procedure BeginGadgetDrag(var State: TGadgetDragState; const ABounds: TRect);
 procedure ApplyGadgetDragRect(const State: TGadgetDragState; var R: TRect;
   ADpi: Integer);
@@ -39,6 +40,22 @@ var
   Info: TMonitorInfo;
 begin
   Mon := MonitorFromRect(@R, MONITOR_DEFAULTTONEAREST);
+  FillChar(Info, SizeOf(Info), 0);
+  Info.cbSize := SizeOf(Info);
+  if (Mon <> 0) and GetMonitorInfo(Mon, @Info) then
+    Result := Info.rcWork
+  else
+    SystemParametersInfo(SPI_GETWORKAREA, 0, @Result, 0);
+end;
+
+function WorkAreaForWindow(AWnd: HWND): TRect;
+var
+  Mon: HMONITOR;
+  Info: TMonitorInfo;
+begin
+  Mon := 0;
+  if AWnd <> 0 then
+    Mon := MonitorFromWindow(AWnd, MONITOR_DEFAULTTONEAREST);
   FillChar(Info, SizeOf(Info), 0);
   Info.cbSize := SizeOf(Info);
   if (Mon <> 0) and GetMonitorInfo(Mon, @Info) then
@@ -113,6 +130,32 @@ end;
 procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer);
 begin
   ApplyPlacement(R, ADpi, True);
+end;
+
+{ Clamp-only (no edge snap) against the monitor a given window is on, rather
+  than whichever monitor the rect itself happens to intersect most — for a
+  transient popup (hover tip) anchored near an edge, the naive candidate
+  rect can straddle into a neighboring monitor and get clamped there
+  instead of staying on the owner window's monitor. }
+procedure ClampRectToWindowMonitor(var R: TRect; AWnd: HWND);
+var
+  Work: TRect;
+  W, H, Left, Top: Integer;
+begin
+  W := R.Right - R.Left;
+  H := R.Bottom - R.Top;
+  if (W <= 0) or (H <= 0) then
+    Exit;
+
+  Work := WorkAreaForWindow(AWnd);
+  Left := R.Left;
+  Top := R.Top;
+  ConstrainToWorkArea(Left, Top, W, H, Work);
+
+  R.Left := Left;
+  R.Top := Top;
+  R.Right := Left + W;
+  R.Bottom := Top + H;
 end;
 
 procedure BeginGadgetDrag(var State: TGadgetDragState; const ABounds: TRect);

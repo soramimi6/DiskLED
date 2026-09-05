@@ -97,6 +97,7 @@ type
     procedure miFullClick(Sender: TObject);
     procedure miPingClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
+    procedure miResetPositionClick(Sender: TObject);
     procedure miDashboardClick(Sender: TObject);
     procedure miUpdateClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
@@ -108,6 +109,7 @@ type
     procedure WMContextMenu(var Message: TWMContextMenu); message WM_CONTEXTMENU;
     procedure WMSysCommand(var Message: TWMSysCommand); message WM_SYSCOMMAND;
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
+    procedure WMDisplayChange(var Message: TMessage); message WM_DISPLAYCHANGE;
     procedure WMMoving(var Message: TMessage); message WM_MOVING;
     procedure WMExitSizeMove(var Message: TMessage); message WM_EXITSIZEMOVE;
     procedure WMEnterSizeMove(var Message: TMessage); message WM_ENTERSIZEMOVE;
@@ -498,6 +500,7 @@ var
   Sep: TMenuItem;
   miPing: TMenuItem;
   miOpt: TMenuItem;
+  miResetPosition: TMenuItem;
   miExit: TMenuItem;
 begin
   FPopup := TPopupMenu.Create(Self);
@@ -551,6 +554,11 @@ begin
   miOpt.Caption := S('menu.options');
   miOpt.OnClick := miOptionsClick;
   FPopup.Items.Add(miOpt);
+
+  miResetPosition := TMenuItem.Create(FPopup);
+  miResetPosition.Caption := S('menu.reset_position');
+  miResetPosition.OnClick := miResetPositionClick;
+  FPopup.Items.Add(miResetPosition);
 
   Sep := TMenuItem.Create(FPopup);
   Sep.Caption := '-';
@@ -876,6 +884,15 @@ begin
   ShowDashboard;
 end;
 
+procedure TMainForm.miResetPositionClick(Sender: TObject);
+begin
+  { Manual recovery for a window stuck off-screen (e.g. a monitor was
+    unplugged): the tray icon stays reachable even then, unlike the body. }
+  ApplyWindowBounds;
+  PersistSettings;
+  BringWindowForward;
+end;
+
 procedure TMainForm.miOptionsClick(Sender: TObject);
 begin
   if FSettings = nil then
@@ -1108,6 +1125,16 @@ begin
   end;
   Invalidate;
   Message.Result := 0;
+end;
+
+procedure TMainForm.WMDisplayChange(var Message: TMessage);
+begin
+  { Resolution/monitor-layout changes while running: re-clamp into the
+    (possibly now-different) work area. Startup already clamps via
+    ApplyWindowBounds in FormCreate; this covers the same case mid-session. }
+  ApplyWindowBounds;
+  PersistSettings;
+  inherited;
 end;
 
 procedure TMainForm.WMMoving(var Message: TMessage);

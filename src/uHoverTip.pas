@@ -30,7 +30,8 @@ type
 implementation
 
 uses
-  Winapi.Messages;
+  Winapi.Messages,
+  uWindowPlacement;
 
 destructor THoverTip.Destroy;
 begin
@@ -99,6 +100,8 @@ procedure THoverTip.ShowAtCursor(const AText: string);
 var
   Info: TToolInfo;
   Pt: TPoint;
+  WndRect, R: TRect;
+  H: Integer;
 begin
   FText := AText;
   EnsureWindow;
@@ -110,6 +113,35 @@ begin
   GetCursorPos(Pt);
   SendMessage(FWnd, TTM_TRACKPOSITION, 0, MakeLParam(Pt.X, Pt.Y + 18));
   SendMessage(FWnd, TTM_TRACKACTIVATE, WPARAM(True), LPARAM(@Info));
+  { TTM_GETBUBBLESIZE isn't reliable for a plain (non-balloon) tracked
+    tooltip before it's shown, so measure the real on-screen rect once
+    activated and correct the position if it overflows the work area —
+    the reposition is a single SetWindowPos, imperceptible in practice. }
+  if GetWindowRect(FWnd, WndRect) and (WndRect.Right > WndRect.Left) then
+  begin
+    H := WndRect.Bottom - WndRect.Top;
+    R := WndRect;
+    { Clamp to the monitor the main gadget window is on, not whichever
+      monitor this rect's own geometry happens to resolve to — otherwise a
+      tip anchored near the gadget's monitor edge can be pulled onto a
+      neighboring monitor even though the gadget itself never left its own. }
+    ClampRectToWindowMonitor(R, FOwner);
+    if PtInRect(R, Pt) then
+    begin
+      { Clamping (typically near the bottom edge) pulled the tip up over
+        the cursor itself. A tip window covering the cursor steals hover
+        tracking from the owner, which re-triggers this same show/hide path
+        every tick — a flicker loop. Flip above the cursor instead, then
+        re-clamp so it still can't overflow the top edge either. }
+      R.Top := Pt.Y - 18 - H;
+      R.Bottom := R.Top + H;
+      R.Left := WndRect.Left;
+      R.Right := WndRect.Right;
+      ClampRectToWindowMonitor(R, FOwner);
+    end;
+    if (R.Left <> WndRect.Left) or (R.Top <> WndRect.Top) then
+      SendMessage(FWnd, TTM_TRACKPOSITION, 0, MakeLParam(R.Left, R.Top));
+  end;
   FVisible := True;
 end;
 
