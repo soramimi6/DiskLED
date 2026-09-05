@@ -142,7 +142,6 @@ function FormatLinkSpeedBps(ABps: Double): string;
 function FormatBytesPair(AUsed, ATotal: UInt64): string;
 function FormatBytesGiB(ABytes: UInt64): string;
 function FormatIops(AIops: Double): string;
-function FormatLatencyMs(AMs: Double): string;
 function DefaultBallisticParams: TBallisticParams;
 function DefaultMeterBallistics: TMeterBallistics;
 
@@ -241,18 +240,6 @@ begin
     Result := Format('%.1f', [AIops])
   else
     Result := Format('%.2f', [AIops]);
-end;
-
-function FormatLatencyMs(AMs: Double): string;
-begin
-  if AMs < 0 then
-    AMs := 0;
-  if AMs >= 100 then
-    Result := Format('%.0f ms', [AMs])
-  else if AMs >= 10 then
-    Result := Format('%.1f ms', [AMs])
-  else
-    Result := Format('%.2f ms', [AMs]);
 end;
 
 function FormatLinkSpeedBps(ABps: Double): string;
