@@ -110,6 +110,7 @@ type
     procedure ReloadTrayIcons;
     procedure UpdateTrayLed(AOn: Boolean);
     procedure ResetTrayToAppIcon;
+    procedure RefreshTrayIconForState;
     function TrayIconPath(const AAssetDir, AFileName: string): string;
     procedure miPingClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
@@ -395,20 +396,7 @@ procedure TMainForm.SetupTray;
 begin
   { Notification area only — not a hide-to-tray feature. Taskbar button stays off via WS_EX_TOOLWINDOW. }
   FTray := TTrayIcon.Create(Self);
-  if FileExists(MainIconPath) then
-  try
-    FTray.Icon.LoadFromFile(MainIconPath);
-  except
-    try
-      FTray.Icon.Assign(Icon);
-    except
-    end;
-  end
-  else
-  try
-    FTray.Icon.Assign(Icon);
-  except
-  end;
+  ResetTrayToAppIcon;
   FTray.Hint := 'DiskLED';
   FTray.PopupMenu := FPopup;
   FTray.OnDblClick := TrayDblClick;
@@ -668,14 +656,7 @@ begin
   Invalidate;
   FHasFp := False;
   PersistSettings;
-
-  if (FSettings <> nil) and FSettings.TraySize then
-  begin
-    ReloadTrayIcons;
-    FHasTrayLedState := False;
-    if FPipeline <> nil then
-      UpdateTrayLed(FPipeline.State.DiskRWOn);
-  end;
+  RefreshTrayIconForState;
 end;
 
 function TMainForm.UsingFullView: Boolean;
@@ -761,12 +742,17 @@ end;
 procedure TMainForm.SetCompactView(ACompact: Boolean);
 var
   KeepLeft, KeepTop: Integer;
+  WasTray: Boolean;
 begin
   if FSettings = nil then
     Exit;
   if (not ACompact) and (not FHasFull) then
     ACompact := True;
-  if FSettings.Compact = ACompact then
+  { Also the tray-size exit path: switching to a specific compact/full size
+    always leaves tray size, even if ACompact happens to match the value
+    already stored (the value kept as the tray's restore target). }
+  WasTray := FSettings.TraySize;
+  if (FSettings.Compact = ACompact) and (not WasTray) then
   begin
     SyncViewMenu;
     Exit;
@@ -774,6 +760,12 @@ begin
   KeepLeft := Left;
   KeepTop := Top;
   FSettings.Compact := ACompact;
+  if WasTray then
+  begin
+    FSettings.TraySize := False;
+    ResetTrayToAppIcon;
+    Visible := True;
+  end;
   ApplyViewSize;
   SetBounds(KeepLeft, KeepTop, Width, Height);
   ApplyWindowBounds;
@@ -782,6 +774,8 @@ begin
   Render;
   Invalidate;
   FHasFp := False;
+  if WasTray then
+    BringWindowForward;
 end;
 
 procedure TMainForm.ApplyWindowBounds;
@@ -945,24 +939,13 @@ end;
 
 procedure TMainForm.miCompactClick(Sender: TObject);
 begin
-  if (FSettings <> nil) and FSettings.TraySize then
-  begin
-    FSettings.Compact := True;
-    LeaveTraySize;
-  end
-  else
-    SetCompactView(True);
+  { SetCompactView leaves tray size itself when it's active. }
+  SetCompactView(True);
 end;
 
 procedure TMainForm.miFullClick(Sender: TObject);
 begin
-  if (FSettings <> nil) and FSettings.TraySize then
-  begin
-    FSettings.Compact := False;
-    LeaveTraySize;
-  end
-  else
-    SetCompactView(False);
+  SetCompactView(False);
 end;
 
 procedure TMainForm.miTrayClick(Sender: TObject);
@@ -1059,6 +1042,19 @@ begin
   FHasTrayLedState := True;
 end;
 
+procedure TMainForm.RefreshTrayIconForState;
+begin
+  { Shared by EnterTraySize, and by ApplyMode/WMDpiChanged for a mode or DPI
+    change while already tray-sized: reload the Off/On icons for whatever is
+    current, then re-apply the LED for the live disk state. }
+  if (FSettings = nil) or (not FSettings.TraySize) then
+    Exit;
+  ReloadTrayIcons;
+  FHasTrayLedState := False;
+  if FPipeline <> nil then
+    UpdateTrayLed(FPipeline.State.DiskRWOn);
+end;
+
 procedure TMainForm.EnterTraySize;
 begin
   if FSettings = nil then
@@ -1070,34 +1066,18 @@ begin
     PersistSettings;
     SyncViewMenu;
   end;
-  ReloadTrayIcons;
-  FHasTrayLedState := False;
-  if FPipeline <> nil then
-    UpdateTrayLed(FPipeline.State.DiskRWOn)
-  else
-    UpdateTrayLed(False);
+  RefreshTrayIconForState;
 end;
 
 procedure TMainForm.LeaveTraySize;
-var
-  KeepLeft, KeepTop: Integer;
 begin
+  { SetCompactView already restores whichever compact/full FSettings.Compact
+    holds and leaves tray size as part of that; keep this as the "restore to
+    the last remembered size" entry point used by dblclick, second-instance
+    activation, and the reset-position menu item. }
   if (FSettings = nil) or (not FSettings.TraySize) then
     Exit;
-  KeepLeft := Left;
-  KeepTop := Top;
-  FSettings.TraySize := False;
-  ResetTrayToAppIcon;
-  ApplyViewSize;
-  Visible := True;
-  SetBounds(KeepLeft, KeepTop, Width, Height);
-  ApplyWindowBounds;
-  PersistSettings;
-  SyncViewMenu;
-  Render;
-  Invalidate;
-  FHasFp := False;
-  BringWindowForward;
+  SetCompactView(FSettings.Compact);
 end;
 
 procedure TMainForm.miPingClick(Sender: TObject);
@@ -1354,13 +1334,7 @@ begin
     FMonitorDpi := MonitorDpiForWindow(Handle);
   FScale100 := GadgetScale100(FMonitorDpi);
   ApplyDpiClientSize;
-  if (FSettings <> nil) and FSettings.TraySize then
-  begin
-    ReloadTrayIcons;
-    FHasTrayLedState := False;
-    if FPipeline <> nil then
-      UpdateTrayLed(FPipeline.State.DiskRWOn);
-  end;
+  RefreshTrayIconForState;
   if Message.LParam <> 0 then
   begin
     Suggested := PRect(Message.LParam)^;
