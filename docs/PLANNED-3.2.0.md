@@ -4,29 +4,39 @@
 
 事前検証（2026-09-04、現行コード `src/metrics/*` / `src/dashboard/*` を確認）の結果は各項目に残してある。詳細は `docs/PLANNED-3.1.1.md` の版管理履歴（3.1.1 スコープ確定時点のスナップショット）も参照可能。
 
+一覧は優先度（高い順）、同順位内は工数目安（小さい順）で並べている。
+
 | # | 機能 | 実現可能性 | 難易度 | 工数目安 | 優先度 |
 |---|---|---|---|---|---|
-| 1 | リソース別 TOP5 プロセス | 中（ネットは精度に難） | 高（新規一覧 UI パラダイム） | 1〜2週間 | 中 |
+| 1 | UI表示言語の手動選択＋追加言語（独語・繁体字中国語） | 高 | 中（文字列基盤の作り直しが要る） | 基盤: 2〜3日／言語ごとに翻訳作業別途 | 中 |
 | 2 | GPU セクション（使用率のみ） | 中〜高 | 中（動的カウンタの管理が山） | 3〜5日 | 中 |
 | 2 | GPU VRAM 内訳 | 低〜中（非公式 API） | 高 | 使用率実装後に別枠 | 低 |
-| 3 | メモリ詳細・内訳（Standby/Modified） | 中（非公開 API 依存） | 中（実装は易、互換性リスクが本体） | 1〜2日＋実機検証 | 低〜中 |
-| 4 | アクセスされているファイル | 低（管理者権限必須で方針と矛盾） | 最高 | 別製品規模 | 最低 |
+| 3 | タスクトレイの独立化・LED拡張・多段階色 | 高（設定モデルは既に分離済み） | 中（メニュー／アセット体系の変更） | 3〜5日 | 中 |
+| 4 | リソース別 TOP5 プロセス | 中（ネットは精度に難） | 高（新規一覧 UI パラダイム） | 1〜2週間 | 中 |
+| 5 | ダッシュボード CRT/キャラクターベース表示タイプ | 高 | 中〜高（新規描画一式） | 1〜2週間 | 中〜低 |
+| 6 | メモリ詳細・内訳（Standby/Modified） | 中（非公開 API 依存） | 中（実装は易、互換性リスクが本体） | 1〜2日＋実機検証 | 低〜中 |
+| 7 | アクセスされているファイル | 低（管理者権限必須で方針と矛盾） | 最高 | 別製品規模 | 最低 |
 
-## 1. リソース別 TOP5 プロセス
+## 1. UI表示言語の手動選択＋追加言語
 
-各リソース（CPU / メモリ / ディスク IO / ネット）ごとに、そのとき最も使っているプロセス上位 5 を表示する。
+日本語 OS 上でも英語表示で使えるよう、オプション画面に表示言語設定（**Auto / 日本語 / English**）を追加する。初回起動時・Auto 選択時は現行どおり OS 言語との突き合わせで自動判定する。あわせて日英以外の追加言語も検討する。**優先度: ドイツ語・繁体字中国語（台湾）を上げる。簡体字中国語（大陸）は対象外**（脱 Windows の動向を踏まえた方針判断）。
 
-- CPU / メモリ: `EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime`。一般権限で取得可
-- ディスク IO: `GetProcessIoCounters`。プロセス別の Read/Write バイト累積で取得可
-- ネット: プロセス別の帯域は IPヘルパーAPI では難しい。簡易的な差分計測にとどまる可能性あり
-- ダッシュボードの各セクションをクリックして展開する形が自然（常時 HUD に出すと行数が増えすぎる）
+**対象は「アプリ UI 文字列」のみ。`public_docs/` と Microsoft Store の説明文は日本語＋英語のみを継続する方針で、この項目のスコープには含まない**（それ以外の言語のユーザーには英語版を案内する前提）。ユーザー数の増加が見えてから、追加言語での文章掲示を改めて検討する。
 
-**検証結果（2026-09-04）:**
+### 技術的な裏付け（2026-09-06 時点、`src/uAppStrings.pas` / `src/uSettings.pas` / `src/uOptionsForm.pas` / `public_docs/` を確認）
 
-- 実現可能性・難易度: 中〜高。CPU/メモリ/ディスク IO はプロセス別 API（`EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime` / `GetProcessIoCounters`）で一般権限のまま取得できるため技術的な壁はない。ネットは案どおり困難（プロセス別帯域の一般権限 API が無く、簡易差分推定に留まる）ため、最初はネットを除いた 3 リソースに絞るのが現実的
-- 工数の主因は UI: 現行の `TDashboardCard`（`src/dashboard/uDashboardCard.pas`）は固定サイズの GDI カスタム描画で、展開／折りたたみや行リストの仕組みが存在しない。TOP5 一覧を出すには、新規の一覧描画（プロセス名・アイコン・値）とカード高さの動的変更、ダッシュボードのレイアウト計算（`uDashboardForm` の `Heights[]`／`SetBounds` 群）への手当てが必要
-- 全プロセスの毎ティック列挙はコストが高いため、既存の履歴 push（1 Hz、`docs/DESIGN.md` 8.6）と同程度の低頻度サンプリングにする設計が妥当
-- 見積り: 収集ロジック 2〜3 日、UI（展開リスト・レイアウト対応）4〜6 日、調整・検証を含め 1〜2 週間程度
+1. **文字列基盤は2言語決め打ち**: `TAppLang = (alJapanese, alEnglish)`（[uAppStrings.pas:9](../src/uAppStrings.pas#L9)）、文字列本体は `TStrEntry{Id, Ja, En}` の固定2フィールド構造で `AddStr` により約 100 件登録されている（[uAppStrings.pas:22-44](../src/uAppStrings.pas#L22-L44)）。`S()` は `GLang = alJapanese` の分岐で `.Ja`/`.En` を返すだけ（[uAppStrings.pas:225-240](../src/uAppStrings.pas#L225-L240)）。**Auto/JA/EN の 3 択どまりなら現行構造のままでも対応できるが、3 言語目（独語・繁体字中国語）を足すには `TStrEntry` を言語コード可変のマップ（または言語コード順の配列）に置き換え、`S()` のロジックも列挙型の二分岐からルックアップへ変更する必要がある**。約 100 件の文字列を洗い替える構造変更が翻訳作業とは別に先行タスクになる
+2. **手動上書きは最初から想定だけされていた**: ユニット冒頭のコメントに「Manual override is out of scope for now (ini `Language=` later)」とあり（[uAppStrings.pas:3-4](../src/uAppStrings.pas#L3-L4)）、3.2.0 のこの項目はその「later」に当たる
+3. **Auto 判定の実装**: `IsJapaneseUi` は `GetUserDefaultUILanguage` の戻り値を `(Lang and $3FF) = LANG_JAPANESE` で判定している（[uAppStrings.pas:200-206](../src/uAppStrings.pas#L200-L206)）。この `and $3FF` はプライマリ言語 ID のみを取り出すマスクで、ドイツ語（`LANG_GERMAN`）はこの方式でそのまま判定できるが、**中国語は要注意**: Win32 の LANGID は繁体字（台湾）が `MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL)` = `0x0404`、簡体字（中国本土）が `MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED)` = `0x0804` で、どちらも `LANG_CHINESE`（プライマリID `0x04`）は共通。**プライマリ言語IDだけを見る現行方式では簡体字と繁体字を区別できない**ため、繁体字（台湾）のみ Auto 判定対象にするにはサブ言語 ID を含めた完全一致判定（`0x0404` および香港 `0x0C04`・マカオ `0x1404` 等の繁体字圏サブIDを含めるかは要検討）に変更する必要がある。簡体字（`0x0804` 等）は方針どおり対象外として弾く
+4. **設定の永続化**: `uSettings.pas` に `Language=auto|ja|en|de|zh-Hant` 相当の ini キーを新設する必要がある（現状 Language キーは存在しない）。3.1.1 の `[View] Size` 追加時と同じパターン（新キー追加＋起動時読込）を踏襲できる
+5. **Options 画面**: `uOptionsForm.pas` に選択 UI（コンボボックス等）を追加する必要がある。既存の `opt.*` 文字列群と同じ構造で足せる
+6. **`public_docs/` は対象外（方針で確定）**: 現状は JA（ルート直下）＋ `EN/` の2言語構成で、`README/USAGE/FEATURES/NOTES/INSTALL/CHANGELOG/CREDITS` の7ファイルを両言語で維持している（[public_docs/](../public_docs/) 配下を確認）。Microsoft Store の説明文も含め、この2言語構成を継続する。**`DE/`・`TW/` の追加はこの項目のスコープに含まない**（ユーザー数の増加を見てから改めて判断）。UI文字列（短い技術用語、約 100 件、機械翻訳との相性が良い）だけが今回の対象で、public_docs の説明文（長文、より高い翻訳精度が要求される）とは切り分けて考えるという整理
+
+### 見積り
+
+- 文字列基盤の多言語対応（構造変更）＋ Auto/JA/EN 選択 UI: 2〜3日
+- ドイツ語・繁体字中国語の UI 文字列（約 100 件）翻訳: 言語ごとに別途（機械翻訳＋要点レビューが現実的）
+- `public_docs/`・Store 説明文の追加言語対応: **対象外**（方針で確定。将来ユーザー数増加時に別途検討）
 
 ## 2. GPU セクション
 
@@ -44,7 +54,53 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - VRAM は D3DKMT（`D3DKMTQueryStatistics` など）経由になるが非公開 API でドキュメントが薄く、使用率実装より別枠でリスクが高い。まず使用率のみで着手し VRAM は後回しにする案は妥当
 - 見積り: 使用率のみで 3〜5 日（動的カウンタ管理・複数 GPU/エンジン種別の集計・実機検証込み）。VRAM を足すとさらに増える
 
-## 3. メモリ詳細・内訳
+## 3. タスクトレイの独立化・LED拡張・多段階色
+
+3.1.1 で「表示サイズ＝コンパクト／フル／タスクトレイ」の排他 3 択としてタスクトレイ LED（ディスク Read/Write 統合 ON/OFF）を実装済み。3.2.0 では以下を検討する。
+
+- **ウィンドウ表示とトレイ LED の分離**: 現状は「ウィンドウを隠す＝トレイ LED 化」の 1 本道。**メインウィンドウのみ／メインウィンドウ＋トレイ／トレイのみ**の 3 択に組み替え、ウィンドウを出したままトレイもLED化できるようにする
+- **トレイのデザインをスキンから独立化**: 現状トレイの Off/On アイコンはガジェットのスキン（Original / Crystal / Metalic / Info Bar）に 1 対 1 で紐づく。スキンとは別軸の「トレイアイコンタイプ」をサブメニューで選べるようにする
+- **LED ソースの拡張**: ディスク（全体・ドライブ別）に加えてネット、将来的にはユーザーが表示するソースを選べるようにする
+- **多段階色化**: ON/OFF の 2 値ではなく、ディスクレイテンシや CPU/メモリ/SWAP の負荷を色（緑→黄→赤等）で示す
+
+**技術的な裏付け（2026-09-05 時点、`src/uSettings.pas` / `src/uMainForm.pas` / `src/view/uDisplayModes.pas` / `src/view/uSkinLoader.pas` / `src/metrics/uDiskCollector.pas` を確認）:**
+
+- 設定モデルは**既に分離済み**: `FCompact` と `FTraySize` は `uSettings.pas` 上で独立した bool フィールド（[uSettings.pas:20-21](../src/uSettings.pas#L20-L21)）。排他 3 択にしているのは UI 側のロジックで、`SetCompactView`（[uMainForm.pas:748-775](../src/uMainForm.pas#L748-L775)）が compact/full 選択時に `FSettings.TraySize := False` を強制しているだけ。設定モデル自体の作り直しは不要
+- ウィンドウ非表示は `EnterTraySize` の `Visible := False` 一箇所（[uMainForm.pas:1064-1076](../src/uMainForm.pas#L1064-L1076)）に集約されている。ここを「トレイ LED 有効時でも Visible を触らない」条件に変えるだけで「ウィンドウ＋トレイ LED」の組み合わせが作れる
+- ini 永続化は現状 `[View] Size=compact|full|tray` の排他 3 値形式（読込: [uSettings.pas:249-262](../src/uSettings.pas#L249-L262)、書込: [uSettings.pas:316-322](../src/uSettings.pas#L316-L322)）。2 軸（ウィンドウ表示／トレイ LED 有効）に分けるには読み書きの拡張とマイグレーションが要る。旧 `tray` → 新「ウィンドウ非表示・トレイ LED 有効」、旧 `compact`/`full` → 新「ウィンドウ表示・トレイ LED 無効」への読み替えは、3.1.1 で `Compact` キーを legacy フォールバックとして残した手法（[uSettings.pas:249-252](../src/uSettings.pas#L249-L252)のコメント）と同じ方式を踏襲できる
+- トレイの Off/On アイコンはスキンの `TDisplayModeDef.TrayOffFile` / `TrayOnFile`（[uDisplayModes.pas:28-29](../src/view/uDisplayModes.pas#L28-L29)）経由で取得し、元は各スキンの `layout.cfg` の `[Tray]` セクション（[uSkinLoader.pas:317-318](../src/view/uSkinLoader.pas#L317-L318)）。ロード自体は `TrayIconPath(Def.AssetDir, Def.TrayOffFile)`（[uMainForm.pas:995-996](../src/uMainForm.pas#L995-L996)）でスキンの `AssetDir` を経由するため、トレイデザインをスキンから独立させるには、トレイ専用アセットを `assets/<skin>/` ではなく `assets/tray/<type>/` のような独立ディレクトリに切り出し、ロード元をスキンの `AssetDir` ではなく選択中のトレイタイプのディレクトリに差し替える改修が要る
+- LED 点灯判定は現状 `FPipeline.State.DiskRWOn` 固定（`RefreshTrayIconForState` 内、[uMainForm.pas:1051-1062](../src/uMainForm.pas#L1051-L1062)）。ネット LED 化やドライブ別 LED 化、ユーザー選択式にするには、この参照先を選択中のソースに応じて差し替える抽象化が必要
+- ドライブ別 LED の前提: 現行 `uDiskCollector.pas` は `PhysicalDisk(_Total)` 固定パスのみを PDH で読んでいる（[uDiskCollector.pas:142](../src/metrics/uDiskCollector.pas#L142)）。論理ドライブ別には `LogicalDisk(<ドライブ文字>)` カウンタの動的列挙が必要で、USB 抜き差し等によるカウンタ再構築という、本ドキュメント項目 2（GPU 動的カウンタ）と同種の課題を抱える
+- 多段階色化は、トレイデザインをスキンから独立させれば素材が「トレイタイプ 1 種 × 段階数」で済み、スキン 4 種との掛け算を避けられる（独立化しない場合はスキン数分の重複が発生する）。ただし段階数分の ico ファイルをトレイタイプごとに用意する素材コスト自体は残る
+- 見積り: 設定・UI 側の分離とマイグレーションで 1〜2 日、トレイデザイン独立化（アセット切り出し・ロード先変更・サブメニュー追加）で 1〜2 日、ネット LED 追加は小規模、ドライブ別 LED は動的カウンタ管理を含め別枠で 2〜3 日、多段階色は段階数分の素材制作が別途必要
+
+## 4. リソース別 TOP5 プロセス
+
+各リソース（CPU / メモリ / ディスク IO / ネット）ごとに、そのとき最も使っているプロセス上位 5 を表示する。
+
+- CPU / メモリ: `EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime`。一般権限で取得可
+- ディスク IO: `GetProcessIoCounters`。プロセス別の Read/Write バイト累積で取得可
+- ネット: プロセス別の帯域は IPヘルパーAPI では難しい。簡易的な差分計測にとどまる可能性あり
+- ダッシュボードの各セクションをクリックして展開する形が自然（常時 HUD に出すと行数が増えすぎる）
+
+**検証結果（2026-09-04）:**
+
+- 実現可能性・難易度: 中〜高。CPU/メモリ/ディスク IO はプロセス別 API（`EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime` / `GetProcessIoCounters`）で一般権限のまま取得できるため技術的な壁はない。ネットは案どおり困難（プロセス別帯域の一般権限 API が無く、簡易差分推定に留まる）ため、最初はネットを除いた 3 リソースに絞るのが現実的
+- 工数の主因は UI: 現行の `TDashboardCard`（`src/dashboard/uDashboardCard.pas`）は固定サイズの GDI カスタム描画で、展開／折りたたみや行リストの仕組みが存在しない。TOP5 一覧を出すには、新規の一覧描画（プロセス名・アイコン・値）とカード高さの動的変更、ダッシュボードのレイアウト計算（`uDashboardForm` の `Heights[]`／`SetBounds` 群）への手当てが必要
+- 全プロセスの毎ティック列挙はコストが高いため、既存の履歴 push（1 Hz、`docs/DESIGN.md` 8.6）と同程度の低頻度サンプリングにする設計が妥当
+- 見積り: 収集ロジック 2〜3 日、UI（展開リスト・レイアウト対応）4〜6 日、調整・検証を含め 1〜2 週間程度
+
+## 5. ダッシュボード CRT/キャラクターベース表示タイプ
+
+ダッシュボードに、MS-DOS 時代のキャラクターベース CRT 表示のような見た目の表示タイプを追加する。**現行ダッシュボードの見た目を再現するのではなく**、表示する情報（CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、ディスクレイテンシ、電源、Ping 履歴など。`README.md` の「主な機能」参照）は同じまま、表現を CRT キャラクター表示のスタイルで新規に組み立てる。
+
+- 等幅ビットマップフォントでのセル描画、疑似スキャンライン、燐光グロー、`█▓▒░` 等のブロック文字によるバー／メーター表現、点滅カーソルブロックといった要素で構成する
+- 既存のガジェットスキン機構（`layout.cfg` ベースの Original / Crystal / Metalic / Info Bar）とは別系統。ダッシュボードは `TDashboardCard`（`TCustomControl` を継承、[uDashboardCard.pas:16](../src/dashboard/uDashboardCard.pas#L16)）が `Paint` オーバーライド（[uDashboardCard.pas:109](../src/dashboard/uDashboardCard.pas#L109)）で GDI カスタム描画しており、新しい表示タイプもここに描画ロジックを追加する形になる
+- ダッシュボードは `Scaled=False` で実 DPI 描画する設計（`docs/DESIGN.md` 15 節）なので、フォントサイズ・文字グリッドの DPI 比率計算は既存の仕組み（`Dpi/96`）をそのまま流用できる
+- 新規に「ダッシュボード表示タイプ」という概念をどこに持たせるか（ini 設定キー、切替 UI）は要設計。既存の `[General] Mode=`（ガジェットの表示モード、[uSettings.pas:243](../src/uSettings.pas#L243)）とは別軸にする
+- 見積り: 未検証。描画エンジン（フォント・スキャンライン・グロー・ブロック文字メーター）一式の新規実装が主で、既存セクション相当の情報量をキャラクター表現に落とし込む調整を含めると 1〜2 週間程度と見込むが、実機での見た目調整（フォント選定・色調・グロー強度）次第で変動する
+
+## 6. メモリ詳細・内訳
 
 メモリサブセクションに Working Set・スタンバイ・コミット内訳などを追加する。
 
@@ -59,7 +115,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - 採用する場合でも、将来の Windows 更新で `SystemMemoryListInformation` の構造体レイアウトが変わるリスクを踏まえ、失敗時は既存フィールドのみ表示するフォールバックが必須
 - 採用するかどうかは非公開 API 使用の可否について方針判断が要る
 
-## 4. アクセスされているファイル（リソースモニタ相当）
+## 7. アクセスされているファイル（リソースモニタ相当）
 
 どのプロセスがどのファイルにアクセスしているかを表示する。
 

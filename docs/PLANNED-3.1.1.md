@@ -1,4 +1,4 @@
-# 3.1.1 予定（未実装）
+# 3.1.1（リリース中: Microsoft Store 認定審査中、`v3.1.1` タグ未発行）
 
 公開ドキュメント（`public_docs/`）には予定している内容は書かない。実装が入り、利用者に見えるようになってから CHANGELOG / USAGE / NOTES / INSTALL（JA+EN）へ「実装済み」として書く。
 
@@ -70,7 +70,7 @@
 2. 生成した ico で `assets/MAINICON.ico` を置き換える
 3. IDE でビルドし、exe アイコン（Explorer・タスクバー・Alt+Tab）とタスクトレイアイコンを目視確認する
 
-**実装済み**（手順1〜3）。`tools/make-portable.ps1` / `tools/make-installer.ps1` によるポータブル zip・インストーラーへの反映確認は、3.1.1 の全項目が完了した後の Win64 Release ビルド・配布物再生成時（`docs/CONTRIBUTING.md` の「リリース時」節、`docs/DESIGN.md` 15 節）にまとめて行う。項目単位では実施しない（Release ビルドはリリース直前に一度だけ行えば十分なため）。
+**実装済み**（手順1〜3）。`tools/make-portable.ps1` / `tools/make-installer.ps1` によるポータブル zip・インストーラーへの反映確認は、3.1.1 の全項目が完了した後の Win64 Release ビルド・配布物再生成時（`docs/CONTRIBUTING.md` の「リリース時」節、`docs/DESIGN.md` 16 節）にまとめて行う。項目単位では実施しない（Release ビルドはリリース直前に一度だけ行えば十分なため）。
 
 見積り: 半日程度。「表示サイズ タスクトレイ」用の LED アイコン（項目 3）とは別素材・別作業。
 
@@ -176,9 +176,9 @@ On=TrayOn.ico
 - 見た目: 単なる塗りつぶし円ではなく、**筐体に埋め込まれた丸形 LED 風**にする。`packaging/msix/masters/icon.png`（アプリアイコンのマスター）がすでにこの意匠（黒いベゼル・中心のグロー・左上寄りのハイライト）なので、それと同じ視覚言語に揃える
   - 中心から縁へ向かうラジアルグラデーション（中心はやや明るい基準色、縁は暗く落とした基準色）で球面的な立体感を出す
   - 左上寄りに小さく白いハイライト（半透明の楕円、縁をぼかす）を重ね、光の反射があるように見せる
-  - 円の外周に細い暗色のリング（ベゼル）を1本添え、「面に埋め込まれている」印象にする
+  - 円の外周に細い暗色のリング（ベゼル）を 1 本添え、「面に埋め込まれている」印象にする
   - Off はハイライトを弱める／消し、基準色を暗く彩度を落として無灯火に見せる。On はハイライトを保ったまま基準色を明るくする
-- 生成方法: Python（Pillow、`uAppStrings`側の実装とは無関係な使い捨てスクリプト）で 256×256 を1枚描画（グラデーション・ハイライト・ベゼルを高解像度で作った方がきれいに縮小できる）し、そこから 48/32/16 へ `LANCZOS` でダウンサンプルして ico 化する。スクリプトは `tools/` 配下に置くかその場限りにするかは実装時に決める
+- 生成方法: Python（Pillow、`uAppStrings`側の実装とは無関係な使い捨てスクリプト）で 256×256 を 1 枚描画（グラデーション・ハイライト・ベゼルを高解像度で作った方がきれいに縮小できる）し、そこから 48/32/16 へ `LANCZOS` でダウンサンプルして ico 化する。スクリプトは `tools/` 配下に置くかその場限りにするかは実装時に決める
 - 本番素材に差し替える際は `assets/<id>/TrayOff.ico` / `TrayOn.ico` をファイル単位で置き換えるだけで済む（コード・`layout.cfg` の参照方法は変わらない）
 
 ### 表示更新頻度（調査。実機検証は実装時）
@@ -273,7 +273,7 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 
 ### 仕様
 
-- **実行タイミング**: (a) TraceRouteResult ウィンドウを開いたとき、(b) 同ウィンドウの「Ping/TraceRoute 更新」ボタン押下時、の2つのみ。定期 Ping（5 分間隔）には連動しない — 普段の Ping 動作の負荷・通信量を増やさないため
+- **実行タイミング**: (a) TraceRouteResult ウィンドウを開いたとき、(b) 同ウィンドウの「Ping/TraceRoute 更新」ボタン押下時、の 2 つのみ。定期 Ping（5 分間隔）には連動しない — 普段の Ping 動作の負荷・通信量を増やさないため
 - **右クリックメニュー**: 既存の「Ping 更新」項目を撤廃し、代わりに「Ping結果表示」項目にする。選択すると TraceRouteResult ウィンドウを開く（開いた瞬間に (a) の Tracert 実行がかかる）
 - **ウィンドウ**:
   - 初期サイズはオプション画面程度（実装後に微調整）
@@ -291,19 +291,19 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 1. **ICMP 共通宣言の切り出し**: `src/metrics/uIcmpApi.pas` を新設し、`IcmpCreateFile`/`IcmpCloseHandle`/`IcmpSendEcho`（`iphlpapi.dll`）を集約した。レコード型・`IP_STATUS` 定数は RTL の `Winapi.IpExport` から取得しつつ、`uIcmpApi` 自身の名前空間へ再エクスポートしている（`Winapi.Winsock` と `Winapi.IpExport` は互いに別の `in_addr` 型を持つため、両方を同一ユニットの `uses` に並べると `IN_ADDR`/`inet_ntoa` が曖昧になる。消費側ユニットは `uIcmpApi` だけを参照すればよい設計にして回避した）
 2. **`src/metrics/uTracertCollector.pas`（独立したオンデマンド実行）**
    - `TPingCollector.CurrentTarget`（新規公開メソッド）で解決済みターゲットを取得し、`TMetricsCollector.CurrentPingTarget` 経由で呼び出し側へ渡す。`uTracertCollector` は `TPingCollector` に直接依存しない（ホスト名を文字列として受け取るだけ）
-   - TTL 1→30 を `IcmpSendEcho` ＋ `TIpOptionInformation.Ttl` でインクリメントしながら送信。宛先到達（`IP_SUCCESS`）で打ち切り、連続5回応答なしで打ち切る
-   - **ホップは確定するたびに `OnHop` で即座に通知**（`tracert.exe` と同じく近い方から順に1行ずつ表示される）。逆引きDNS（`GetNameInfoW`）は各ホップごとに完全に非同期（fire-and-forget）で行い、トレースの進行を一切ブロックしない。解決でき次第 `OnHostName`（TTLで突合）で個別に反映する
+   - TTL 1→30 を `IcmpSendEcho` ＋ `TIpOptionInformation.Ttl` でインクリメントしながら送信。宛先到達（`IP_SUCCESS`）で打ち切り、連続 5 回応答なしで打ち切る
+   - **ホップは確定するたびに `OnHop` で即座に通知**（`tracert.exe` と同じく近い方から順に 1 行ずつ表示される）。逆引きDNS（`GetNameInfoW`）は各ホップごとに完全に非同期（fire-and-forget）で行い、トレースの進行を一切ブロックしない。解決でき次第 `OnHostName`（TTLで突合）で個別に反映する
    - 実行世代カウンタ（`FGeneration`）を持ち、ウィンドウを閉じて即座に再度開いた場合など、古い実行の逆引きDNSが後から完了しても新しい実行の結果に紛れ込まないようにガードしている
    - `TThread.Queue` に渡すクロージャがループ変数を参照キャプチャして直近の値で上書きされる問題を避けるため、通知はパラメータ渡しのヘルパー関数経由にしている
    - 参照カウント式のキャンセルトークン（`ITracertCancelToken`）を介してワーカースレッド・逆引きDNSスレッドからのコールバックを仲介し、`TTracertCollector` 自体が破棄された後に届いたコールバックは何もせず抜ける（解放済みオブジェクトへアクセスしない）。`Destructor` でトークンをキャンセル状態にする
-   - Winsock の初期化（`WSAStartup`/`WSACleanup`）は実行ごとではなく `TTracertCollector` インスタンスの生存期間全体で1回だけ行う（`TPingCollector` と同じ方針）。実行終了直後にまだ動いている逆引きDNSスレッドと競合しないようにするため
+   - Winsock の初期化（`WSAStartup`/`WSACleanup`）は実行ごとではなく `TTracertCollector` インスタンスの生存期間全体で 1 回だけ行う（`TPingCollector` と同じ方針）。実行終了直後にまだ動いている逆引きDNSスレッドと競合しないようにするため
    - DNS解決・ICMPハンドル生成そのものが失敗した場合は `TTracertResult.Failed` を立てて区別する（正常に到達不能だった場合の `Completed=False` とは別扱い）
 3. **新規フォーム `src/uTraceRouteForm.pas` / `.dfm`**（制御は全て `FormCreate` でコード生成。Dashboard と同じ流儀）
    - `BorderStyle = bsSizeable`、`Constraints.MinWidth/MinHeight` 設定
    - ヘッダー（宛先ホスト名・IP、ホップ数、合計時間、計測日時）は `uDashboardTheme` パレットで自前描画
    - ホップ一覧は `TListView`（`vsReport`）を採用。ただし列見出し行とグリッド線・外枠はOS標準の固定色でテーマに追従しないため、列見出しは非表示にして自前描画の行に置き換え、外枠は1pxの`TPanel`で代替、グリッド線は無効化した。リスト本体は `SetWindowTheme(Handle, '', '')` でExplorerビジュアルスタイルを無効化しパレット色を強制適用
    - `WM_SETTINGCHANGE`（`ImmersiveColorSet`）ハンドラでWindowsのテーマ切替にリアルタイム追従（Dashboardと同じ仕組み）。タイトルバーのダークモード対応は `CreateWnd` で再適用
-   - `FormShow` で1回キック。左下「Ping/経路 更新」ボタン、右下閉じるボタン。閉じるときは `caHide` でウィンドウを破棄せず、再度開いたときに `FormShow` が再度キックする
+   - `FormShow` で 1 回キック。左下「Ping/経路 更新」ボタン、右下閉じるボタン。閉じるときは `caHide` でウィンドウを破棄せず、再度開いたときに `FormShow` が再度キックする
 4. **開き方・既存メニューの置き換え**: `uMainForm.pas` の `miPing`（`menu.ping`）のキャプションを「Ping結果表示」に差し替え、クリックハンドラを `ShowTraceRouteForm`（`TTraceRouteForm` を無ければ生成して表示）に変更した
 5. **文字列**: `trace.*` 系の新規 id を JA/EN で追加
 
@@ -316,7 +316,7 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 
 ## 6. 雑多な動作改修
 
-**マウスオーバー時のホバーポップアップが画面外・モニター境界にはみ出す** ／ **解像度変更などで本体ウィンドウが画面外・タスクバー下に隠れて操作不能になる** ／ **サブモニターに置いた本体ウィンドウが、終了して再起動するとメインモニターへ移動してしまう** の3件を修正する。
+**マウスオーバー時のホバーポップアップが画面外・モニター境界にはみ出す** ／ **解像度変更などで本体ウィンドウが画面外・タスクバー下に隠れて操作不能になる** ／ **サブモニターに置いた本体ウィンドウが、終了して再起動するとメインモニターへ移動してしまう** の 3 件を修正する。
 
 ### 6-1. ホバーポップアップの表示位置
 
@@ -347,6 +347,6 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 - `uTracertCollector.pas` の `ResolveIPv4` が `uPingCollector.pas` の同名関数とほぼ同一のコピーになっている。本来は共通ユニット `uIcmpApi.pas` に置くべき
 - `uTraceRouteForm.pas` の `CreateWnd` オーバーライド＋`WM_SETTINGCHANGE`（ダークモード追従）が `uDashboardForm.pas` と全く同じ内容で重複している。共通化の余地あり
 - `menu.ping` の文字列ID・`miPingClick` ハンドラ名が「Ping更新」時代のまま残っており、「Ping結果表示（ウィンドウを開く）」という現在の役割と合っていない
-- `uTracertCollector.pas` の `StartReverseLookup` はホップごとに新規スレッドを生成する（最大30本）。1つのワーカー/プールで捌く設計の方が効率的（実用上の速度差は小さい）
+- `uTracertCollector.pas` の `StartReverseLookup` はホップごとに新規スレッドを生成する（最大 30 本）。1 つのワーカー/プールで捌く設計の方が効率的（実用上の速度差は小さい）
 
-見積り: 半日程度（3件とも既存の `uWindowPlacement.pas` ロジックを再利用する、または呼び出し順序の変更のみで小規模）。
+見積り: 半日程度（3 件とも既存の `uWindowPlacement.pas` ロジックを再利用する、または呼び出し順序の変更のみで小規模）。

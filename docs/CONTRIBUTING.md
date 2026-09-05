@@ -1,6 +1,6 @@
 # ブランチ・PR 運用ルール
 
-DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI 無しのプロジェクト。レビュー担当がいない代わりに、PR ごとに `/code-review`（必要なら `ultra`）を通すことをレビューゲートとする。
+DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI 無しのプロジェクト。レビュー担当がいない代わりに、PR ごとに `/code-review`（`ultra`はコストが高すぎるので本当に必要な場面でしか使わない）を通すことをレビューゲートとする。
 
 ## ブランチ構成
 
@@ -67,3 +67,4 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
 - CI が無いため、`/code-review` を通す・実機での目視確認（UI 変更時）を都度行うことが唯一の品質担保になる。省略しない
 - `docs/PLANNED-x.y.z.md` にまだ実装プランが無い項目は、着手前にプランを詰めてから `work/...` ブランチを切る
+- `work/...` での作業中に `docs/PLANNED-x.y.z.md` 等の docs 修正が必要になった場合（見積りの補正・ステータス変更・プランの追記など）、その差分は `work/...` に含めず、親の `feature/x.y.z` へ都度直接コミットする（ルール7「PR を作らず直接コミットしてよい」と同じ扱い）。`work/...` のコミット・PR はコード変更のみに保ち、squash merge 時のコミットメッセージが実装内容だけを表すようにする

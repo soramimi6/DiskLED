@@ -284,7 +284,7 @@ ThresholdTimeoutMs=1000
 | 仮想 NIC の常時点灯 | 除外ヒューリスティック＋実測調整 |
 | 高 DPI | 3.1.0: Per-Monitor V2。ガジェットは 0.5 刻み `StretchBlt`（`GadgetScale100`）、ダッシュボードは実 DPI、オプションは VCL Scaled |
 
-## 16. 3.1.0 追記（高 DPI・ダッシュボード）
+## 15. 3.1.0 追記（高 DPI・ダッシュボード）
 
 ### 高 DPI
 
@@ -333,7 +333,7 @@ DISKLED HUD（ヘッダー）
 - ini `[Dashboard]`: Open, WindowX/Y/W/H（DIP）。`Open=1` なら起動時に復元
 - HUD ペインタ: `src/dashboard/uDashboard*.pas`（VCL Style 非使用）
 
-## 15. 次の実装着手点
+## 16. 次の実装着手点
 
 1. 3.1.1 の予定は `docs/PLANNED-3.1.1.md`
 2. MVP フェーズ Phase0–Phase6 は受け入れ済み。公開準備（配布 URL・クレジット名義など）を進める

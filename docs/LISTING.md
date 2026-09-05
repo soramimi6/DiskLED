@@ -48,3 +48,7 @@ GitHub のタグ `v3.1.0`（Latest）に合わせる。
 - インストーラー: https://github.com/soramimi6/DiskLED/releases/download/v3.1.0/DiskLED_Setup_3.1.0.exe
 - ポータブル zip（任意）: https://github.com/soramimi6/DiskLED/releases/download/v3.1.0/DiskLED-3.1.0-portable.zip
 - プロジェクト / サポート: https://github.com/soramimi6/DiskLED （Release: https://github.com/soramimi6/DiskLED/releases/tag/v3.1.0 ／ 公式サイト: https://mg6.jp/ ）
+
+## 次の版で変えるところ
+
+新しい版を公開したら、この文書内の版番号・ファイル名・URL（「配布ファイル名」「配布 URL」節、および「旧版ページを更新する場合の一言」の `DiskLED_Setup_*.exe`）をすべて新しい版番号に置き換える。機能が増えていれば「機能箇条書き」「短い紹介」も見直す。
