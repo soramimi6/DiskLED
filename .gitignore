@@ -42,6 +42,7 @@ iOSSimulator/
 Thumbs.db
 Desktop.ini
 .DS_Store
+*.code-workspace
 
 # Build / packages
 *.zip
