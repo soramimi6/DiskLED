@@ -80,6 +80,12 @@ type
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
     FClosing: Boolean;
+    FMiTray: TMenuItem;
+    FTrayOffIcon: TIcon;
+    FTrayOnIcon: TIcon;
+    FTrayLedOn: Boolean;
+    FHasTrayLedState: Boolean;
+    FActivateMsg: Cardinal;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
@@ -98,6 +104,13 @@ type
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
     procedure miFullClick(Sender: TObject);
+    procedure miTrayClick(Sender: TObject);
+    procedure EnterTraySize;
+    procedure LeaveTraySize;
+    procedure ReloadTrayIcons;
+    procedure UpdateTrayLed(AOn: Boolean);
+    procedure ResetTrayToAppIcon;
+    function TrayIconPath(const AAssetDir, AFileName: string): string;
     procedure miPingClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
     procedure miResetPositionClick(Sender: TObject);
@@ -148,6 +161,7 @@ type
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
+    procedure WndProc(var Message: TMessage); override;
   end;
 
 var
@@ -170,6 +184,8 @@ uses
   uPackaging,
   uMetricsTypes,
   uDpiScale,
+  uSingleInstance,
+  Winapi.CommCtrl,
   Winapi.ShellAPI;
 
 procedure TMainForm.CreateParams(var Params: TCreateParams);
@@ -194,6 +210,23 @@ begin
   EnsureNoTaskbarButton;
   if FHoverTip <> nil then
     FHoverTip.SetOwner(Handle);
+end;
+
+procedure TMainForm.WndProc(var Message: TMessage);
+begin
+  { A second instance asks us to activate: same handling for a plain
+    foreground request and for restoring out of tray size, since only this
+    process's own logic knows which one applies right now. }
+  if (FActivateMsg <> 0) and (Message.Msg = FActivateMsg) then
+  begin
+    if (FSettings <> nil) and FSettings.TraySize then
+      LeaveTraySize
+    else
+      BringWindowForward;
+    Message.Result := 0;
+    Exit;
+  end;
+  inherited WndProc(Message);
 end;
 
 function TMainForm.MainIconPath: string;
@@ -243,6 +276,7 @@ begin
   FReadyToPersist := False;
   FClosing := False;
   FUpdateGen := 0;
+  FActivateMsg := TSingleInstance.ActivateMsg;
   { poDesigned: do not let VCL recenter and wipe restored Left/Top. }
   Position := poDesigned;
   { dmDesktop: DefaultMonitor otherwise defaults to dmActiveForm, and
@@ -256,6 +290,12 @@ begin
   FSettings := TAppSettings.Create;
   FSettings.Load;
   FSettings.Startup := TStartup.IsRegistered;
+
+  { Starting directly in tray size: Application.Run otherwise force-shows
+    the main form right after this method returns (FMainForm.Visible := True
+    when ShowMainForm), regardless of the Visible this method leaves behind. }
+  if FSettings.TraySize then
+    Application.ShowMainForm := False;
 
   try
     FAssetsRoot := TAssetStore.LocateRoot;
@@ -472,6 +512,8 @@ begin
     FTimer.Enabled := False;
   FreeAndNil(FDashboardForm);
   FreeAndNil(FTraceRouteForm);
+  FreeAndNil(FTrayOffIcon);
+  FreeAndNil(FTrayOnIcon);
   FCollector.Free;
   FPipeline.Free;
   FHistory.Free;
@@ -539,6 +581,13 @@ begin
   FMiFull.GroupIndex := 2;
   FMiFull.OnClick := miFullClick;
   FPopup.Items.Add(FMiFull);
+
+  FMiTray := TMenuItem.Create(FPopup);
+  FMiTray.Caption := S('menu.tray');
+  FMiTray.RadioItem := True;
+  FMiTray.GroupIndex := 2;
+  FMiTray.OnClick := miTrayClick;
+  FPopup.Items.Add(FMiTray);
 
   Sep := TMenuItem.Create(FPopup);
   Sep.Caption := '-';
@@ -619,6 +668,14 @@ begin
   Invalidate;
   FHasFp := False;
   PersistSettings;
+
+  if (FSettings <> nil) and FSettings.TraySize then
+  begin
+    ReloadTrayIcons;
+    FHasTrayLedState := False;
+    if FPipeline <> nil then
+      UpdateTrayLed(FPipeline.State.DiskRWOn);
+  end;
 end;
 
 function TMainForm.UsingFullView: Boolean;
@@ -756,15 +813,19 @@ end;
 procedure TMainForm.SyncViewMenu;
 var
   InFull: Boolean;
+  InTray: Boolean;
 begin
   if (FMiCompact = nil) or (FMiFull = nil) then
     Exit;
   { Compact layout always exists; Full only when [ModeFull] is defined. }
   FMiCompact.Enabled := True;
   FMiFull.Enabled := FHasFull;
-  InFull := UsingFullView;
-  FMiCompact.Checked := not InFull;
+  InTray := (FSettings <> nil) and FSettings.TraySize;
+  InFull := (not InTray) and UsingFullView;
+  FMiCompact.Checked := (not InTray) and (not InFull);
   FMiFull.Checked := InFull;
+  if FMiTray <> nil then
+    FMiTray.Checked := InTray;
 end;
 
 procedure TMainForm.Render;
@@ -842,17 +903,22 @@ begin
     end;
   end;
 
-  if UsingFullView then
-    GraphKey := FGraphGen
+  if (FSettings <> nil) and FSettings.TraySize then
+    UpdateTrayLed(FPipeline.State.DiskRWOn)
   else
-    GraphKey := 0;
-  Fp := TMeterRenderer.Fingerprint(FLayout, FPipeline.State, GraphKey);
-  if (not FHasFp) or (not TMeterRenderer.SameFingerprint(Fp, FLastFp)) then
   begin
-    Render;
-    Invalidate;
-    FLastFp := Fp;
-    FHasFp := True;
+    if UsingFullView then
+      GraphKey := FGraphGen
+    else
+      GraphKey := 0;
+    Fp := TMeterRenderer.Fingerprint(FLayout, FPipeline.State, GraphKey);
+    if (not FHasFp) or (not TMeterRenderer.SameFingerprint(Fp, FLastFp)) then
+    begin
+      Render;
+      Invalidate;
+      FLastFp := Fp;
+      FHasFp := True;
+    end;
   end;
   RefreshHoverText;
 end;
@@ -879,12 +945,159 @@ end;
 
 procedure TMainForm.miCompactClick(Sender: TObject);
 begin
-  SetCompactView(True);
+  if (FSettings <> nil) and FSettings.TraySize then
+  begin
+    FSettings.Compact := True;
+    LeaveTraySize;
+  end
+  else
+    SetCompactView(True);
 end;
 
 procedure TMainForm.miFullClick(Sender: TObject);
 begin
-  SetCompactView(False);
+  if (FSettings <> nil) and FSettings.TraySize then
+  begin
+    FSettings.Compact := False;
+    LeaveTraySize;
+  end
+  else
+    SetCompactView(False);
+end;
+
+procedure TMainForm.miTrayClick(Sender: TObject);
+begin
+  EnterTraySize;
+end;
+
+function TMainForm.TrayIconPath(const AAssetDir, AFileName: string): string;
+begin
+  if AFileName = '' then
+    Exit('');
+  Result := IncludeTrailingPathDelimiter(FAssetsRoot) +
+    IncludeTrailingPathDelimiter(AAssetDir) + AFileName;
+end;
+
+function LoadTrayIcon(const APath: string): TIcon;
+var
+  H: HICON;
+begin
+  Result := TIcon.Create;
+  if (APath = '') or (not FileExists(APath)) then
+    Exit;
+  H := 0;
+  if Succeeded(LoadIconMetric(0, PChar(APath), LIM_SMALL, H)) and (H <> 0) then
+    Result.Handle := H
+  else
+  try
+    Result.LoadFromFile(APath);
+  except
+  end;
+end;
+
+procedure TMainForm.ReloadTrayIcons;
+var
+  Def: TDisplayModeDef;
+begin
+  FreeAndNil(FTrayOffIcon);
+  FreeAndNil(FTrayOnIcon);
+  if (FLayout.ModeId = '') or (not TryGetDisplayMode(FLayout.ModeId, Def)) then
+    Exit;
+  FTrayOffIcon := LoadTrayIcon(TrayIconPath(Def.AssetDir, Def.TrayOffFile));
+  FTrayOnIcon := LoadTrayIcon(TrayIconPath(Def.AssetDir, Def.TrayOnFile));
+end;
+
+procedure TMainForm.ResetTrayToAppIcon;
+var
+  AppIcon: TIcon;
+begin
+  if FTray = nil then
+    Exit;
+  FHasTrayLedState := False;
+  AppIcon := TIcon.Create;
+  try
+    if FileExists(MainIconPath) then
+    try
+      AppIcon.LoadFromFile(MainIconPath);
+    except
+    end;
+    if AppIcon.Empty then
+    try
+      AppIcon.Assign(Icon);
+    except
+    end;
+    { Assigning the whole property (not touching FTray.Icon in place) is
+      what makes TCustomTrayIcon.SetIcon sync FCurrentIcon and call
+      Refresh; loading into the returned TIcon directly leaves the live
+      tray icon (FCurrentIcon) stale until something else happens to
+      refresh it. }
+    FTray.Icon := AppIcon;
+  finally
+    AppIcon.Free;
+  end;
+end;
+
+procedure TMainForm.UpdateTrayLed(AOn: Boolean);
+var
+  Src: TIcon;
+begin
+  if FTray = nil then
+    Exit;
+  if FHasTrayLedState and (FTrayLedOn = AOn) then
+    Exit;
+  if AOn then
+    Src := FTrayOnIcon
+  else
+    Src := FTrayOffIcon;
+  if (Src <> nil) and (not Src.Empty) then
+    FTray.Icon := Src
+  else
+    { [Tray] missing or icon failed to load: fixed app icon, no LED, but
+      tray size stays selectable per the plan's fallback decision. }
+    ResetTrayToAppIcon;
+  FTrayLedOn := AOn;
+  FHasTrayLedState := True;
+end;
+
+procedure TMainForm.EnterTraySize;
+begin
+  if FSettings = nil then
+    Exit;
+  if not FSettings.TraySize then
+  begin
+    FSettings.TraySize := True;
+    Visible := False;
+    PersistSettings;
+    SyncViewMenu;
+  end;
+  ReloadTrayIcons;
+  FHasTrayLedState := False;
+  if FPipeline <> nil then
+    UpdateTrayLed(FPipeline.State.DiskRWOn)
+  else
+    UpdateTrayLed(False);
+end;
+
+procedure TMainForm.LeaveTraySize;
+var
+  KeepLeft, KeepTop: Integer;
+begin
+  if (FSettings = nil) or (not FSettings.TraySize) then
+    Exit;
+  KeepLeft := Left;
+  KeepTop := Top;
+  FSettings.TraySize := False;
+  ResetTrayToAppIcon;
+  ApplyViewSize;
+  Visible := True;
+  SetBounds(KeepLeft, KeepTop, Width, Height);
+  ApplyWindowBounds;
+  PersistSettings;
+  SyncViewMenu;
+  Render;
+  Invalidate;
+  FHasFp := False;
+  BringWindowForward;
 end;
 
 procedure TMainForm.miPingClick(Sender: TObject);
@@ -900,7 +1113,14 @@ end;
 procedure TMainForm.miResetPositionClick(Sender: TObject);
 begin
   { Manual recovery for a window stuck off-screen (e.g. a monitor was
-    unplugged): the tray icon stays reachable even then, unlike the body. }
+    unplugged): the tray icon stays reachable even then, unlike the body.
+    Reachable during tray size too (same popup) - leave tray size first so
+    Visible and FSettings.TraySize don't end up disagreeing. }
+  if (FSettings <> nil) and FSettings.TraySize then
+  begin
+    LeaveTraySize;
+    Exit;
+  end;
   ApplyWindowBounds;
   PersistSettings;
   BringWindowForward;
@@ -1065,7 +1285,10 @@ end;
 
 procedure TMainForm.TrayDblClick(Sender: TObject);
 begin
-  BringWindowForward;
+  if (FSettings <> nil) and FSettings.TraySize then
+    LeaveTraySize
+  else
+    BringWindowForward;
 end;
 
 procedure TMainForm.ShowAppPopup(AX, AY: Integer);
@@ -1131,6 +1354,13 @@ begin
     FMonitorDpi := MonitorDpiForWindow(Handle);
   FScale100 := GadgetScale100(FMonitorDpi);
   ApplyDpiClientSize;
+  if (FSettings <> nil) and FSettings.TraySize then
+  begin
+    ReloadTrayIcons;
+    FHasTrayLedState := False;
+    if FPipeline <> nil then
+      UpdateTrayLed(FPipeline.State.DiskRWOn);
+  end;
   if Message.LParam <> 0 then
   begin
     Suggested := PRect(Message.LParam)^;
