@@ -48,7 +48,7 @@ begin
   if GStringsReady then
     Exit;
 
-  AddStr('menu.ping', 'Ping 更新', 'Refresh Ping');
+  AddStr('menu.ping', 'Ping結果表示', 'View Trace Route');
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
@@ -61,6 +61,20 @@ begin
   AddStr('hover.ping_off', 'オフ', 'off');
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
+
+  AddStr('trace.title', 'Ping結果表示', 'Trace Route Result');
+  AddStr('trace.target', '宛先', 'Target');
+  AddStr('trace.hops', 'ホップ数', 'Hops');
+  AddStr('trace.total', '合計時間', 'Total');
+  AddStr('trace.measured_at', '計測日時', 'Measured at');
+  AddStr('trace.col_ttl', 'TTL', 'TTL');
+  AddStr('trace.col_ip', 'IP', 'IP');
+  AddStr('trace.col_host', 'ホスト名', 'Host');
+  AddStr('trace.col_rtt', 'RTT', 'RTT');
+  AddStr('trace.refresh', 'Ping/経路 更新', 'Refresh Ping/Trace');
+  AddStr('trace.close', '閉じる', 'Close');
+  AddStr('trace.running', '計測中…', 'Tracing…');
+  AddStr('trace.unreachable', '到達できませんでした', 'Destination unreachable');
 
   AddStr('opt.title', 'DiskLED オプション', 'DiskLED Options');
   AddStr('opt.group.window', 'ウィンドウ', 'Window');

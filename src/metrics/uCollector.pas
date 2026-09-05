@@ -26,6 +26,7 @@ type
     function Collect: TMetricsSnapshot;
     procedure RequestPing;
     procedure TickPing;
+    function CurrentPingTarget: string;
     procedure ApplyPingSettings(AEnabled: Boolean; AIntervalSec: Integer;
       const AHost: string; AAutoGateway: Boolean;
       AFairMs, ASlowMs, ATimeoutMs: Integer);
@@ -163,6 +164,11 @@ end;
 procedure TMetricsCollector.RequestPing;
 begin
   FPing.RequestNow;
+end;
+
+function TMetricsCollector.CurrentPingTarget: string;
+begin
+  Result := FPing.CurrentTarget;
 end;
 
 procedure TMetricsCollector.TickPing;

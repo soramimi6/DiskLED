@@ -286,30 +286,28 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
   - **左下**に「Ping/TraceRoute 更新」ボタン（押すと即時 Ping と Tracert の両方を実行し直す。旧「Ping 更新」メニューの役割をここへ移す）
   - **右下**に閉じるボタン
 
-### 実装プラン
+### 実装済み
 
-1. **ICMP 共通宣言の切り出し**: `uPingCollector.pas` に既にある `IcmpCreateFile` / `IcmpSendEcho2` 等の `external 'icmp.dll'` 宣言と関連構造体を、新規ユニット `src/metrics/uIcmpApi.pas` へ切り出す（Tracert 側と重複させないため）
-2. **新規ユニット `src/metrics/uTracertCollector.pas`（独立したオンデマンド実行）**
-   - 定期 Ping のワーカーとは連動させない。TraceRouteResult ウィンドウを開いたとき・ボタン押下時にだけ、**専用のワーカースレッド**（`TThread.CreateAnonymousThread`）でトレースを実行する（都度起動でよい。常駐スレッドにしない）
-   - ターゲットホストは `TPingCollector` が既に解決している対象（`FLastTarget` 相当。自動ゲートウェイ or 設定ホスト）をそのまま再利用する。`TPingCollector` に現在のターゲットを返す公開メソッドを追加し、`uTracertCollector` はそれを読むだけにする（ゲートウェイ判定ロジックを複製しない）
-   - TTL を 1→`AMaxHops`（既定 30）まで incrementing しながら `IcmpSendEcho2` を送信。宛先到達で打ち切り、連続 N 回（例 5 回）応答なしなら諦めて打ち切る
-   - 各ホップの逆引きホスト名解決を追加する（`GetNameInfoW` など、`ws2_32.dll`）。1 ホップあたりの逆引きタイムアウトを短く区切り、応答の無いホップで全体が長時間止まらないようにする
-   - 結果は `TTracertResult`（トレース先ホスト名／IP、ホップ数、トータル ms、`TArray<TTracertHop>`（TTL・IP・ホスト名・RTT・成否））として保持し、完了時に `TThread.Queue` で UI スレッドへコールバックする（`uMainForm.UpdateDelayTick` と同じパターン）
-3. **新規フォーム `src/uTraceRouteForm.pas` / `.dfm`**
-   - `BorderStyle = bsSizeable`、初期サイズはオプション画面相当、`Constraints.MinWidth/MinHeight` をダッシュボードに合わせて設定
-   - ヘッダー（トレース先ホスト名・IP、ホップ数、トータル ms）とホップ一覧を `uDashboardTheme.pas` のパレットで自前描画するか、VCL の `TListView`/`TStringGrid` をオーナードローでテーマに合わせるかは実装時に画面を見て決める
-   - リスト部は 20 行表示を基準に高さを決め、超過分はスクロールで見せる
-   - `FormShow`（初回表示時）で `uTracertCollector` の実行を1回キックする。実行中は「計測中…」的な状態を表示する
-   - 左下に「Ping/TraceRoute 更新」ボタン（`OnClick` で `FCollector.RequestPing` と `uTracertCollector` の実行を両方キックし直す）
-   - 右下に閉じるボタン（`Close` するだけ。`ModalResult` は不要）
-   - Tracert 完了のコールバックで結果を保持し `Invalidate`。ウィンドウを閉じて再度開いたときは、その時点で改めて 1 回実行する（バックグラウンドでの継続更新はしない）
-4. **開き方・既存メニューの置き換え**: `src/uMainForm.pas` の `BuildPopup`（[uMainForm.pas:524-527](../src/uMainForm.pas#L524-L527)）にある `miPing`（キャプション `S('menu.ping')`＝「Ping 更新」、クリックで `FCollector.RequestPing` を直接呼んでいる）を廃止し、同じ位置に「Ping結果表示」項目を置く。クリックハンドラは `RequestPing` を呼ばず、`TTraceRouteForm` を（無ければ生成して）表示するだけにする（表示時の `FormShow` が Tracert を起動する）
-5. **文字列**: `menu.ping`（「Ping 更新」）を「Ping結果表示」の文言に差し替え、`src/uAppStrings.pas` に `trace.*` 系の新規 id（ウィンドウ内の見出し・ボタン等）を JA/EN で追加
+1. **ICMP 共通宣言の切り出し**: `src/metrics/uIcmpApi.pas` を新設し、`IcmpCreateFile`/`IcmpCloseHandle`/`IcmpSendEcho`（`iphlpapi.dll`）を集約した。レコード型・`IP_STATUS` 定数は RTL の `Winapi.IpExport` から取得しつつ、`uIcmpApi` 自身の名前空間へ再エクスポートしている（`Winapi.Winsock` と `Winapi.IpExport` は互いに別の `in_addr` 型を持つため、両方を同一ユニットの `uses` に並べると `IN_ADDR`/`inet_ntoa` が曖昧になる。消費側ユニットは `uIcmpApi` だけを参照すればよい設計にして回避した）
+2. **`src/metrics/uTracertCollector.pas`（独立したオンデマンド実行）**
+   - `TPingCollector.CurrentTarget`（新規公開メソッド）で解決済みターゲットを取得し、`TMetricsCollector.CurrentPingTarget` 経由で呼び出し側へ渡す。`uTracertCollector` は `TPingCollector` に直接依存しない（ホスト名を文字列として受け取るだけ）
+   - TTL 1→30 を `IcmpSendEcho` ＋ `TIpOptionInformation.Ttl` でインクリメントしながら送信。宛先到達（`IP_SUCCESS`）で打ち切り、連続5回応答なしで打ち切る
+   - **ホップは確定するたびに `OnHop` で即座に通知**（`tracert.exe` と同じく近い方から順に1行ずつ表示される）。逆引きDNS（`GetNameInfoW`）は各ホップごとに完全に非同期（fire-and-forget）で行い、トレースの進行を一切ブロックしない。解決でき次第 `OnHostName`（TTLで突合）で個別に反映する
+   - 実行世代カウンタ（`FGeneration`）を持ち、ウィンドウを閉じて即座に再度開いた場合など、古い実行の逆引きDNSが後から完了しても新しい実行の結果に紛れ込まないようにガードしている
+   - `TThread.Queue` に渡すクロージャがループ変数を参照キャプチャして直近の値で上書きされる問題を避けるため、通知はパラメータ渡しのヘルパー関数経由にしている
+3. **新規フォーム `src/uTraceRouteForm.pas` / `.dfm`**（制御は全て `FormCreate` でコード生成。Dashboard と同じ流儀）
+   - `BorderStyle = bsSizeable`、`Constraints.MinWidth/MinHeight` 設定
+   - ヘッダー（宛先ホスト名・IP、ホップ数、合計時間、計測日時）は `uDashboardTheme` パレットで自前描画
+   - ホップ一覧は `TListView`（`vsReport`）を採用。ただし列見出し行とグリッド線・外枠はOS標準の固定色でテーマに追従しないため、列見出しは非表示にして自前描画の行に置き換え、外枠は1pxの`TPanel`で代替、グリッド線は無効化した。リスト本体は `SetWindowTheme(Handle, '', '')` でExplorerビジュアルスタイルを無効化しパレット色を強制適用
+   - `WM_SETTINGCHANGE`（`ImmersiveColorSet`）ハンドラでWindowsのテーマ切替にリアルタイム追従（Dashboardと同じ仕組み）。タイトルバーのダークモード対応は `CreateWnd` で再適用
+   - `FormShow` で1回キック。左下「Ping/経路 更新」ボタン、右下閉じるボタン。閉じるときは `caHide` でウィンドウを破棄せず、再度開いたときに `FormShow` が再度キックする
+4. **開き方・既存メニューの置き換え**: `uMainForm.pas` の `miPing`（`menu.ping`）のキャプションを「Ping結果表示」に差し替え、クリックハンドラを `ShowTraceRouteForm`（`TTraceRouteForm` を無ければ生成して表示）に変更した
+5. **文字列**: `trace.*` 系の新規 id を JA/EN で追加
 
 ### 設計メモ
 
 - 通常の Ping サイクルに連動させない設計にしたことで、Tracert（最大 30 ホップ＋ホップごとの逆引き DNS）による通信量・負荷は「ウィンドウを開いたとき」「更新ボタンを押したとき」だけに限定される。普段の待機中は追加の通信を発生させない
-- リスト部をカスタム描画にするか `TListView` 流用にするかは、実装時の見た目次第で決める
+- リスト部は `TListView` を採用したが、見出し行・外枠・グリッド線の3箇所がOS標準の固定色描画でテーマに追従しないことが実装中に判明し、それぞれ自前描画・`TPanel`枠・非表示という個別の回避策で対応した
 
 見積り: 3〜4 日（Tracert 用ワーカーの新規実装＋逆引き DNS＋新規ウィンドウの UI 一式のため、当初のダッシュボード内表示案よりやや増加）。
 
