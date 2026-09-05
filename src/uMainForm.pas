@@ -168,20 +168,17 @@ uses
 procedure TMainForm.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
-  { Unowned + APPWINDOW => taskbar. Owned tool window => no button. }
+  { Unowned + APPWINDOW => taskbar. Owned tool window => no button.
+    Params.X/Y are left at the inherited default (the control's current
+    Left/Top): FormCreate restores the saved position into Left/Top before
+    the first handle is ever created (see the comment there), so injecting
+    FSettings.WindowX/Y here is unnecessary for that first creation and
+    actively harmful for any later recreation (e.g. a FormStyle toggle in
+    Options) — it would snap the window back to a possibly-stale saved
+    position instead of wherever it currently is on screen. }
   Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
   Params.WndParent := Application.Handle;
   StrLCopy(Params.WinClassName, 'DiskLEDMainWnd', High(Params.WinClassName));
-  { Inject the restored position directly into window creation: if the HWND
-    gets created/recreated (e.g. by the FormStyle assignment in
-    ApplySettingsToUi) using Left/Top instead, the form's design-time
-    default (100, 100) — on the primary monitor — could still leak through
-    regardless of statement order elsewhere in FormCreate. }
-  if FSettings <> nil then
-  begin
-    Params.X := FSettings.WindowX;
-    Params.Y := FSettings.WindowY;
-  end;
 end;
 
 procedure TMainForm.CreateWnd;

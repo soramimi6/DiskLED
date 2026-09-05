@@ -1,9 +1,16 @@
 unit uDiskCollector;
 
 { Physical disk Read/Write Byte/s. Prefers PDH PhysicalDisk(_Total); falls back
-  to IOCTL_DISK_PERFORMANCE cumulative deltas when PDH is unavailable. }
+  to IOCTL_DISK_PERFORMANCE cumulative deltas when PDH is unavailable.
+  Set CDebugForceLatencyUnavailable to False after the "—" UI is verified. }
 
 interface
+
+const
+  { True: Sample always reports DiskLatencyMs as -1 (unavailable), regardless
+    of what PDH/IOCTL actually measured. For visually verifying the dashboard's
+    unavailable-latency ("—") display without needing a real unsupported system. }
+  CDebugForceLatencyUnavailable = False;
 
 type
   TDiskCollector = class
@@ -126,6 +133,7 @@ begin
   FPdhIdleOk := False;
   FPdhLatencyOk := False;
   FLastActivePct := -1;
+  FLastLatencyMs := -1; { -1: not yet measured / unavailable, matching FLastActivePct's convention }
   if PdhOpenQueryW(nil, 0, FQuery) <> 0 then
   begin
     FQuery := 0;
@@ -371,9 +379,9 @@ begin
   end
   else
   begin
+    { First sample: no prior tick to diff against, so latency stays at
+      whatever FLastLatencyMs already is (-1 until a real reading lands). }
     FLastQueue := AQueue;
-    ALatencyMs := 0;
-    FLastLatencyMs := 0;
     Result := True;
   end;
 
@@ -400,12 +408,18 @@ begin
   begin
     if SamplePdh(AReadBps, AWriteBps, AQueue, AReadIops, AWriteIops, AActivePct,
       ALatencyMs) then
+    begin
+      if CDebugForceLatencyUnavailable then
+        ALatencyMs := -1;
       Exit;
+    end;
     FUsePdh := False;
     ClosePdh;
   end;
   SampleIoCtl(AReadBps, AWriteBps, AQueue, AReadIops, AWriteIops, AActivePct,
     ALatencyMs);
+  if CDebugForceLatencyUnavailable then
+    ALatencyMs := -1;
 end;
 
 end.

@@ -523,6 +523,7 @@ procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
 var
   QTxt, LatTxt, ActiveTxt: string;
   QY, IopsY, Gap, QW, LatW, HalfW, QX, LX, LabelMaxW, TopY: Integer;
+  QVal, LatVal: Double;
 begin
   FillRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.Card);
   StrokeRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.CardBorder);
@@ -534,14 +535,28 @@ begin
   ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 8),
     UpperCase(AHeading));
 
-  if ASnap.DiskQueue >= 10 then
-    QTxt := Format('%.0f', [ASnap.DiskQueue])
+  { Clamp to a realistic digit count (max "999") so a glitched or extreme
+    reading can never outgrow the fixed-width big-digit column. }
+  QVal := ASnap.DiskQueue;
+  if QVal > 999 then
+    QVal := 999;
+  if QVal >= 10 then
+    QTxt := Format('%.0f', [QVal])
   else
-    QTxt := Format('%.1f', [ASnap.DiskQueue]);
-  if ASnap.DiskLatencyMs >= 10 then
-    LatTxt := Format('%.0f', [ASnap.DiskLatencyMs])
+    QTxt := Format('%.1f', [QVal]);
+
+  if ASnap.DiskLatencyMs < 0 then
+    LatTxt := #$2014 { unavailable }
   else
-    LatTxt := Format('%.1f', [ASnap.DiskLatencyMs]);
+  begin
+    LatVal := ASnap.DiskLatencyMs;
+    if LatVal > 999 then
+      LatVal := 999;
+    if LatVal >= 10 then
+      LatTxt := Format('%.0f', [LatVal])
+    else
+      LatTxt := Format('%.1f', [LatVal]);
+  end;
   QY := ARect.Top + AMetrics.CardPad * 3;
   IopsY := ARect.Bottom - (AMetrics.PingRowHeight * 3 + AMetrics.CardPad);
   if IopsY < QY + AMetrics.CardPad * 4 then

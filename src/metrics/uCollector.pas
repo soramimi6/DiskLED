@@ -66,6 +66,7 @@ var
 begin
   Result := Default(TMetricsSnapshot);
   Result.DiskActivePct := -1;
+  Result.DiskLatencyMs := -1;
   try
     Result.CpuUsage := FCpu.Sample;
     Result.CpuUserPct := FCpu.UserPct;
@@ -109,7 +110,7 @@ begin
     Result.DiskReadIops := 0;
     Result.DiskWriteIops := 0;
     Result.DiskActivePct := -1;
-    Result.DiskLatencyMs := 0;
+    Result.DiskLatencyMs := -1;
   end;
   try
     FNet.Sample(Result.NetInBps, Result.NetOutBps, Result.NetLinkSpeedBps);
