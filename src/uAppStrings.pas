@@ -75,6 +75,7 @@ begin
   AddStr('trace.close', '閉じる', 'Close');
   AddStr('trace.running', '計測中…', 'Tracing…');
   AddStr('trace.unreachable', '到達できませんでした', 'Destination unreachable');
+  AddStr('trace.error', 'エラーが発生しました（名前解決または通信の初期化に失敗）', 'An error occurred (name resolution or setup failed)');
 
   AddStr('opt.title', 'DiskLED オプション', 'DiskLED Options');
   AddStr('opt.group.window', 'ウィンドウ', 'Window');

@@ -295,6 +295,9 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
    - **ホップは確定するたびに `OnHop` で即座に通知**（`tracert.exe` と同じく近い方から順に1行ずつ表示される）。逆引きDNS（`GetNameInfoW`）は各ホップごとに完全に非同期（fire-and-forget）で行い、トレースの進行を一切ブロックしない。解決でき次第 `OnHostName`（TTLで突合）で個別に反映する
    - 実行世代カウンタ（`FGeneration`）を持ち、ウィンドウを閉じて即座に再度開いた場合など、古い実行の逆引きDNSが後から完了しても新しい実行の結果に紛れ込まないようにガードしている
    - `TThread.Queue` に渡すクロージャがループ変数を参照キャプチャして直近の値で上書きされる問題を避けるため、通知はパラメータ渡しのヘルパー関数経由にしている
+   - 参照カウント式のキャンセルトークン（`ITracertCancelToken`）を介してワーカースレッド・逆引きDNSスレッドからのコールバックを仲介し、`TTracertCollector` 自体が破棄された後に届いたコールバックは何もせず抜ける（解放済みオブジェクトへアクセスしない）。`Destructor` でトークンをキャンセル状態にする
+   - Winsock の初期化（`WSAStartup`/`WSACleanup`）は実行ごとではなく `TTracertCollector` インスタンスの生存期間全体で1回だけ行う（`TPingCollector` と同じ方針）。実行終了直後にまだ動いている逆引きDNSスレッドと競合しないようにするため
+   - DNS解決・ICMPハンドル生成そのものが失敗した場合は `TTracertResult.Failed` を立てて区別する（正常に到達不能だった場合の `Completed=False` とは別扱い）
 3. **新規フォーム `src/uTraceRouteForm.pas` / `.dfm`**（制御は全て `FormCreate` でコード生成。Dashboard と同じ流儀）
    - `BorderStyle = bsSizeable`、`Constraints.MinWidth/MinHeight` 設定
    - ヘッダー（宛先ホスト名・IP、ホップ数、合計時間、計測日時）は `uDashboardTheme` パレットで自前描画
@@ -333,6 +336,6 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 - **再現条件確認済み**: 本体ウィンドウをサブモニター、ダッシュボードをメインモニターに置いた状態で終了→起動すると、本体がダッシュボード側のモニターへ引き寄せられる（本体とダッシュボードが同じモニターなら発生しない）
 - **原因確認済み**（VCL ソース `Vcl.Forms.pas` を直接確認）: `TCustomForm.SetVisible`（`Vcl.Forms.pas:6241-6260`）は `Visible` が False→True になる瞬間、`inherited Visible := Value` を実行する**前**に `SetWindowToMonitor`（`Vcl.Forms.pas:7510-7571`）を呼ぶ。この関数は `DefaultMonitor` プロパティ（既定値 `dmActiveForm`。`TMainForm` は明示指定していないため既定のまま）が `dmDesktop` でない限り動作し、「アクティブなフォームが乗っているモニター」（`Screen.ActiveCustomForm.Monitor`）と「このウィンドウ自身が乗っているモニター」が異なる場合、**`Position = poDesigned` であっても関係なく**ウィンドウを強制的に前者のモニターへ再配置する（`FPosition = poScreenCenter` / `poMainFormCenter` のときだけ別処理になり、それ以外は全部この再配置分岐に入る）。`TMainForm.FormCreate` 内の `ShowDashboard`（[uMainForm.pas:309-310](../src/uMainForm.pas#L309-L310)、`FSettings.DashboardOpen` が真の場合に呼ばれる）は本体が可視化される前に実行されるため、ダッシュボードが先に「アクティブなフォーム」になり、そのモニターへ本体が引き寄せられる。`.dpr` の `Application.Run`（[DiskLED.dpr:61](../DiskLED.dpr#L61)）が呼ぶ `FMainForm.Visible := True` がこのトリガーであり、`TMainForm.FormCreate` の外（`Application.CreateForm` が返った後）で発生するため、`FormCreate` 内の処理順序をどう変えても防げない
 - **実装済み**: `TMainForm.FormCreate` の `Position := poDesigned;` の直後に `DefaultMonitor := dmDesktop;` を追加した（[uMainForm.pas:242-249](../src/uMainForm.pas#L242-L249)）。`SetWindowToMonitor` の冒頭ガード（`if (FDefaultMonitor <> dmDesktop) and ...`）によりこの関数自体が無効化され、VCL による自動モニター追従は発生しなくなる。位置管理は既存の `ConstrainAndSnapRect`（`uWindowPlacement.pas`）に一本化される
-- あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にした（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）。`TMainForm.CreateParams`（[uMainForm.pas:168-181](../src/uMainForm.pas#L168-L181)）への座標注入は当初あわせて追加したが、HWND 再生成のたびに古い保存座標へ巻き戻すバグを生むと `/code-review` で指摘され撤去済み（VCL 標準の「現在の Left/Top を使う」動作のまま）
+- あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にした（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）。`TMainForm.CreateParams`（[uMainForm.pas:168-181](../src/uMainForm.pas#L168-L181)）は VCL 標準どおり「現在の Left/Top を使う」動作のままで、座標の明示注入はしていない（HWND 再生成のたびに保存済み座標へ巻き戻ると、その時点の実位置と食い違う恐れがあるため）
 
 見積り: 半日程度（3件とも既存の `uWindowPlacement.pas` ロジックを再利用する、または呼び出し順序の変更のみで小規模）。

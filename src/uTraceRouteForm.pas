@@ -273,11 +273,17 @@ begin
 
   if FHasResult and (not FBusy) then
   begin
-    Line2 := Format('%s: %d   %s: %.0f ms   %s: %s', [S('trace.hops'), FLastResult.HopCount,
-      S('trace.total'), FLastResult.TotalMs,
-      S('trace.measured_at'), DateTimeToStr(FLastMeasuredAt)]);
-    if not FLastResult.Completed then
-      Line2 := Line2 + '   ' + S('trace.unreachable');
+    if FLastResult.Failed then
+      Line2 := S('trace.error') + '   ' + S('trace.measured_at') + ': ' +
+        DateTimeToStr(FLastMeasuredAt)
+    else
+    begin
+      Line2 := Format('%s: %d   %s: %.0f ms   %s: %s', [S('trace.hops'), FLastResult.HopCount,
+        S('trace.total'), FLastResult.TotalMs,
+        S('trace.measured_at'), DateTimeToStr(FLastMeasuredAt)]);
+      if not FLastResult.Completed then
+        Line2 := Line2 + '   ' + S('trace.unreachable');
+    end;
   end
   else
     Line2 := '';

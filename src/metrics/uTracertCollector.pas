@@ -10,7 +10,12 @@ unit uTracertCollector;
   TTL's echo completes before the next is sent, so OnHop already fires in
   order. Reverse DNS never blocks that loop — it runs on its own fire-and-
   forget thread per hop and reports back via OnHostName whenever it resolves
-  (or never, if it doesn't), matching the hop up by TTL. }
+  (or never, if it doesn't), matching the hop up by TTL.
+
+  Winsock is initialized once for this collector's whole lifetime (like
+  TPingCollector does), not per run: a per-run WSAStartup/WSACleanup pair
+  raced against the fire-and-forget reverse-DNS threads, which can still be
+  inside GetNameInfoW after the main hop loop finishes. }
 
 interface
 
@@ -32,11 +37,23 @@ type
     HopCount: Integer;
     TotalMs: Double;
     Completed: Boolean; { True: destination reached; False: gave up }
+    Failed: Boolean; { True: DNS/ICMP setup itself failed — distinct from a
+      real trace that legitimately found 0 reachable hops. }
   end;
 
   TTracertHopEvent = procedure(const AHop: TTracertHop) of object;
   TTracertHostNameEvent = procedure(ATtl: Integer; const AHostName: string) of object;
   TTracertCompleteEvent = procedure(const AResult: TTracertResult) of object;
+
+  { Refcounted, so a closure that captured it keeps it alive (and checkable)
+    even after the TTracertCollector that created it is gone — that's the
+    whole point: queued callbacks must never dereference a freed collector,
+    only this independent token. }
+  ITracertCancelToken = interface
+    ['{E9F1C9E4-9B7B-4B7A-9B0B-2F6C7A6D9C11}']
+    procedure Cancel;
+    function IsCancelled: Boolean;
+  end;
 
   TTracertCollector = class
   private
@@ -45,10 +62,14 @@ type
     FOnComplete: TTracertCompleteEvent;
     FRunning: Boolean;
     FGeneration: Integer;
+    FCancelToken: ITracertCancelToken;
+    FWSAOk: Boolean;
     procedure DoHop(const AHop: TTracertHop);
     procedure DoHostName(ATtl: Integer; const AHostName: string);
     procedure DoComplete(const AResult: TTracertResult);
   public
+    constructor Create;
+    destructor Destroy; override;
     procedure RunAsync(const AHost: string);
     property Running: Boolean read FRunning;
     property OnHop: TTracertHopEvent read FOnHop write FOnHop;
@@ -68,6 +89,25 @@ const
   CMaxHops = 30;
   CMaxConsecutiveTimeouts = 5;
   CHopTimeoutMs = 1000;
+
+type
+  TTracertCancelToken = class(TInterfacedObject, ITracertCancelToken)
+  private
+    FCancelled: Boolean;
+  public
+    procedure Cancel;
+    function IsCancelled: Boolean;
+  end;
+
+procedure TTracertCancelToken.Cancel;
+begin
+  FCancelled := True;
+end;
+
+function TTracertCancelToken.IsCancelled: Boolean;
+begin
+  Result := FCancelled;
+end;
 
 function ResolveIPv4(const AHost: string; out AAddr: Cardinal): Boolean;
 var
@@ -103,8 +143,7 @@ function GetNameInfoW(pSockaddr: PSockAddr; SockaddrLength: Integer;
   to the main thread) only if it resolves to a name; if the OS resolver
   never answers, the thread just quietly runs out and self-frees. AOnDone is
   a plain closure (not a TTracertCollector method) so RunAsync can wrap it
-  with its own generation check — this lookup can easily still be in flight
-  after a later run has already started (e.g. window closed and reopened). }
+  with its own cancel/generation checks. }
 procedure StartReverseLookup(AAddr: Cardinal; ATtl: Integer;
   AOnDone: TProc<Integer, string>);
 begin
@@ -132,11 +171,17 @@ end;
   share that single mutable storage and could all fire with whatever hop the
   loop had reached by the time the main thread got to them. Routing through
   a helper whose own AHop parameter is copied fresh on each call sidesteps
-  that — each queued closure captures its own call's parameter, not a
-  variable shared with later iterations. }
-procedure QueueHopNotify(ASelf: TTracertCollector; const AHop: TTracertHop);
+  that. ACancelToken is checked before ever touching ASelf, so a collector
+  freed while this was in flight is never dereferenced. }
+procedure QueueHopNotify(ASelf: TTracertCollector; ACancelToken: ITracertCancelToken;
+  const AHop: TTracertHop);
 begin
-  TThread.Queue(nil, procedure begin ASelf.DoHop(AHop); end);
+  TThread.Queue(nil,
+    procedure
+    begin
+      if not ACancelToken.IsCancelled then
+        ASelf.DoHop(AHop);
+    end);
 end;
 
 function SendEchoWithTtl(AIcmp: THandle; ADest: Cardinal; ATtl: Byte;
@@ -167,6 +212,25 @@ begin
   Result := AReached or (Echo^.Status = IP_TTL_EXPIRED_TRANSIT) or (AAddr <> 0);
 end;
 
+constructor TTracertCollector.Create;
+var
+  WSAData: TWSAData;
+begin
+  inherited Create;
+  FCancelToken := TTracertCancelToken.Create;
+  FWSAOk := WSAStartup($0202, WSAData) = 0;
+end;
+
+destructor TTracertCollector.Destroy;
+begin
+  { Queued callbacks from any still-running worker/lookup threads check this
+    before touching Self, so they become no-ops instead of use-after-free. }
+  FCancelToken.Cancel;
+  if FWSAOk then
+    WSACleanup;
+  inherited;
+end;
+
 procedure TTracertCollector.DoHop(const AHop: TTracertHop);
 begin
   if Assigned(FOnHop) then
@@ -190,6 +254,7 @@ procedure TTracertCollector.RunAsync(const AHost: string);
 var
   Host: string;
   Gen: Integer;
+  Token: ITracertCancelToken;
 begin
   if FRunning then
     Exit;
@@ -197,12 +262,11 @@ begin
   Inc(FGeneration);
   Gen := FGeneration;
   Host := AHost;
+  Token := FCancelToken;
 
   TThread.CreateAnonymousThread(
     procedure
     var
-      WSAOk: Boolean;
-      WSAData: TWSAData;
       Dest: Cardinal;
       Icmp: THandle;
       Ttl: Byte;
@@ -219,71 +283,76 @@ begin
       Res.TargetHost := Host;
       StartTick := GetTickCount;
       HopCount := 0;
-      WSAOk := WSAStartup($0202, WSAData) = 0;
       try
-        try
-          if (not WSAOk) or (Host = '') or (not ResolveIPv4(Host, Dest)) then
-            Exit;
-          Res.TargetIp := AddrToStr(Dest);
-
-          Icmp := IcmpCreateFile;
-          if (Icmp = 0) or (Icmp = INVALID_HANDLE_VALUE) then
-            Exit;
-          try
-            ConsecutiveTimeouts := 0;
-            Ttl := 1;
-            while Ttl <= CMaxHops do
-            begin
-              if SendEchoWithTtl(Icmp, Dest, Ttl, HopAddr, HopRtt, Reached) then
-              begin
-                ConsecutiveTimeouts := 0;
-                Inc(HopCount);
-                Hop.Ttl := Ttl;
-                Hop.Ip := AddrToStr(HopAddr);
-                Hop.RttMs := HopRtt;
-                Hop.Ok := True;
-                Hop.HostName := ''; { resolved asynchronously; reported via OnHostName }
-                QueueHopNotify(Self, Hop);
-                StartReverseLookup(HopAddr, Ttl,
-                  procedure(AResolvedTtl: Integer; AName: string)
-                  begin
-                    if Gen = FGeneration then
-                      DoHostName(AResolvedTtl, AName);
-                  end);
-                if Reached then
-                begin
-                  Res.Completed := True;
-                  Break;
-                end;
-              end
-              else
-              begin
-                Inc(ConsecutiveTimeouts);
-                Inc(HopCount);
-                Hop.Ttl := Ttl;
-                Hop.Ip := '';
-                Hop.HostName := '';
-                Hop.RttMs := 0;
-                Hop.Ok := False;
-                QueueHopNotify(Self, Hop);
-                if ConsecutiveTimeouts >= CMaxConsecutiveTimeouts then
-                  Break;
-              end;
-              Inc(Ttl);
-            end;
-          finally
-            IcmpCloseHandle(Icmp);
-          end;
-          Res.HopCount := HopCount;
-          Res.TotalMs := GetTickCount - StartTick;
-        except
-          { Report completion with whatever summary was gathered so far. }
+        if (not FWSAOk) or (Host = '') or (not ResolveIPv4(Host, Dest)) then
+        begin
+          Res.Failed := True;
+          Exit;
         end;
-      finally
-        if WSAOk then
-          WSACleanup;
-        TThread.Queue(nil, procedure begin DoComplete(Res); end);
+        Res.TargetIp := AddrToStr(Dest);
+
+        Icmp := IcmpCreateFile;
+        if (Icmp = 0) or (Icmp = INVALID_HANDLE_VALUE) then
+        begin
+          Res.Failed := True;
+          Exit;
+        end;
+        try
+          ConsecutiveTimeouts := 0;
+          Ttl := 1;
+          while Ttl <= CMaxHops do
+          begin
+            if SendEchoWithTtl(Icmp, Dest, Ttl, HopAddr, HopRtt, Reached) then
+            begin
+              ConsecutiveTimeouts := 0;
+              Inc(HopCount);
+              Hop.Ttl := Ttl;
+              Hop.Ip := AddrToStr(HopAddr);
+              Hop.RttMs := HopRtt;
+              Hop.Ok := True;
+              Hop.HostName := ''; { resolved asynchronously; reported via OnHostName }
+              QueueHopNotify(Self, Token, Hop);
+              StartReverseLookup(HopAddr, Ttl,
+                procedure(AResolvedTtl: Integer; AName: string)
+                begin
+                  if (not Token.IsCancelled) and (Gen = Self.FGeneration) then
+                    Self.DoHostName(AResolvedTtl, AName);
+                end);
+              if Reached then
+              begin
+                Res.Completed := True;
+                Break;
+              end;
+            end
+            else
+            begin
+              Inc(ConsecutiveTimeouts);
+              Inc(HopCount);
+              Hop.Ttl := Ttl;
+              Hop.Ip := '';
+              Hop.HostName := '';
+              Hop.RttMs := 0;
+              Hop.Ok := False;
+              QueueHopNotify(Self, Token, Hop);
+              if ConsecutiveTimeouts >= CMaxConsecutiveTimeouts then
+                Break;
+            end;
+            Inc(Ttl);
+          end;
+        finally
+          IcmpCloseHandle(Icmp);
+        end;
+        Res.HopCount := HopCount;
+        Res.TotalMs := GetTickCount - StartTick;
+      except
+        Res.Failed := True;
       end;
+      TThread.Queue(nil,
+        procedure
+        begin
+          if not Token.IsCancelled then
+            Self.DoComplete(Res);
+        end);
     end).Start;
 end;
 
