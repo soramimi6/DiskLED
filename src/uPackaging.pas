@@ -10,7 +10,7 @@ const
   { True: IsStorePackage always reports packaged, for manually exercising the
     Store-only code paths (no GitHub check, no tray balloon, no menu item, no
     options checkbox) on a normal (non-MSIX) dev build. }
-  CDebugForceStorePackage: Boolean = False;
+  CDebugForceStorePackage = False;
 
 function IsStorePackage: Boolean;
 
@@ -19,10 +19,9 @@ implementation
 uses
   Winapi.Windows;
 
-const
-  { APPMODEL_ERROR_NO_PACKAGE (15700, not packaged) and any other unexpected
-    error both fall through to FResult := False below. }
-  ERROR_INSUFFICIENT_BUFFER = 122;
+{ Winapi.Windows already declares ERROR_INSUFFICIENT_BUFFER (122).
+  APPMODEL_ERROR_NO_PACKAGE (15700, not packaged) and any other unexpected
+  error both fall through to FResult := False below. }
 
 var
   FCached: Boolean = False;
