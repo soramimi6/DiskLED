@@ -132,7 +132,9 @@
         <DCCReference Include="src\metrics\uMemCollector.pas"/>
         <DCCReference Include="src\metrics\uDiskCollector.pas"/>
         <DCCReference Include="src\metrics\uNetCollector.pas"/>
+        <DCCReference Include="src\metrics\uIcmpApi.pas"/>
         <DCCReference Include="src\metrics\uPingCollector.pas"/>
+        <DCCReference Include="src\metrics\uTracertCollector.pas"/>
         <DCCReference Include="src\metrics\uAudioCollector.pas"/>
         <DCCReference Include="src\metrics\uRangeEngine.pas"/>
         <DCCReference Include="src\metrics\uHistoryBuffer.pas"/>
@@ -148,6 +150,10 @@
         <DCCReference Include="src\uHoverTip.pas"/>
         <DCCReference Include="src\uOptionsForm.pas">
             <Form>OptionsForm</Form>
+        </DCCReference>
+        <DCCReference Include="src\uTraceRouteForm.pas">
+            <Form>TraceRouteForm</Form>
+            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="src\dashboard\uDashboardTheme.pas"/>
         <DCCReference Include="src\dashboard\uDashboardGraph.pas"/>

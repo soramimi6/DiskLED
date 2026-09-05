@@ -51,6 +51,7 @@ type
     procedure Tick;
     procedure CopyTo(var ASnap: TMetricsSnapshot);
     procedure CopyPingHistory(out AEntries: TArray<TPingHistoryEntry>);
+    function CurrentTarget: string;
   end;
 
 implementation
@@ -58,7 +59,8 @@ implementation
 uses
   System.SysUtils,
   Winapi.Windows,
-  Winapi.Winsock;
+  Winapi.Winsock,
+  uIcmpApi;
 
 const
   CDefaultHost = 'mg6.jp';
@@ -95,32 +97,6 @@ type
 
 function GetIpForwardTable(pIpForwardTable: Pointer; var pdwSize: ULONG;
   bOrder: BOOL): DWORD; stdcall; external 'iphlpapi.dll' name 'GetIpForwardTable';
-
-type
-  TIcmpEchoReply = record
-    Address: Cardinal;
-    Status: Cardinal;
-    RoundTripTime: Cardinal;
-    DataSize: Word;
-    Reserved: Word;
-    Data: Pointer;
-    Options: record
-      Ttl: Byte;
-      Tos: Byte;
-      Flags: Byte;
-      OptionsSize: Byte;
-      OptionsData: PAnsiChar;
-    end;
-  end;
-  PIcmpEchoReply = ^TIcmpEchoReply;
-
-function IcmpCreateFile: THandle; stdcall; external 'iphlpapi.dll' name 'IcmpCreateFile';
-function IcmpCloseHandle(IcmpHandle: THandle): BOOL; stdcall;
-  external 'iphlpapi.dll' name 'IcmpCloseHandle';
-function IcmpSendEcho(IcmpHandle: THandle; DestinationAddress: Cardinal;
-  RequestData: Pointer; RequestSize: Word; RequestOptions: Pointer;
-  ReplyBuffer: Pointer; ReplySize: DWORD; Timeout: DWORD): DWORD; stdcall;
-  external 'iphlpapi.dll' name 'IcmpSendEcho';
 
 type
   TPingWorker = class(TThread)
@@ -313,6 +289,19 @@ begin
       ASnap.PingTarget := FLastTarget
     else
       ASnap.PingTarget := FHost;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TPingCollector.CurrentTarget: string;
+begin
+  FLock.Enter;
+  try
+    if FLastTarget <> '' then
+      Result := FLastTarget
+    else
+      Result := FHost;
   finally
     FLock.Leave;
   end;

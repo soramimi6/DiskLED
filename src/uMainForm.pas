@@ -22,6 +22,7 @@ uses
   uHoverTip,
   uMeterRenderer,
   uDashboardForm,
+  uTraceRouteForm,
   uWindowPlacement,
   uUpdateCheck;
 
@@ -74,6 +75,7 @@ type
     FDashboardLastPushTick: Cardinal;
     FHasDashboardPushTick: Boolean;
     FDashboardForm: TDashboardForm;
+    FTraceRouteForm: TTraceRouteForm;
     FMiUpdate: TMenuItem;
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
@@ -86,6 +88,7 @@ type
     procedure ApplyDpiScale;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
+    procedure ShowTraceRouteForm;
     procedure ToggleCompactFull;
     procedure SetCompactView(ACompact: Boolean);
     procedure Render;
@@ -468,6 +471,7 @@ begin
   if FTimer <> nil then
     FTimer.Enabled := False;
   FreeAndNil(FDashboardForm);
+  FreeAndNil(FTraceRouteForm);
   FCollector.Free;
   FPipeline.Free;
   FHistory.Free;
@@ -661,6 +665,16 @@ begin
   if FSettings <> nil then
     FSettings.DashboardOpen := True;
   FDashboardForm.Show;
+end;
+
+procedure TMainForm.ShowTraceRouteForm;
+begin
+  if FTraceRouteForm = nil then
+    FTraceRouteForm := TTraceRouteForm.Create(Self, FCollector);
+  { FormShow (fired only on the hidden->visible transition) kicks the
+    tracert; re-selecting the menu while already open just refocuses it. }
+  FTraceRouteForm.Show;
+  FTraceRouteForm.BringToFront;
 end;
 
 procedure TMainForm.ApplyViewSize;
@@ -875,8 +889,7 @@ end;
 
 procedure TMainForm.miPingClick(Sender: TObject);
 begin
-  if FCollector <> nil then
-    FCollector.RequestPing;
+  ShowTraceRouteForm;
 end;
 
 procedure TMainForm.miDashboardClick(Sender: TObject);
