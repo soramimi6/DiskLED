@@ -7,17 +7,21 @@ type
   public
     class function Acquire: Boolean; static;
     class procedure FocusExisting; static;
+    { Registered message asking the running instance to activate itself
+      (foreground, or restore from tray size). Shared by name across
+      processes: RegisterWindowMessage returns the same id everywhere. }
+    class function ActivateMsg: Cardinal; static;
   end;
 
 implementation
 
 uses
-  Winapi.Windows,
-  Winapi.Messages;
+  Winapi.Windows;
 
 const
   CMutexName = 'Local\DiskLED.3.SingleInstance';
   CWindowClass = 'DiskLEDMainWnd';
+  CActivateMsgName = 'DiskLED_ActivateRequest';
 
 var
   GMutex: THandle = 0;
@@ -33,6 +37,11 @@ begin
   end;
 end;
 
+class function TSingleInstance.ActivateMsg: Cardinal;
+begin
+  Result := RegisterWindowMessage(CActivateMsgName);
+end;
+
 class procedure TSingleInstance.FocusExisting;
 var
   Wnd: HWND;
@@ -40,12 +49,10 @@ begin
   Wnd := FindWindow(CWindowClass, nil);
   if Wnd = 0 then
     Exit;
-  if IsIconic(Wnd) then
-    ShowWindow(Wnd, SW_RESTORE)
-  else
-    ShowWindow(Wnd, SW_SHOW);
-  SetForegroundWindow(Wnd);
-  SendMessage(Wnd, WM_NULL, 0, 0);
+  { Let the running instance decide how to activate itself (plain foreground,
+    or restore from tray size): a raw ShowWindow from this process would
+    bypass that logic and just reveal the window as last laid out. }
+  PostMessage(Wnd, ActivateMsg, 0, 0);
 end;
 
 initialization

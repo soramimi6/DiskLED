@@ -79,6 +79,17 @@ assets/
 
 上昇は指数、下降は定速スルーレート。経過時間ベースなので表示 fps を変えても時間あたりの動きは揃う。`Audio` / `AudioL` / `AudioR` は再生ピーク（MONO / L / R）。`Audio` 省略時は `peak` / `50`（他メーターの Default とは別）。`AudioL` / `AudioR` 省略時は `Audio` を継承。
 
+## [Tray]（任意）
+
+表示サイズ「タスクトレイ」用のディスクアクセス LED。`.ico`（16×16 と 32×32 を含む、32bpp+アルファ）を想定。`TAssetStore` の PNG/BMP キャッシュは使わず、`Shell_NotifyIcon` 向けに直接読み込む。
+
+| キー | 内容 |
+|---|---|
+| Off | ディスク非アクティブ時のアイコンファイル名 |
+| On | ディスクアクティブ時（Read または Write）のアイコンファイル名 |
+
+セクション自体が無い、またはファイルが読み込めない場合はエラーにせず、アプリアイコン固定（点灯なし）にフォールバックする。表示サイズ「タスクトレイ」自体は選択できる。
+
 ## パーツ節
 
 `Cpu` `Mem` `Swap` `Ping` `DiskRead` `DiskWrite` `DiskRW` `NetIn` `NetOut` `NetActivity` `NetTotal` `DiskReadMeter` `DiskWriteMeter` `NetInMeter` `NetOutMeter` `Audio` `AudioL` `AudioR`

@@ -52,6 +52,7 @@ begin
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
+  AddStr('menu.tray', 'タスクトレイ', 'Task Tray');
   AddStr('menu.exit', '終了', 'Exit');
   AddStr('menu.options', 'オプション', 'Options');
   AddStr('menu.reset_position', '位置をリセット', 'Reset Position');

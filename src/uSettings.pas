@@ -18,6 +18,7 @@ type
     FWindowY: Integer;
     FStartup: Boolean;
     FCompact: Boolean;
+    FTraySize: Boolean;
     FGraphRateHz: Double;
     FSpeedScale: TSpeedScale;
     FPingEnabled: Boolean;
@@ -53,7 +54,10 @@ type
     property WindowX: Integer read FWindowX write FWindowX;
     property WindowY: Integer read FWindowY write FWindowY;
     property Startup: Boolean read FStartup write FStartup;
+    { Last non-tray choice; kept updated even while TraySize is active so
+      the tray double-click / next-launch restore has a target. }
     property Compact: Boolean read FCompact write FCompact;
+    property TraySize: Boolean read FTraySize write FTraySize;
     property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
     property SpeedScale: TSpeedScale read FSpeedScale write FSpeedScale;
     property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
@@ -141,6 +145,7 @@ begin
   FWindowY := 100;
   FStartup := False;
   FCompact := True;
+  FTraySize := False;
   FGraphRateHz := 1.0;
   FSpeedScale := ssLinear;
   FPingEnabled := True;
@@ -223,6 +228,7 @@ end;
 procedure TAppSettings.Load;
 var
   Ini: TMemIniFile;
+  SizeStr: string;
 begin
   ApplyDefaults;
   ResolvePath;
@@ -241,6 +247,21 @@ begin
     FWindowY := Ini.ReadInteger('General', 'WindowY', FWindowY);
     FStartup := Ini.ReadBool('General', 'Startup', FStartup);
     FCompact := Ini.ReadBool('View', 'Compact', FCompact);
+    { Size is the current key; Compact above is read first as the legacy
+      fallback for files written by versions before the tray size existed. }
+    SizeStr := Trim(Ini.ReadString('View', 'Size', ''));
+    if SizeStr = '' then
+      FTraySize := False
+    else
+    begin
+      FTraySize := SameText(SizeStr, 'tray');
+      if SameText(SizeStr, 'full') then
+        FCompact := False
+      else if SameText(SizeStr, 'compact') then
+        FCompact := True;
+      { SizeStr = 'tray': FCompact keeps the legacy value read above, which
+        is the compact/full state to restore when leaving the tray. }
+    end;
     FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
     if SameText(Trim(Ini.ReadString('View', 'SpeedScale', 'linear')), 'log') then
       FSpeedScale := ssLog
@@ -293,6 +314,12 @@ begin
     Ini.WriteInteger('General', 'WindowY', FWindowY);
     Ini.WriteBool('General', 'Startup', FStartup);
     Ini.WriteBool('View', 'Compact', FCompact);
+    if FTraySize then
+      Ini.WriteString('View', 'Size', 'tray')
+    else if FCompact then
+      Ini.WriteString('View', 'Size', 'compact')
+    else
+      Ini.WriteString('View', 'Size', 'full');
     Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
     if FSpeedScale = ssLog then
       Ini.WriteString('View', 'SpeedScale', 'log')

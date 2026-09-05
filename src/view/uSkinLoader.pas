@@ -16,6 +16,8 @@ type
     HasFull: Boolean;
     Layout: TViewLayout;
     FullLayout: TViewLayout;
+    TrayOffFile: string;
+    TrayOnFile: string;
   end;
 
 function LoadSkinLayout(const ALayoutIniPath: string; out AMeta: TSkinModeMeta): Boolean;
@@ -308,6 +310,14 @@ begin
     Result.NetIn.Enabled or Result.NetOut.Enabled;
 end;
 
+procedure ReadTray(Ini: TCustomIniFile; var AMeta: TSkinModeMeta);
+begin
+  { [Tray] is optional: a missing section leaves both file names empty, and
+    the caller falls back to the fixed app icon rather than failing. }
+  AMeta.TrayOffFile := Trim(Ini.ReadString('Tray', 'Off', ''));
+  AMeta.TrayOnFile := Trim(Ini.ReadString('Tray', 'On', ''));
+end;
+
 function LoadSkinLayout(const ALayoutIniPath: string; out AMeta: TSkinModeMeta): Boolean;
 var
   Ini: TMemIniFile;
@@ -358,6 +368,8 @@ begin
         AMeta.FullLayout.FontFile := Trim(Ini.ReadString('ModeFull', 'Font', ''));
       AMeta.FullLayout.Graph := ReadGraph(Ini);
     end;
+
+    ReadTray(Ini, AMeta);
 
     Result := True;
   finally
