@@ -34,12 +34,10 @@ implementation
 uses
   uDpiScale;
 
-function WorkAreaForRect(const R: TRect): TRect;
+function WorkAreaForMonitor(Mon: HMONITOR): TRect;
 var
-  Mon: HMONITOR;
   Info: TMonitorInfo;
 begin
-  Mon := MonitorFromRect(@R, MONITOR_DEFAULTTONEAREST);
   FillChar(Info, SizeOf(Info), 0);
   Info.cbSize := SizeOf(Info);
   if (Mon <> 0) and GetMonitorInfo(Mon, @Info) then
@@ -48,20 +46,19 @@ begin
     SystemParametersInfo(SPI_GETWORKAREA, 0, @Result, 0);
 end;
 
+function WorkAreaForRect(const R: TRect): TRect;
+begin
+  Result := WorkAreaForMonitor(MonitorFromRect(@R, MONITOR_DEFAULTTONEAREST));
+end;
+
 function WorkAreaForWindow(AWnd: HWND): TRect;
 var
   Mon: HMONITOR;
-  Info: TMonitorInfo;
 begin
   Mon := 0;
   if AWnd <> 0 then
     Mon := MonitorFromWindow(AWnd, MONITOR_DEFAULTTONEAREST);
-  FillChar(Info, SizeOf(Info), 0);
-  Info.cbSize := SizeOf(Info);
-  if (Mon <> 0) and GetMonitorInfo(Mon, @Info) then
-    Result := Info.rcWork
-  else
-    SystemParametersInfo(SPI_GETWORKAREA, 0, @Result, 0);
+  Result := WorkAreaForMonitor(Mon);
 end;
 
 procedure ConstrainToWorkArea(var Left, Top: Integer; W, H: Integer;
