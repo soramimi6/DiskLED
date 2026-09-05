@@ -135,6 +135,7 @@ type
     procedure SyncUpdateMenu;
     procedure ScheduleUpdateCheck;
     procedure CancelUpdateCheck;
+    function UpdateCheckEnabled: Boolean;
     procedure UpdateDelayTick(Sender: TObject);
     procedure ApplyUpdateCheckResult(AGen: Integer; const AResult: TUpdateCheckResult);
     procedure OpenUpdatePage;
@@ -161,6 +162,7 @@ uses
   uGraphRenderer,
   uOptionsForm,
   uStartup,
+  uPackaging,
   uMetricsTypes,
   uDpiScale,
   Winapi.ShellAPI;
@@ -330,7 +332,7 @@ begin
   FUpdateDelay.Interval := 5000;
   FUpdateDelay.OnTimer := UpdateDelayTick;
   SyncUpdateMenu;
-  if (FSettings <> nil) and FSettings.UpdateEnabled then
+  if UpdateCheckEnabled then
     ScheduleUpdateCheck;
 end;
 
@@ -882,7 +884,7 @@ begin
   begin
     ApplySettingsToUi;
     PersistSettings;
-    if FSettings.UpdateEnabled then
+    if UpdateCheckEnabled then
       ScheduleUpdateCheck
     else
       CancelUpdateCheck;
@@ -891,13 +893,21 @@ begin
   EnsureNoTaskbarButton;
 end;
 
+function TMainForm.UpdateCheckEnabled: Boolean;
+begin
+  { Store builds never check GitHub, regardless of the ini setting: the
+    Store version is updated through Microsoft Store, and the same exe is
+    shipped both ways so this can't be a compile-time constant. }
+  Result := (FSettings <> nil) and FSettings.UpdateEnabled and not IsStorePackage;
+end;
+
 procedure TMainForm.SyncUpdateMenu;
 var
   Ver: string;
 begin
   if FMiUpdate = nil then
     Exit;
-  if (FSettings = nil) or (not FSettings.UpdateEnabled) then
+  if not UpdateCheckEnabled then
   begin
     FMiUpdate.Visible := False;
     Exit;
@@ -935,7 +945,7 @@ var
 begin
   if FUpdateDelay <> nil then
     FUpdateDelay.Enabled := False;
-  if FClosing or (FSettings = nil) or (not FSettings.UpdateEnabled) then
+  if FClosing or (not UpdateCheckEnabled) then
     Exit;
   Gen := FUpdateGen;
   TThread.CreateAnonymousThread(
@@ -968,7 +978,7 @@ begin
     Exit;
   if AGen <> FUpdateGen then
     Exit;
-  if (FSettings = nil) or (not FSettings.UpdateEnabled) then
+  if not UpdateCheckEnabled then
     Exit;
   Local := GetProductVersionText;
   if AResult.Found then

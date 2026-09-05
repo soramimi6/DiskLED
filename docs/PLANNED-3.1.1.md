@@ -31,23 +31,20 @@
 - `TMainForm.SyncUpdateMenu`（[uMainForm.pas:881](../src/uMainForm.pas#L881)）: 同フラグが False ならメニュー項目 `FMiUpdate`（「新しい DiskLED 3.x.x の情報を見る」）を非表示
 - `TMainForm.ApplyUpdateCheckResult`（[uMainForm.pas:952](../src/uMainForm.pas#L952)）: 同フラグが False ならバルーン通知（`ShowUpdateBalloon`）に進まない
 
-つまり **`FSettings.UpdateEnabled` を Store 版で常に False にすれば、GitHub 確認・トレイ通知・メニュー項目の 3 つは自動的に止まる。** 残るのはオプション画面のチェックボックスを隠すことだけ。
+つまり **判定を `FSettings.UpdateEnabled` の参照 3 箇所に効かせれば、GitHub 確認・トレイ通知・メニュー項目の 3 つは自動的に止まる。** 残るのはオプション画面のチェックボックスを隠すことだけ。
 
-1. 新規ユニット `src/uPackaging.pas` を追加し、`function IsStorePackage: Boolean;` を実装する
-   - `GetCurrentPackageFullName`（`kernel32.dll`、Windows 8+、一般権限）を `external` 宣言する
-     ```pascal
-     function GetCurrentPackageFullName(var packageFullNameLength: UINT32;
-       packageFullName: PWideChar): LongInt; stdcall;
-       external 'kernel32.dll' name 'GetCurrentPackageFullName';
-     ```
-   - バッファ長 0 で 1 回目を呼び、戻り値が `APPMODEL_ERROR_NO_PACKAGE`（15700）なら非パッケージ（False）、`ERROR_INSUFFICIENT_BUFFER`（122）ならパッケージ済み（True）と判定する。プロセス起動後に変わる値ではないため、初回呼び出し結果をユニット内キャッシュ変数に保持して以降は再計算しない
-   - 既存の `uUpdateCheck.CDebugForceNewerRelease` と同じ流儀で、開発機で Store 分岐を手動確認するための `CDebugForceStorePackage: Boolean = False` を用意しておく（リリース前に False であることを確認）
-2. `src/uMainForm.pas` の設定読み込み直後（`FSettings := TSettings.Create` 系の初期化箇所、`ScheduleUpdateCheck` が最初に呼ばれる `FormCreate` より前）に、`if IsStorePackage then FSettings.UpdateEnabled := False;` を追加する。**ini には書き戻さない**（メモリ上の値だけ上書きし、`PersistSettings` で保存しない。将来同じ ini を非 Store 環境で使い回しても影響しないようにする）
-3. `src/uOptionsForm.pas` の `LoadFromSettings`（チェックボックス初期化箇所）で、`IsStorePackage` が True のとき `ChkUpdateCheck.Visible := False` にする。可視領域が詰まるよう、既存のカードレイアウト（他チェックボックスの `Top` 位置）に合わせて後続コントロールを詰めるか、空欄のまま残すかは実装時に画面を見て決める
-4. 手動確認: `CDebugForceStorePackage` を一時的に True にしてビルドし、(a) 起動直後に GitHub へのリクエストが飛ばないこと（ネットワーク越しに確認するか、`TryFetchLatestRelease` にブレークポイント）、(b) トレイ通知が出ないこと、(c) 右クリックメニューに更新項目が出ないこと、(d) オプション画面にチェックボックスが出ないこと、の 4 点を確認してから False に戻す
+**実装済み**:
+
+1. 新規ユニット `src/uPackaging.pas` を追加し、`function IsStorePackage: Boolean;` を実装した
+   - `GetCurrentPackageFullName`（`kernel32.dll`、Windows 8+、一般権限）を `external` 宣言
+   - バッファ長 0 で 1 回目を呼び、戻り値が `ERROR_INSUFFICIENT_BUFFER`（122）ならパッケージ済み（True）、それ以外（`APPMODEL_ERROR_NO_PACKAGE`=15700 を含む）は非パッケージ（False）と判定する。初回呼び出し結果をユニット内キャッシュ変数に保持し、以降は再計算しない
+   - 既存の `uUpdateCheck.CDebugForceNewerRelease` と同じ流儀の `CDebugForceStorePackage: Boolean = False` を用意（リリース前に False であることを確認）
+2. `src/uMainForm.pas` に `function TMainForm.UpdateCheckEnabled: Boolean;`（[uMainForm.pas:896-902](../src/uMainForm.pas#L896-L902)）を追加し、`(FSettings <> nil) and FSettings.UpdateEnabled and not IsStorePackage` を返す。**`FSettings.UpdateEnabled` 自体は書き換えない**（`FormCreate` 内で複数回走る `PersistSettings` により ini へ書き戻ってしまい、将来同じ ini を非 Store 環境で使い回した際に影響が残るため）。既存の5箇所の参照（`UpdateDelayTick`／`SyncUpdateMenu`／`ApplyUpdateCheckResult`／`FormCreate`／`miOptionsClick`）をすべてこのヘルパー経由に統一した
+3. `src/uOptionsForm.pas` の `LoadFromSettings` で `IsStorePackage` が True のとき `ChkUpdateCheck.Visible := False` にし（後続コントロールは詰めず空欄のまま）、設定保存時の処理でも `IsStorePackage` のときは `ChkUpdateCheck.Checked` を `FSettings.UpdateEnabled` へ書き戻さない（隠れたチェックボックスの状態で保存済み設定を汚さないため）
+4. 手動確認（未実施・ユーザー側で実施予定）: `CDebugForceStorePackage` を一時的に True にしてビルドし、(a) 起動直後に GitHub へのリクエストが飛ばないこと、(b) トレイ通知が出ないこと、(c) 右クリックメニューに更新項目が出ないこと、(d) オプション画面にチェックボックスが出ないこと、の 4 点を確認してから False に戻す
 5. 最終的に実機の MSIX（Store 提出用ビルドまたはサイドロード）でも同じ 4 点を確認する
 
-見積り: 半日程度（新規ユニットは小さく、呼び出し側の変更点も 2 箇所のみ）。
+見積り: 半日程度。
 
 ## 2. アプリアイコン
 
