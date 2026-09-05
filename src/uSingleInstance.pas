@@ -45,13 +45,22 @@ end;
 class procedure TSingleInstance.FocusExisting;
 var
   Wnd: HWND;
+  Pid: DWORD;
 begin
   Wnd := FindWindow(CWindowClass, nil);
   if Wnd = 0 then
     Exit;
   { Let the running instance decide how to activate itself (plain foreground,
     or restore from tray size): a raw ShowWindow from this process would
-    bypass that logic and just reveal the window as last laid out. }
+    bypass that logic and just reveal the window as last laid out. But only
+    this process (freshly launched by the user's own click) holds the
+    foreground-activation privilege, so hand it to the running instance
+    before asking it to call SetForegroundWindow on itself - otherwise
+    Windows' focus-stealing prevention silently drops that call. }
+  Pid := 0;
+  GetWindowThreadProcessId(Wnd, Pid);
+  if Pid <> 0 then
+    AllowSetForegroundWindow(Pid);
   PostMessage(Wnd, ActivateMsg, 0, 0);
 end;
 
