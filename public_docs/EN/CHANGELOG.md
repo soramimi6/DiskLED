@@ -6,6 +6,8 @@ Newest first. User-facing summary only; implementation detail lives in `docs/DES
 
 ## 3.1.1
 
+**If you use the Microsoft Store version**: Starting with 3.1.1, the Store build no longer checks GitHub for updates at startup — updates arrive automatically through the Store. Please do not additionally install the GitHub installer or zip on top of it; running both can cause duplicate instances and conflicting settings.
+
 Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 
 - **Added a "task tray" display size.** The right-click display-size menu is now an exclusive 3-way choice: Compact / Full / Task Tray. Choosing Task Tray hides the main window and turns the notification-area icon itself into a disk-activity LED (Read/Write combined, on/off). Double-click restores the last Compact/Full size. The right-click menu is the same regardless of display size

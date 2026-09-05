@@ -42,8 +42,20 @@ PR <バージョン> Planned#<項番>[,<項番>...] <元のタイトル（英語
 1. `docs/PLANNED-x.y.z.md` の全項目が完了し、`public_docs/` 側の更新（CHANGELOG/USAGE/NOTES/INSTALL の JA+EN）も終わったら、`feature/x.y.z → master` の PR を作る（省略して直接 fast-forward してもよい）
 2. マージは **squash しない**（Rebase and merge、または fast-forward）。項目ごとに squash 済みの履歴をそのまま `master` に残し、バージイン全体をまた 1 個のコミットに潰さない
 3. マージ後、リリースタグを打つ
-4. GitHub Release を作成する際、`Announcements` カテゴリで Discussion を同時作成する（`gh release create vX.Y.Z --discussion-category Announcements ...`、または Web UI の「Create a discussion for this release」）
+4. GitHub Release を作成する際、`Announcements` カテゴリで Discussion を同時作成する（`gh release create vX.Y.Z --discussion-category Announcements ...`、または Web UI の「Create a discussion for this release」）。本文の形式は下記「Release 本文の形式」に従う
 5. その版の Milestone（`docs/PLANNED-x.y.z.md` に対応するもの）に紐づく Issue が残っていれば、実装済みの項目をクローズする
+
+### Release 本文の形式
+
+`gh release create` に渡す本文は次の並びのみで構成する。見出し（`##`）や区切り線（`---`）は使わない:
+
+1. JA 説明文1行「Windows 10 / 11 向け DiskLED X.Y.Z の更新（64-bit）。」
+2. 空行 → JA 箇条書き（`public_docs/CHANGELOG.md` 該当節の要約でよく、一言一句のコピーでなくてよい）
+3. 空行 → EN 説明文1行「DiskLED X.Y.Z for Windows 10 / 11 (64-bit).」
+4. 空行 → EN 箇条書き（3の要約の英訳）
+5. 空行 → `Installer: DiskLED_Setup_X.Y.Z.exe` / `Portable: DiskLED-X.Y.Z-portable.zip`
+
+Store 版と GitHub 版の配布経路が混在しうる版（3.1.1 以降）では、該当する注意事項がある場合、1 の直前・3 の直前にそれぞれ太字1文で入れる（JA/EN 双方に必須）。
 
 ## GitHub 機能の運用方針
 

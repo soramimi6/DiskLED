@@ -105,7 +105,7 @@ Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply
 |------|--------|
 | Always on top | Gadget window only (on by default). Does not apply to the dashboard |
 | Run at Windows startup | Writes the Run key on Apply and on a normal exit |
-| Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item. Not shown on the Microsoft Store build, which updates through the Store instead |
+| Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item. Not shown on the Microsoft Store build, which updates automatically via the Store. **Do not run the Store edition and the GitHub edition (installer/zip) side by side** |
 | Refresh rate (fps) | 10 / 15 (default) / 20. No redraw while sprite frames stay the same |
 | Graph update (Hz) | 0.5 / 1 (default) / 2 for Original / Metalic **full-view** history. Dashboard history is always 1 second |
 | Network speed response | Linear (link speed = 100%, default) or logarithmic. Switching clears gadget and dashboard network history |

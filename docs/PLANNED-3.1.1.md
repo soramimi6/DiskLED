@@ -43,6 +43,7 @@
 3. `src/uOptionsForm.pas` の `LoadFromSettings` で `IsStorePackage` が True のとき `ChkUpdateCheck.Visible := False` にし（後続コントロールは詰めず空欄のまま）、設定保存時の処理でも `IsStorePackage` のときは `ChkUpdateCheck.Checked` を `FSettings.UpdateEnabled` へ書き戻さない（隠れたチェックボックスの状態で保存済み設定を汚さないため）
 4. 手動確認（未実施・ユーザー側で実施予定）: `CDebugForceStorePackage` を一時的に True にしてビルドし、(a) 起動直後に GitHub へのリクエストが飛ばないこと、(b) トレイ通知が出ないこと、(c) 右クリックメニューに更新項目が出ないこと、(d) オプション画面にチェックボックスが出ないこと、の 4 点を確認してから False に戻す
 5. 最終的に実機の MSIX（Store 提出用ビルドまたはサイドロード）でも同じ 4 点を確認する
+6. リリース作業時、`public_docs/CHANGELOG.md`・`NOTES.md`・`USAGE.md`（JA+EN）・README.md の配布形態の節・GitHub Release 本文に、Store 版ユーザー向けの「GitHub 版と併用しない」告知を入れる（`docs/CONTRIBUTING.md`「Release 本文の形式」節）。**実装済み**（public_docs/README）。Release 本文への反映は実際の `gh release create` 実行時に行う
 
 見積り: 半日程度。
 

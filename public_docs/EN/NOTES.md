@@ -19,7 +19,7 @@ The author accepts no liability for any damage arising from use of this software
 - Dashboard colors follow Windows app light/dark mode. The gadget display modes (Original / Crystal / Metalic / Info Bar) stay skin-based and do not follow OS light/dark. Light dashboard colors are provisional
 - The app reads **L / R peaks** (0–1) of the mix sent to the playback device, locally, and also keeps a mono equivalent (max of all metering channels). It does not keep or send waveforms or recordings. Horizontal L / R bars (left to right) and the default playback device name (local display only) appear on the right card of the dashboard power subsection. Peaks are 0 when another app has exclusive mode. With no playback device, peaks are 0 and the name is —
 - **Task tray** (3.1.1): storing the icon in the notification area's "hidden icons" tray also hides the disk-activity LED blinking (a Windows limitation) — pin it somewhere always visible instead. Each display mode ships its own tray LED art; a mode without it falls back to the fixed app icon (no LED)
-- **Microsoft Store build** (3.1.1): does not check GitHub for updates at startup (it updates through the Store instead)
+- **Microsoft Store edition** (3.1.1): Does not check GitHub for updates at startup (updates arrive automatically via the Store). Do not also install the GitHub installer or portable zip — having both can cause duplicate running instances and conflicting `DiskLED.ini` settings. If switching from the GitHub edition to the Store edition, uninstall the GitHub edition first (or delete the portable folder) before installing the Store edition
 
 ## Changes from DiskLED 2.x
 
