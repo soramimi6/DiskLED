@@ -319,27 +319,22 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 
 ### 6-1. ホバーポップアップの表示位置
 
-- **原因確認済み**: `src/uHoverTip.pas` の `THoverTip.ShowAtCursor`（[uHoverTip.pas:98-114](../src/uHoverTip.pas#L98-L114)）はカーソル座標に固定オフセット（`Y+18`）を足しただけの位置へ `TTM_TRACKPOSITION` で直接出しており、画面端・モニター境界のクランプが無い。`TTF_ABSOLUTE` 指定のため OS 側の自動調整もかからない
-- **実装プラン**:
-  1. `TTM_UPDATETIPTEXT` の後、`TTM_GETBUBBLESIZE` で現在のテキストに対するツールチップの実サイズを取得
-  2. カーソル位置＋オフセットとそのサイズから候補矩形を作る
-  3. カーソル直下のモニター（`MonitorFromPoint`）の作業領域でクランプ（右/下へはみ出るなら左/上へ寄せる）
-  4. クランプ後の座標で `TTM_TRACKPOSITION`
-  5. `src/uWindowPlacement.pas` の既存クランプロジック（`MonitorFromRect` + `GetMonitorInfo(...).rcWork`）と同じ考え方を再利用する。矩形をモニター作業領域内へ収めるだけの関数を同ユニットに公開追加し、ガジェット本体側とツールチップ側の両方から使う
+- **原因確認済み**: `src/uHoverTip.pas` の `THoverTip.ShowAtCursor` はカーソル座標に固定オフセット（`Y+18`）を足しただけの位置へ `TTM_TRACKPOSITION` で直接出しており、画面端・モニター境界のクランプが無い。`TTF_ABSOLUTE` 指定のため OS 側の自動調整もかからない
+- **実装済み**: `TTM_GETBUBBLESIZE` は非バルーン形式の追跡ツールチップでは表示前に信頼できるサイズを返さないことが実機検証で判明したため、代わりに一旦 `TTM_TRACKPOSITION`＋`TTM_TRACKACTIVATE` で通常どおり表示してから `GetWindowRect` で実際のウィンドウ矩形を取得し、`src/uWindowPlacement.pas` に新規追加した公開関数 `ClampRectToWindowMonitor`（既存の `ConstrainAndSnapRect` と同じ `ConstrainToWorkArea` ロジックを再利用しつつ、モニター判定を矩形自身（`MonitorFromRect`）ではなく**本体ウィンドウ**（`MonitorFromWindow(FOwner, ...)`）基準にしたもの。矩形が境界をまたぐ場合に本体と別モニターへクランプされるのを防ぐ）でモニター作業領域内へクランプ、はみ出す場合のみ `TTM_TRACKPOSITION` を再送して補正する（[uHoverTip.pas:99-140](../src/uHoverTip.pas#L99-L140)）。さらに、クランプ後の矩形がカーソル自身を覆ってしまう場合（主に下端でのクランプ時）はホバー表示/非表示が点滅するループに陥るため、`PtInRect` で検出してカーソルの上側へ反転配置してから再クランプする
 
 ### 6-2. 画面外に隠れて操作不能になる問題への対策
 
-- **確認できたこと**: 起動時（`TMainForm.FormCreate`）には既に `ApplyWindowBounds`（[uMainForm.pas:687-695](../src/uMainForm.pas#L687-L695)）が `ConstrainAndSnapRect` でモニター作業領域内へクランプしており、**次回起動時は自動復旧する**
+- **確認できたこと**: 起動時（`TMainForm.FormCreate`）には既に `ApplyWindowBounds` が `ConstrainAndSnapRect` でモニター作業領域内へクランプしており、**次回起動時は自動復旧する**
 - **残っている穴**: 起動したまま解像度・モニター構成を変えた場合に再クランプする仕組みが無い（`WM_DISPLAYCHANGE` ハンドラが本体に無い）。本体はボーダーレス・タスクバーボタン無しのため、OS標準の「ウィンドウを画面内に戻す」操作も使えない
-- **実装プラン**:
-  1. `TMainForm` に `WM_DISPLAYCHANGE` メッセージハンドラを追加し、受信時に既存の `ApplyWindowBounds` を呼ぶ（解像度変更の瞬間に自動クランプ）
-  2. 右クリックメニューに「位置をリセット」的な項目を追加し、`ApplyWindowBounds`（または画面中央への再配置）を手動で呼べるようにする。タスクトレイのアイコンは本体が画面外でも常に操作できるので、確実な復旧手段になる
+- **実装済み**:
+  1. `TMainForm.WMDisplayChange`（[uMainForm.pas:1130-1138](../src/uMainForm.pas#L1130-L1138)）を追加し、`WM_DISPLAYCHANGE` 受信時に `ApplyWindowBounds` を呼んで再クランプする
+  2. 右クリックメニューに「位置をリセット」項目（`menu.reset_position`）を追加し、`miResetPositionClick`（[uMainForm.pas:887-894](../src/uMainForm.pas#L887-L894)）で `ApplyWindowBounds` → `PersistSettings` → `BringWindowForward` を手動で呼べるようにした。タスクトレイのアイコンは本体が画面外でも常に操作できるので、確実な復旧手段になる
 
 ### 6-3. サブモニターに置いた本体ウィンドウが再起動でメインモニターへ移動する
 
 - **再現条件確認済み**: 本体ウィンドウをサブモニター、ダッシュボードをメインモニターに置いた状態で終了→起動すると、本体がダッシュボード側のモニターへ引き寄せられる（本体とダッシュボードが同じモニターなら発生しない）
 - **原因確認済み**（VCL ソース `Vcl.Forms.pas` を直接確認）: `TCustomForm.SetVisible`（`Vcl.Forms.pas:6241-6260`）は `Visible` が False→True になる瞬間、`inherited Visible := Value` を実行する**前**に `SetWindowToMonitor`（`Vcl.Forms.pas:7510-7571`）を呼ぶ。この関数は `DefaultMonitor` プロパティ（既定値 `dmActiveForm`。`TMainForm` は明示指定していないため既定のまま）が `dmDesktop` でない限り動作し、「アクティブなフォームが乗っているモニター」（`Screen.ActiveCustomForm.Monitor`）と「このウィンドウ自身が乗っているモニター」が異なる場合、**`Position = poDesigned` であっても関係なく**ウィンドウを強制的に前者のモニターへ再配置する（`FPosition = poScreenCenter` / `poMainFormCenter` のときだけ別処理になり、それ以外は全部この再配置分岐に入る）。`TMainForm.FormCreate` 内の `ShowDashboard`（[uMainForm.pas:309-310](../src/uMainForm.pas#L309-L310)、`FSettings.DashboardOpen` が真の場合に呼ばれる）は本体が可視化される前に実行されるため、ダッシュボードが先に「アクティブなフォーム」になり、そのモニターへ本体が引き寄せられる。`.dpr` の `Application.Run`（[DiskLED.dpr:61](../DiskLED.dpr#L61)）が呼ぶ `FMainForm.Visible := True` がこのトリガーであり、`TMainForm.FormCreate` の外（`Application.CreateForm` が返った後）で発生するため、`FormCreate` 内の処理順序をどう変えても防げない
 - **実装済み**: `TMainForm.FormCreate` の `Position := poDesigned;` の直後に `DefaultMonitor := dmDesktop;` を追加した（[uMainForm.pas:242-249](../src/uMainForm.pas#L242-L249)）。`SetWindowToMonitor` の冒頭ガード（`if (FDefaultMonitor <> dmDesktop) and ...`）によりこの関数自体が無効化され、VCL による自動モニター追従は発生しなくなる。位置管理は既存の `ConstrainAndSnapRect`（`uWindowPlacement.pas`）に一本化される
-- あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にし（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）、`TMainForm.CreateParams`（[uMainForm.pas:168-188](../src/uMainForm.pas#L168-L188)）でも `FSettings.WindowX/WindowY` を `Params.X/Y` に直接注入し、HWND 生成時点の座標を保険として保証している
+- あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にした（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）。`TMainForm.CreateParams`（[uMainForm.pas:168-181](../src/uMainForm.pas#L168-L181)）への座標注入は当初あわせて追加したが、HWND 再生成のたびに古い保存座標へ巻き戻すバグを生むと `/code-review` で指摘され撤去済み（VCL 標準の「現在の Left/Top を使う」動作のまま）
 
 見積り: 半日程度（3件とも既存の `uWindowPlacement.pas` ロジックを再利用する、または呼び出し順序の変更のみで小規模）。
