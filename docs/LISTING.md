@@ -1,6 +1,6 @@
 # 掲載・紹介用文案
 
-窓の杜・Vector・自サイト向けの短文です。文言を変えたら実装・設計と矛盾がないか確認してください。Vector への**差し替え申請の手順**は [`VECTOR.md`](VECTOR.md)。
+窓の杜・Vector・自サイト向けの短文です。文言を変えたら実装・設計と矛盾がないか確認してください。
 
 ## 一行紹介
 
@@ -43,7 +43,7 @@ Windows XP 時代の DiskLED を、Windows 10/11 向けに基本設計から再�
 
 ## 配布 URL
 
-GitHub のタグ `v3.1.0`（Latest）に合わせる。Vector 公開ページが古い版のままなら [`VECTOR.md`](VECTOR.md) で差し替え申請する。
+GitHub のタグ `v3.1.0`（Latest）に合わせる。
 
 - インストーラー: https://github.com/soramimi6/DiskLED/releases/download/v3.1.0/DiskLED_Setup_3.1.0.exe
 - ポータブル zip（任意）: https://github.com/soramimi6/DiskLED/releases/download/v3.1.0/DiskLED-3.1.0-portable.zip

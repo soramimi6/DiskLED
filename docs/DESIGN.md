@@ -335,7 +335,7 @@ DISKLED HUD（ヘッダー）
 
 ## 15. 次の実装着手点
 
-1. 3.1.1 の予定は `docs/PLANNED-3.1.1.md`。Store の登録・更新手順は `docs/Microsoft_Store.md`（いずれも公開ドキュメントには書かない）
+1. 3.1.1 の予定は `docs/PLANNED-3.1.1.md`
 2. MVP フェーズ Phase0–Phase6 は受け入れ済み。公開準備（配布 URL・クレジット名義など）を進める
 3. 二期候補（手動レンジ、OwnerDraw メニュー等）は必要に応じて DESIGN / README の非採用・含めない表から起こす
 4. アイコン変更後などは IDE で Win64 Release をビルドし、`.\tools\make-portable.ps1` / `.\tools\make-installer.ps1` で配布物を再生成する
