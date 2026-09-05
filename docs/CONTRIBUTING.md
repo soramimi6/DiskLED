@@ -42,6 +42,38 @@ PR <バージョン> Planned#<項番>[,<項番>...] <元のタイトル（英語
 1. `docs/PLANNED-x.y.z.md` の全項目が完了し、`public_docs/` 側の更新（CHANGELOG/USAGE/NOTES/INSTALL の JA+EN）も終わったら、`feature/x.y.z → master` の PR を作る（省略して直接 fast-forward してもよい）
 2. マージは **squash しない**（Rebase and merge、または fast-forward）。項目ごとに squash 済みの履歴をそのまま `master` に残し、バージイン全体をまた 1 個のコミットに潰さない
 3. マージ後、リリースタグを打つ
+4. GitHub Release を作成する際、`Announcements` カテゴリで Discussion を同時作成する（`gh release create vX.Y.Z --discussion-category Announcements ...`、または Web UI の「Create a discussion for this release」）
+5. その版の Milestone（`docs/PLANNED-x.y.z.md` に対応するもの）に紐づく Issue が残っていれば、実装済みの項目をクローズする
+
+## GitHub 機能の運用方針
+
+Issues / Discussions / Projects / Actions・Agents（GitHub Copilot coding agent）の使い分け。
+
+### Discussions（ユーザーとの接点として活用）
+
+| カテゴリ | 用途 |
+|---|---|
+| `Announcements` | リリース告知専用。リリース時の手順（上記4）で自動投稿する |
+| `Q&A` | 使い方の質問受付 |
+| `Ideas` | 機能要望の受付。`docs/PLANNED-3.2.0.md` のネタ元として使う |
+| `General` / `Show and tell` / `Polls` | 必要に応じて |
+
+### Issues（`docs/PLANNED-x.y.z.md` の概要ミラー・一方向）
+
+正本は常に `docs/PLANNED-x.y.z.md`。GitHub Issue には**タイトル＋概要 2〜3 行＋該当ファイルへのリンク**だけの軽量ミラーを作り、実装プラン・技術検証の詳細はリンク先を見てもらう。
+
+- **リアルタイム同期はしない。** PLANNED docs 側の優先度並び替えや技術検証の追記のたびにIssueを更新する必要はない。スコープが変わる・項目が完了する・新しい版の PLANNED docs を作るなど、**節目でまとめて作成・更新・クローズする**
+- バージョンごとに Milestone（例 `3.1.2`、`3.2.0`）を切り、該当する Issue を紐づける
+- 項目の実装が完了したら対応する Issue をクローズする（PR 本文に `Closes #<番号>` と書けば merge 時に自動クローズできる）
+
+### Projects — 使わない（無効化済み）
+
+リポジトリ設定で OFF。PLANNED docs の一覧表と Milestone で十分に管理できるため、二重管理を避ける。
+
+### Actions・Agents — 使わない（無効化済み・利用不可）
+
+- **Actions**: リポジトリ設定で OFF。CI を持たない方針（開発機の Delphi Community Edition は CLI ビルド不可。CE のライセンス自体が CI 用途での自動ビルドを想定していないため、GitHub Actions 上に移してもこの制約は解消しない）と、`/code-review` を唯一の品質ゲートとする現行運用に合わせた
+- **Agents（GitHub Copilot coding agent）**: このアカウントは Copilot のサブスクリプションを持たず、そもそも利用できない（無効化操作自体が不要）。実装は Claude Code で行う現行運用と役割が重複するため、将来的に契約する予定もない
 
 ## コミットメッセージ
 
