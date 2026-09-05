@@ -89,6 +89,7 @@ uses
   Vcl.Styles,
   uAppStrings,
   uStartup,
+  uPackaging,
   uMetricsTypes;
 
 const
@@ -237,6 +238,9 @@ begin
   ChkStayOnTop.Checked := FSettings.StayOnTop;
   ChkStartup.Checked := TStartup.IsRegistered or FSettings.Startup;
   ChkUpdateCheck.Checked := FSettings.UpdateEnabled;
+  { Store builds update through Microsoft Store, not GitHub; hide the
+    now-irrelevant option rather than leave a checkbox with no effect. }
+  ChkUpdateCheck.Visible := not IsStorePackage;
   case FSettings.Fps of
     10:
       RbFps10.Checked := True;
@@ -350,7 +354,10 @@ begin
 
   FSettings.StayOnTop := ChkStayOnTop.Checked;
   FSettings.Startup := ChkStartup.Checked;
-  FSettings.UpdateEnabled := ChkUpdateCheck.Checked;
+  { Hidden on Store builds (see LoadFromSettings): leave the saved preference
+    untouched rather than write back a hidden checkbox's leftover state. }
+  if not IsStorePackage then
+    FSettings.UpdateEnabled := ChkUpdateCheck.Checked;
   if RbFps10.Checked then
     FSettings.Fps := 10
   else if RbFps20.Checked then
