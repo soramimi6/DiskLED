@@ -228,8 +228,8 @@ var
 begin
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
-  Constraints.MinWidth := ScalePx(800, Dpi);
-  Constraints.MinHeight := ScalePx(600, Dpi);
+  Constraints.MinWidth := ScalePx(1000, Dpi);
+  Constraints.MinHeight := ScalePx(900, Dpi);
   if FHeaderPaint <> nil then
     FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
 end;
