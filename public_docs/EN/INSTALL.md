@@ -15,8 +15,8 @@
 
 | Use | Form | Example file |
 |-----|------|--------------|
-| Portals / general release | **Installer** (primary) | `DiskLED_Setup_3.1.0.exe` |
-| Advanced / trial | **Portable zip** | `DiskLED-3.1.0-portable.zip` |
+| Portals / general release | **Installer** (primary) | `DiskLED_Setup_3.1.1.exe` |
+| Advanced / trial | **Portable zip** | `DiskLED-3.1.1-portable.zip` |
 
 No adware or bundled third-party software.
 
@@ -24,7 +24,7 @@ No adware or bundled third-party software.
 
 ### Install
 
-1. Run `DiskLED_Setup_3.1.0.exe` (no administrator rights required)
+1. Run `DiskLED_Setup_3.1.1.exe` (no administrator rights required)
 2. Default install location is `%LocalAppData%\Programs\DiskLED`
 3. A Start menu entry is always created
 4. **Desktop shortcut** and **start when I log on** are optional wizard tasks (**both default off**)
@@ -40,7 +40,7 @@ Uninstall does **not** delete `DiskLED.ini` (next to the exe, or under `%AppData
 
 ## Portable zip
 
-1. Extract `DiskLED-3.1.0-portable.zip` to any folder
+1. Extract `DiskLED-3.1.1-portable.zip` to any folder
 2. Run `DiskLED.exe` from that folder (keep bundled `assets`, `styles`, `LICENSE.txt`, and `public_docs`)
 3. To remove, quit DiskLED and delete the folder (including any local `DiskLED.ini`)
 

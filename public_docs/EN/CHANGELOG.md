@@ -4,6 +4,21 @@
 
 Newest first. User-facing summary only; implementation detail lives in `docs/DESIGN.md`.
 
+## 3.1.1
+
+Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
+
+- **Added a "task tray" display size.** The right-click display-size menu is now an exclusive 3-way choice: Compact / Full / Task Tray. Choosing Task Tray hides the main window and turns the notification-area icon itself into a disk-activity LED (Read/Write combined, on/off). Double-click restores the last Compact/Full size. The right-click menu is the same regardless of display size
+- **Ping results now open in a dedicated window** (replaces the old "Refresh Ping" item). Shows each hop's route (TTL, IP, hostname, RTT) top-down like Tracert, with asynchronous hostname resolution. Also shows hop count, total time, and the last measured time
+- **Added disk latency** (average response time, ms) to the dashboard. Shown as a big number next to Queue on the Disk Info card (— when unavailable)
+- Raised the dashboard's minimum size to 1000×900 (96 dpi DIP)
+- The Microsoft Store build no longer checks GitHub for updates at startup (updates come through the Store instead; the matching Options item is hidden too)
+- Refreshed the app icon
+- Fixed the hover tooltip showing across screen edges and monitor boundaries, and flickering at some positions
+- Added **Reset Position** to the right-click menu, so a main window stuck off-screen can be recovered from the tray icon's right-click menu
+- Fixed the main window being pulled back to the primary monitor on restart when it had been left on a secondary monitor
+- Fixed the startup update-check menu item briefly showing stale state left over from a previous session
+
 ## 3.1.0
 
 Update for DiskLED 3.x on Windows 10 / 11 (64-bit).

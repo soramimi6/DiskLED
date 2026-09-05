@@ -30,13 +30,35 @@ The window is a tool window and usually does not appear on the taskbar (resident
 | Original / Crystal / Metalic / Info Bar | Switch display mode (exclusive) |
 | Compact / コンパクト | Compact view (always available) |
 | Full / フル | Full view (enabled only when the mode defines full layout) |
+| Task Tray / タスクトレイ | Switch display size to the task tray (exclusive with Compact/Full; available for every mode). See [Task Tray](#task-tray) |
 | Dashboard / ダッシュボード | Separate window with left and right columns. Remembers position, size, and maximized state. Reopens on next launch if it was open at exit |
-| Refresh Ping / Ping 更新 | Send one Ping immediately |
+| View Trace Route / Ping 結果表示 | Show the route (Tracert) results in a dedicated window. See [View Trace Route](#view-trace-route) |
 | Options / オプション | Always-on-top, startup, check for a new version at startup, fps, graph rate, network speed response (linear / log), Ping settings |
+| Reset Position / 位置をリセット | Move the main window back on-screen and bring it forward. Recovery for a window stuck off-screen; also works while in task tray size, restoring compact/full |
 | View DiskLED 3.x.x release info / 新しい DiskLED 3.x.x の情報を見る | Shown above Exit only when a newer stable release exists. Click opens that GitHub release page (stays until you install it). The tray balloon is once per version |
 | Exit / 終了 | Quit the app |
 
-Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese). A tray icon shows that DiskLED is running (same right-click menu; double-click brings the window forward). Hovering the tray shows the same tooltip as the window (version, usage, I/O, Ping). There is no taskbar button.
+Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese). The right-click menu is the same from the tray icon and from the window, regardless of display size (Compact / Full / Task Tray). Hovering the tray shows the same tooltip as the window (version, usage, I/O, Ping).
+
+## Task Tray
+
+Setting the display size to **Task Tray** from the right-click menu hides the main window (the app keeps running). The notification-area icon itself lights up or goes dark instead, tracking whether the disk is being read from or written to (Read and Write are not distinguished).
+
+- Double-click the tray icon, or pick **Compact** / **Full** from the right-click menu, to return to whichever of the two you last used
+- The right-click menu is the same one used in Compact/Full — switching display size or opening the dashboard both still work from it
+- The dashboard is independent of display size: if it was open, it stays open while in task tray size
+- Storing the icon in the notification area's "hidden icons" tray hides the blinking too (a Windows limitation) — pin it somewhere always visible instead
+- Each display mode ships with its own tray LED art; if a mode is missing it, the tray falls back to the fixed app icon (no LED)
+
+## View Trace Route
+
+Open **View Trace Route** (Japanese UI: **Ping 結果表示**) from the right-click menu for a dedicated window. It shows the route to the target one hop at a time, closest first, like Tracert.
+
+- The header shows hop count, total time, and when it was last measured
+- The list has TTL, IP, hostname, and RTT columns. Hostname lookups run asynchronously and fill in as they resolve
+- Shows a message if the destination is unreachable or if name resolution/setup fails
+- **Refresh Ping/Trace** re-measures. Closing the window keeps its content; reopening it re-measures
+- The window's colors follow Windows light/dark mode
 
 ## Reading the display
 
@@ -61,7 +83,7 @@ DISKLED HUD (header)
   + CPU subsection — name, cores (C/T), clock (current and max when they differ), user/kernel
   + Memory subsection — RAM stacked bar (in use / standby / free), SWAP usage and commit
   + Power subsection — left card: source (AC / battery), charge, remaining time (field names stay visible on AC; — when unknown). Right card: horizontal playback L / R segmented bars (left to right; green 0–70%, yellow 70–90%, red 90–100%; fast rise, slower fall) and one line of output device name underneath (ellipsis if it does not fit; — when unknown)
-  + Disk queue — queue length, combined active time across drives, read/write IOPS
+  + Disk info — big numbers for queue length and latency (average response time, ms; — when unavailable) side by side, combined active time across drives, read/write IOPS
   + Ping — latest RTT/target plus a time / target / RTT / status history (up to 5 rows, newest first)
 ```
 
@@ -70,7 +92,7 @@ DISKLED HUD (header)
 - CPU / memory / SWAP history graphs fill under the line with a lighter wash of the line color. Disk / network are lines only, because the traces overlap
 - Close (×) hides it (history stays in memory). Position, size, and maximized state are kept even after close. If it was still open at exit, the next launch restores that state (stored as 96 dpi DIP). History is cleared on app restart
 - CPU package temperature is not shown (not available reliably without admin/vendor APIs)
-- Matching row heights across columns (CPU / memory / SWAP↔power / disk↔disk queue / network↔Ping). Laid out for a single screen with no scrolling. Resizable window
+- Matching row heights across columns (CPU / memory / SWAP↔power / disk↔disk info / network↔Ping). Laid out for a single screen with no scrolling. Resizable window
 - Colors follow Windows app mode (light / dark). Changing the OS setting updates an already-open dashboard. Light colors are provisional
 - Appears on the taskbar (the gadget itself still does not)
 - Turning Ping off in Options makes the tooltip say “off”. The dashboard Ping subsection keeps the last history and does not send new probes
@@ -83,7 +105,7 @@ Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply
 |------|--------|
 | Always on top | Gadget window only (on by default). Does not apply to the dashboard |
 | Run at Windows startup | Writes the Run key on Apply and on a normal exit |
-| Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item |
+| Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item. Not shown on the Microsoft Store build, which updates through the Store instead |
 | Refresh rate (fps) | 10 / 15 (default) / 20. No redraw while sprite frames stay the same |
 | Graph update (Hz) | 0.5 / 1 (default) / 2 for Original / Metalic **full-view** history. Dashboard history is always 1 second |
 | Network speed response | Linear (link speed = 100%, default) or logarithmic. Switching clears gadget and dashboard network history |

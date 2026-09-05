@@ -2,7 +2,7 @@
 
 [日本語](../FEATURES.md)
 
-## What v1 / MVP includes
+## What it can do
 
 - Usage meters for **CPU, physical memory, and SWAP** (page file equivalent); rise is snappy, fall coasts
 - **Disk** read/write LEDs and speed bars (sum of all physical disks)
@@ -15,9 +15,11 @@
 - **Single instance** (a second launch focuses the existing window and exits)
 - **Tray**, **startup registration** (applied when Options is confirmed and on exit), and **INI settings**
 - **Installer** (per-user, uninstallable) and portable zip (see [INSTALL.md](INSTALL.md))
-- **Dashboard** (3.1.0): separate window with a left column (donuts and history; disk/network include a color legend) and a right column (CPU details, memory amounts, power (left card: power info, right card: horizontal L / R volume bars and output device name), disk queue, Ping history) on one screen (right-click menu). Donuts and volume bars update about 5 times per second; numbers and history stay at 1 Hz. Colors follow Windows app light/dark mode. If it was open at exit, the next launch opens it again. Position, size, and maximized state persist across runs
+- **Dashboard** (3.1.0): separate window with a left column (donuts and history; disk/network include a color legend) and a right column (CPU details, memory amounts, power (left card: power info, right card: horizontal L / R volume bars and output device name), disk info (queue, latency, IOPS), Ping history) on one screen (right-click menu). Donuts and volume bars update about 5 times per second; numbers and history stay at 1 Hz. Colors follow Windows app light/dark mode. If it was open at exit, the next launch opens it again. Position, size, and maximized state persist across runs
 - **High DPI** (3.1.0): Per-Monitor V2. Gadget uses 0.5-step scale (1× / 1.5× / 2×…); dashboard follows real DPI; Options use VCL Scaled
-- **New version notice** (3.1.0): one GitHub Releases Latest check at startup. A newer stable release gets a tray balloon once per version, and a right-click item above Exit (**View DiskLED 3.x.x release info**) until you install it. Click opens that release page in the browser (no download or self-update; can be turned off in Options)
+- **New version notice** (3.1.0): one GitHub Releases Latest check at startup. A newer stable release gets a tray balloon once per version, and a right-click item above Exit (**View DiskLED 3.x.x release info**) until you install it. Click opens that release page in the browser (no download or self-update; can be turned off in Options; not performed at all on the Microsoft Store build, which updates through the Store instead)
+- **View Trace Route** (3.1.1): opens a dedicated window from the right-click menu showing the route to the target hop by hop (TTL, IP, hostname, RTT). Hostname lookups run asynchronously
+- **Task Tray** (3.1.1): a third display size alongside Compact and Full. Hides the gadget window and turns the notification-area icon into a disk-activity LED
 
 ## Display modes
 
@@ -42,7 +44,7 @@ Built-in looks only. User-installed legacy skins (`.dla`) are not supported.
 | Disk | Aggregate I/O for the whole system (like the chassis HDD lamp). Per-drive selection is out of scope for v1 |
 | Network | Sum of real NICs. Pinning one NIC is out of scope for v1 |
 | Speed range | Net: link speed, linear (default) or logarithmic (Options). Disk: measured auto-sense, always linear. No manual range UI in v1 |
-| Ping | Default host `mg6.jp`, or the default gateway from Options. Can be turned off. Interval minimum and default **5 minutes**. Right-click **Refresh Ping** (Japanese UI: **Ping 更新**) for an immediate probe |
+| Ping | Default host `mg6.jp`, or the default gateway from Options. Can be turned off. Interval minimum and default **5 minutes**. Right-click **View Trace Route** (Japanese UI: **Ping 結果表示**) for an immediate probe alongside the route (Tracert) |
 
 ### Ping levels (default thresholds)
 
