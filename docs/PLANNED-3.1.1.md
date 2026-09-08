@@ -339,9 +339,9 @@ Tracert は**通常の Ping サイクル（5 分間隔・自動）には連動�
 - **実装済み**: `TMainForm.FormCreate` の `Position := poDesigned;` の直後に `DefaultMonitor := dmDesktop;` を追加した（[uMainForm.pas:242-249](../src/uMainForm.pas#L242-L249)）。`SetWindowToMonitor` の冒頭ガード（`if (FDefaultMonitor <> dmDesktop) and ...`）によりこの関数自体が無効化され、VCL による自動モニター追従は発生しなくなる。位置管理は既存の `ConstrainAndSnapRect`（`uWindowPlacement.pas`）に一本化される
 - あわせて、ini の保存位置を復元する `SetBounds(FSettings.WindowX, FSettings.WindowY, ...)` を `ApplySettingsToUi` および `ApplyMode(FSettings.Mode)` より前に実行する順序にした（[uMainForm.pas:285-294](../src/uMainForm.pas#L285-L294)）。`TMainForm.CreateParams`（[uMainForm.pas:168-181](../src/uMainForm.pas#L168-L181)）は VCL 標準どおり「現在の Left/Top を使う」動作のままで、座標の明示注入はしていない（HWND 再生成のたびに保存済み座標へ巻き戻ると、その時点の実位置と食い違う恐れがあるため）
 
-### 6-4. 項目5（Tracert）の `/code-review ultra` で見つかった軽微な改善事項（未着手）
+### 6-4. 項目5（Tracert）の `/code-review ultra` で見つかった軽微な改善事項（3.1.2 へ移管）
 
-主題（Tracert機能そのもの）とは直接関係しない、コード品質・堅牢性の改善提案。
+主題（Tracert機能そのもの）とは直接関係しない、コード品質・堅牢性の改善提案。3.1.1 では未着手のまま出荷し、`docs/PLANNED-3.1.2.md` の項目 7（低優先）へ移管した。以下は移管前の記録として残す。
 
 - `TPingCollector.CurrentTarget`（`uPingCollector.pas`）は起動直後・自動ゲートウェイ有効時、初回Ping完了前は設定ホストを返す（ゲートウェイではない）。実害は数秒待てば解消する程度
 - `TTracertCollector.RunAsync`（`uTracertCollector.pas`）は `TThread.CreateAnonymousThread(...).Start` が例外を投げた場合 `FRunning` が戻らず、以後そのインスタンスで二度と実行できなくなる

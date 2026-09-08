@@ -14,6 +14,7 @@
 | 4 | 未使用アセットの削除 | 高 | 低（`git rm` のみ） | 半日未満 | 中〜高 |
 | 5 | BMP → PNG 変換 | 高 | 低〜中（変換自体は容易だが色キー透過の実機確認が要る） | 半日程度 | 中 |
 | 6 | 新スキン: アナログ VU メーター | 高（メーター描画自体は既存のスプライトストリップ方式で対応可） | 高（DiskIO/NetIO 合成パイプライン新設＋コンパクト／フルのパーツ出し分け機構という新エンジン機能が前提） | 未検証（コア変更＋layout.cfg拡張＋素材制作） | 中 |
+| 7 | 項目 5（Tracert）実装時の軽微なコード品質改善（6 件） | 高（すべて局所的な小改修） | 低（既存コードの整理・共通化が中心） | 半日〜1 日（6 件まとめて） | 低 |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
 
@@ -198,3 +199,16 @@
 私（Claude）は画像生成ツールを持たないが、スクリプト（Python/Pillow や GDI+ 経由の描画コード）で文字盤の目盛り・スケールと、角度違いの針を並べた縦ストリップ画像を機械生成することはできる。3.1.1 のトレイ LED（[docs/PLANNED-3.1.1.md:11](../docs/PLANNED-3.1.1.md#L11)）と同じ考え方で、まずは placeholder 素材で `layout.cfg` の配線・表示を通し、本番の質感（クリーム色の文字盤、クロムベゼル、ガラス反射等）は別途、実素材（イラスト制作や権利確認済みの既存素材）に差し替える方針が妥当。AI 生成画像を本番のスキン素材として同梱する場合は著作権・利用条件の確認が要る。
 
 見積り: 未検証。DiskIO/NetIO 合成パイプライン追加＋コンパクト／フルのパーツ出し分け機構（layout.cfg 拡張＋レンダラー改修）が新規のコア変更として先行し、それに layout.cfg 配線＋ placeholder 素材制作が乗る。本番素材の質次第でさらに変動する。
+
+## 7. 項目 5（Tracert）実装時の軽微なコード品質改善
+
+3.1.1 の項目 5（Tracert 専用ウィンドウ）を `/code-review ultra` に通した際に出た、主題そのものとは直接関係しない堅牢性・重複解消の指摘。3.1.1 では未着手のまま出荷したため、3.1.2 で低優先の整理項目として扱う。個々は局所的で相互依存が無いので、着手できるものから順に潰してよい。
+
+- `TPingCollector.CurrentTarget`（`src/metrics/uPingCollector.pas`）は起動直後・自動ゲートウェイ有効時、初回 Ping 完了前は設定ホストを返す（解決済みゲートウェイではない）。TraceRouteResult ウィンドウを起動直後に開くと最初のトレース先が設定ホストになりうる。実害は数秒待てば解消する程度だが、「初回解決前」を呼び出し側が区別できるようにするか、解決完了までトレース開始を遅らせる
+- `TTracertCollector.RunAsync`（`src/metrics/uTracertCollector.pas`）は `TThread.CreateAnonymousThread(...).Start` が例外を投げた場合 `FRunning` が `True` のまま戻らず、以後そのインスタンスで二度と実行できなくなる。`try/except` で `FRunning` を戻す
+- `uTracertCollector.pas` の `ResolveIPv4` が `uPingCollector.pas` の同名関数とほぼ同一のコピーになっている。共通ユニット `src/metrics/uIcmpApi.pas` へ移して 1 本にする
+- `uTraceRouteForm.pas` の `CreateWnd` オーバーライド＋`WM_SETTINGCHANGE`（`ImmersiveColorSet` によるダークモード追従）が `src/dashboard/uDashboardForm.pas` と実質同一内容で重複している。テーマ追従の共通ヘルパー（ミックスインユニットか基底フォーム）に括り出す
+- `menu.ping` の文字列 ID・`miPingClick` ハンドラ名が「Ping 更新」時代のまま残っており、現在の役割（「Ping 結果表示」＝ウィンドウを開く）と合っていない。ID とハンドラ名を実態に合わせて改名する（`uAppStrings.pas` の ID 変更を伴うため、他の参照箇所と併せて一括で）
+- `uTracertCollector.pas` の `StartReverseLookup` はホップごとに新規スレッドを生成する（最大 30 本）。1 つのワーカー／スレッドプールで捌く設計の方が効率的（実用上の速度差は小さいので優先度は最も低い）
+
+見積り: 半日〜1 日（6 件まとめて。改名は他ユニットへの波及確認、共通化はダッシュボード側の回帰確認を含む）。
