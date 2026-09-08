@@ -14,7 +14,7 @@
 | 4 | 未使用アセットの削除 | ✅ 完了。`feature/3.1.2` へ squash merge（`9d67654`）。6 ファイル削除＋`stage-dist.ps1` で `.xcf`/`ImageResource/` を配布物から除外。全モード切替・`stage-dist` 実行を確認済み | 低（`git rm` のみ） | 半日未満 | 中〜高 |
 | 5 | BMP → PNG 変換 | 未着手（プラン確定） | 低〜中（色キー透過の実機確認が要る） | 半日程度 | 中 |
 | 6 | 新スキン: アナログ VU メーター | 未着手（要設計・コア変更前提） | 高（DiskIO/NetIO 合成パイプライン＋コンパクト／フルのパーツ出し分け機構が前提） | 未検証 | 中 |
-| 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | 未着手（プラン確定。#8 の再発防止を兼ねる） | 中（`TThemedHudForm` 基底化＋両フォームの載せ替え回帰確認） | 1 日程度（改名・スレッドプールは +半日） | 低〜中 |
+| 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | ✅ 完了（6 件中 4 件）。`feature/3.1.2` へ squash merge（`fa24f2d`）。`RunAsync` ガード／`ResolveIPv4` を `uHostResolve` に集約／`TThemedHudForm` 基底化（両窓のテーマ追従を実機確認）／`menu.ping`→`menu.ping_result` 改名。残り 2 件（`CurrentTarget` 初回・`StartReverseLookup` プール化）は最優先度低のため 3.1.3 以降へ | 中 | 1 日程度 | 低〜中 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | ✅ 完了。`feature/3.1.2` へ squash merge（`8f30c91`）。案 A（`Scaled=True`）で実装。100/125/150/200%・実行中の拡大率変更・モニター間移動・リサイズを実機確認済み | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
 | 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | ✅ 完了。`feature/3.1.2` へ squash merge（`b63f1a6`）。非 Store／`CDebugForceStorePackage=True` で実機確認済み（最終 MSIX 確認は他項目と一括） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
 
@@ -215,6 +215,15 @@
 - **`tools/refresh-internal-design.ps1` に `.dfm` の `Scaled=` 監査を追加**（項目 8 の再発防止）: 全 `.dfm` の `Scaled` 値を `GENERATED-reference.md` に一覧化し、`Scaled = False` の窓が手動 DPI 機構（`WM_DPICHANGED` ハンドラ）を持つかレビュー時に確認できるようにする
 
 見積り: 1 日程度（`TThemedHudForm` 基底化＋ダッシュボード／Ping 結果表示の両方をそれに載せ替える回帰確認を含む。改名・スレッドプールは +半日）。
+
+### 実施状況（`fa24f2d`）
+
+- ✅ `RunAsync` を try/except で保護（失敗時 `FRunning` を戻し `OnComplete(Failed)` 発火）
+- ✅ `ResolveIPv4` を新ユニット `src/metrics/uHostResolve.pas` に集約（`Winapi.Winsock` 依存で `uIcmpApi` には置けないため別ユニットにした ← 当初プランからの変更）
+- ✅ `TThemedHudForm`（`src/uThemedHudForm.pas`）新設。(a) `CreateWnd`＋タイトルバー、(b) `WM_SETTINGCHANGE`→`ApplyPalette` 仮想メソッド を共通化。(c) DPI は各派生形式のまま（`TThemedHudForm` には入れない）
+- ✅ `menu.ping`→`menu.ping_result` / `miPingClick`→`miPingResultClick` / ローカル `miPing`→`miPingResult`
+- ⏭️ **3.1.3 以降へ繰り越し**: `TPingCollector.CurrentTarget` の初回解決前の戻り値、`StartReverseLookup` のスレッドプール化（どちらも最優先度低）
+- ⏭️ **未実施**: `tools/refresh-internal-design.ps1` の `.dfm Scaled=` 監査（別途対応可・小）
 
 ## 8. Ping 結果表示ウィンドウの高 DPI 対応
 
