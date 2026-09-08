@@ -57,9 +57,18 @@ dist/
 .claude/
 .cursor/
 legacy/
+
+# docs/ : block everything by default, then re-include only the public files.
+#   - docs/internal/  : internal engineering docs — NEVER published (kept private permanently).
+#     Its own line below is redundant with docs/* but is kept explicit so the intent
+#     survives any future reordering of the negations.
+#   - docs/internal/リリース作業手順書.md (Store submission + Vector runbook) must
+#     never be git add / commit / push, and its contents must not be copied into
+#     any tracked file. See .claude/CLAUDE.md.
 docs/*
+docs/internal/
 !docs/CONTRIBUTING.md
-!docs/PLANNED-*.md
 !docs/DESIGN.md
-!docs/MAINTAINING-PUBLIC-DOCS.md
 !docs/LISTING.md
+!docs/MAINTAINING-PUBLIC-DOCS.md
+!docs/PLANNED-*.md
