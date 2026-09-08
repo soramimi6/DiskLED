@@ -25,6 +25,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormAfterMonitorDpiChanged(Sender: TObject; OldDPI, NewDPI: Integer);
   private
     FCollector: TMetricsCollector;
     FTracert: TTracertCollector;
@@ -47,6 +48,9 @@ type
     procedure TracertComplete(const AResult: TTracertResult);
     procedure ApplyTheme;
     procedure RunTracert;
+    function Sc(V: Integer): Integer;
+    procedure LayoutButtonsAndBorder;
+    procedure RelayoutList;
     procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
   protected
     procedure CreateWnd; override;
@@ -68,6 +72,12 @@ uses
   uDashboardTheme;
 
 const
+  { Design units — 96 dpi. Scaled=True lets VCL scale the form/controls/Font;
+    these feed Sc() for the few spots VCL's ChangeScale does not reach. }
+  CMargin = 12;
+  CHeaderHeight = 56;
+  CButtonHeight = 28;
+  CButtonWidth = 140;
   CListHeaderHeight = 24;
   CColTtlW = 48;
   CColIpW = 140;
@@ -94,20 +104,36 @@ begin
   ApplyHudTitleBar(Handle);
 end;
 
+function TTraceRouteForm.Sc(V: Integer): Integer;
+begin
+  { Design units are 96 dpi. Scaled=True (see .dfm) lets VCL scale the form
+    frame, the standard controls and Font; this covers the few places VCL's
+    ChangeScale does not reach (custom-paint offsets, the list-inside-border
+    stacking) and stays idempotent because it always derives from the base. }
+  Result := MulDiv(V, CurrentPPI, 96);
+end;
+
+procedure TTraceRouteForm.RelayoutList;
+var
+  HdrH: Integer;
+begin
+  if (FListBorder = nil) or (FListHeaderPaint = nil) or (FList = nil) then
+    Exit;
+  HdrH := Sc(CListHeaderHeight);
+  FListHeaderPaint.SetBounds(1, 1, FListBorder.ClientWidth - 2, HdrH);
+  FList.SetBounds(1, 1 + HdrH, FListBorder.ClientWidth - 2,
+    FListBorder.ClientHeight - 2 - HdrH);
+  FList.Font.Name := 'Segoe UI';
+  FList.Font.Height := -Sc(12);
+  FList.Columns[0].Width := Sc(CColTtlW);
+  FList.Columns[1].Width := Sc(CColIpW);
+  FList.Columns[2].Width := Sc(CColHostW);
+  FList.Columns[3].Width := Sc(CColRttW);
+end;
+
 procedure TTraceRouteForm.FormCreate(Sender: TObject);
-const
-  CMargin = 12;
-  CHeaderHeight = 56;
-  CButtonHeight = 28;
-  CButtonWidth = 140;
 begin
   Caption := S('trace.title');
-  Position := poScreenCenter;
-  BorderStyle := bsSizeable;
-  ClientWidth := 700;
-  ClientHeight := 560;
-  Constraints.MinWidth := 520;
-  Constraints.MinHeight := 380;
 
   FTracert := TTracertCollector.Create;
   FTracert.OnHop := TracertHop;
@@ -117,22 +143,18 @@ begin
   FHeaderPaint := TPaintBox.Create(Self);
   FHeaderPaint.Parent := Self;
   FHeaderPaint.Align := alTop;
-  FHeaderPaint.Height := CHeaderHeight;
+  FHeaderPaint.Height := Sc(CHeaderHeight);
   FHeaderPaint.OnPaint := HeaderPaint;
 
   FBtnRefresh := TButton.Create(Self);
   FBtnRefresh.Parent := Self;
   FBtnRefresh.Caption := S('trace.refresh');
-  FBtnRefresh.SetBounds(CMargin, ClientHeight - CButtonHeight - CMargin,
-    CButtonWidth, CButtonHeight);
   FBtnRefresh.Anchors := [akLeft, akBottom];
   FBtnRefresh.OnClick := BtnRefreshClick;
 
   FBtnClose := TButton.Create(Self);
   FBtnClose.Parent := Self;
   FBtnClose.Caption := S('trace.close');
-  FBtnClose.SetBounds(ClientWidth - CButtonWidth - CMargin,
-    ClientHeight - CButtonHeight - CMargin, CButtonWidth, CButtonHeight);
   FBtnClose.Anchors := [akRight, akBottom];
   FBtnClose.OnClick := BtnCloseClick;
 
@@ -142,14 +164,10 @@ begin
   FListBorder := TPanel.Create(Self);
   FListBorder.Parent := Self;
   FListBorder.BevelOuter := bvNone;
-  FListBorder.SetBounds(CMargin, CHeaderHeight,
-    ClientWidth - CMargin * 2,
-    ClientHeight - CHeaderHeight - CButtonHeight - CMargin * 2);
   FListBorder.Anchors := [akLeft, akTop, akRight, akBottom];
 
   FListHeaderPaint := TPaintBox.Create(Self);
   FListHeaderPaint.Parent := FListBorder;
-  FListHeaderPaint.SetBounds(1, 1, FListBorder.Width - 2, CListHeaderHeight);
   FListHeaderPaint.Anchors := [akLeft, akTop, akRight];
   FListHeaderPaint.OnPaint := ListHeaderPaint;
 
@@ -164,24 +182,46 @@ begin
     recolor them, unlike everything else here — they'd clash with the dark
     palette, so leave rows separated by height/selection highlight only. }
   FList.GridLines := False;
-  FList.SetBounds(1, 1 + CListHeaderHeight, FListBorder.Width - 2,
-    FListBorder.Height - 2 - CListHeaderHeight);
   FList.Anchors := [akLeft, akTop, akRight, akBottom];
   { Explorer visual styles otherwise keep the native (light) list body
     colors regardless of Color/Font.Color; disabling theming for just this
     control lets our own palette apply. }
   FList.HandleNeeded;
   SetWindowTheme(FList.Handle, '', '');
-  with FList.Columns.Add do
-    Width := CColTtlW;
-  with FList.Columns.Add do
-    Width := CColIpW;
-  with FList.Columns.Add do
-    Width := CColHostW;
-  with FList.Columns.Add do
-    Width := CColRttW;
+  FList.Columns.Add;
+  FList.Columns.Add;
+  FList.Columns.Add;
+  FList.Columns.Add;
 
+  LayoutButtonsAndBorder;
+  RelayoutList;
   ApplyTheme;
+end;
+
+procedure TTraceRouteForm.LayoutButtonsAndBorder;
+var
+  M, BW, BH, HH: Integer;
+begin
+  M := Sc(CMargin);
+  BW := Sc(CButtonWidth);
+  BH := Sc(CButtonHeight);
+  HH := Sc(CHeaderHeight);
+  FBtnRefresh.SetBounds(M, ClientHeight - BH - M, BW, BH);
+  FBtnClose.SetBounds(ClientWidth - BW - M, ClientHeight - BH - M, BW, BH);
+  FListBorder.SetBounds(M, HH, ClientWidth - M * 2,
+    ClientHeight - HH - BH - M * 2);
+end;
+
+procedure TTraceRouteForm.FormAfterMonitorDpiChanged(Sender: TObject;
+  OldDPI, NewDPI: Integer);
+begin
+  { VCL has already rescaled the form/controls/Font for the new monitor; fix up
+    the pieces its ChangeScale does not touch and repaint the custom areas. }
+  FHeaderPaint.Height := Sc(CHeaderHeight);
+  LayoutButtonsAndBorder;
+  RelayoutList;
+  FHeaderPaint.Invalidate;
+  FListHeaderPaint.Invalidate;
 end;
 
 procedure TTraceRouteForm.ApplyTheme;
@@ -222,18 +262,21 @@ begin
   Canvas.FillRect(R);
   Canvas.Brush.Style := bsClear;
   Canvas.Font.Name := 'Segoe UI';
+  Canvas.Font.PixelsPerInch := CurrentPPI;
   Canvas.Font.Size := 9;
   Canvas.Font.Style := [fsBold];
   Canvas.Font.Color := Pal.TextMuted;
 
-  X := 4;
-  Canvas.TextOut(X, 4, S('trace.col_ttl'));
-  Inc(X, CColTtlW);
-  Canvas.TextOut(X, 4, S('trace.col_ip'));
-  Inc(X, CColIpW);
-  Canvas.TextOut(X, 4, S('trace.col_host'));
-  Inc(X, CColHostW);
-  Canvas.TextOut(X, 4, S('trace.col_rtt'));
+  { Column x-positions come from the list's own (DPI-scaled) column widths,
+    not the design constants, so the headers line up with the data. }
+  X := Sc(4);
+  Canvas.TextOut(X, Sc(4), S('trace.col_ttl'));
+  Inc(X, FList.Columns[0].Width);
+  Canvas.TextOut(X, Sc(4), S('trace.col_ip'));
+  Inc(X, FList.Columns[1].Width);
+  Canvas.TextOut(X, Sc(4), S('trace.col_host'));
+  Inc(X, FList.Columns[2].Width);
+  Canvas.TextOut(X, Sc(4), S('trace.col_rtt'));
 
   Canvas.Pen.Color := Pal.CardBorder;
   Canvas.MoveTo(R.Left, R.Bottom - 1);
@@ -246,6 +289,7 @@ var
   Canvas: TCanvas;
   R: TRect;
   Line1, Line2: string;
+  Y1, Y2: Integer;
 begin
   Pal := HudPalette;
   Canvas := FHeaderPaint.Canvas;
@@ -254,6 +298,7 @@ begin
   Canvas.FillRect(R);
   Canvas.Brush.Style := bsClear;
   Canvas.Font.Name := 'Segoe UI';
+  Canvas.Font.PixelsPerInch := CurrentPPI;
 
   if FBusy then
     Line1 := S('trace.running')
@@ -266,10 +311,14 @@ begin
   else
     Line1 := S('trace.target') + ': ' + #$2014;
 
+  Y1 := Sc(6);
   Canvas.Font.Size := 11;
   Canvas.Font.Style := [fsBold];
   Canvas.Font.Color := Pal.TextPrimary;
-  Canvas.TextOut(12, 6, Line1);
+  Canvas.TextOut(Sc(12), Y1, Line1);
+  { Line 2 sits below line 1's actual rendered height so the two never overlap
+    regardless of DPI or font metrics. }
+  Y2 := Y1 + Canvas.TextHeight(Line1) + Sc(4);
 
   if FHasResult and (not FBusy) then
   begin
@@ -290,7 +339,7 @@ begin
   Canvas.Font.Size := 9;
   Canvas.Font.Style := [];
   Canvas.Font.Color := Pal.TextMuted;
-  Canvas.TextOut(12, 30, Line2);
+  Canvas.TextOut(Sc(12), Y2, Line2);
 end;
 
 procedure TTraceRouteForm.RunTracert;
@@ -368,6 +417,11 @@ end;
 
 procedure TTraceRouteForm.FormShow(Sender: TObject);
 begin
+  { By now the handle exists and CurrentPPI reflects the monitor the window
+    actually opened on, so (re)apply the DPI-derived layout. }
+  FHeaderPaint.Height := Sc(CHeaderHeight);
+  LayoutButtonsAndBorder;
+  RelayoutList;
   ApplyTheme;
   RunTracert;
 end;

@@ -12,8 +12,8 @@ object TraceRouteForm: TTraceRouteForm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
-  Scaled = False
   Position = poScreenCenter
+  OnAfterMonitorDpiChanged = FormAfterMonitorDpiChanged
   PixelsPerInch = 96
   OnClose = FormClose
   OnCreate = FormCreate
