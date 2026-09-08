@@ -486,8 +486,17 @@ procedure TMainForm.ApplyStartupRegistration;
 begin
   if (FSettings = nil) or (not FReadyToPersist) then
     Exit;
+  { Store build: the startup task is managed by package identity, not by exe
+    path, so there is nothing to re-sync at exit — and a WinRT round-trip here
+    would pump the message loop mid-teardown. The Options dialog already applied
+    any change. }
+  if IsStorePackage then
+    Exit;
   try
-    TStartup.SetRegistered(FSettings.Startup);
+    { Non-packaged: re-assert the Run key so a moved/updated exe path follows.
+      Only write when it actually differs. }
+    if TStartup.IsRegistered <> FSettings.Startup then
+      TStartup.SetRegistered(FSettings.Startup);
   except
   end;
 end;

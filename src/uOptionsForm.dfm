@@ -73,6 +73,22 @@ object OptionsForm: TOptionsForm
         Caption = 'Check for a new version at startup'
         TabOrder = 2
       end
+      object LblStartupBlocked: TLabel
+        Left = 38
+        Top = 90
+        Width = 344
+        Height = 30
+        AutoSize = False
+        Caption = 'Enable this in Windows Startup Apps settings.'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clGrayText
+        Font.Height = -11
+        Font.Name = 'Segoe UI'
+        Font.Style = []
+        ParentFont = False
+        Visible = False
+        WordWrap = True
+      end
     end
     object CardFps: TPanel
       Left = 20

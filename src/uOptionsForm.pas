@@ -19,6 +19,7 @@ type
     ChkStayOnTop: TCheckBox;
     ChkStartup: TCheckBox;
     ChkUpdateCheck: TCheckBox;
+    LblStartupBlocked: TLabel;
     CardFps: TPanel;
     LblSecFps: TLabel;
     RbFps10: TRadioButton;
@@ -170,6 +171,7 @@ begin
   ChkStayOnTop.Caption := S('opt.stay_on_top');
   ChkStartup.Caption := S('opt.startup');
   ChkUpdateCheck.Caption := S('opt.update_check');
+  LblStartupBlocked.Caption := S('opt.startup_blocked');
   LblSecFps.Caption := S('opt.fps');
   LblSecGraph.Caption := S('opt.graph_rate');
   LblSecScale.Caption := S('opt.speed_scale');
@@ -232,11 +234,36 @@ begin
 end;
 
 procedure TOptionsForm.LoadFromSettings;
+var
+  StartupOn, StartupBlocked: Boolean;
 begin
   if FSettings = nil then
     Exit;
   ChkStayOnTop.Checked := FSettings.StayOnTop;
-  ChkStartup.Checked := TStartup.IsRegistered or FSettings.Startup;
+
+  { One state read for both the checkbox value and the blocked state. On the
+    Store build this is the authoritative StartupTask state; OR-ing the persisted
+    flag would mask a task Windows reports as disabled. Off Store, keep the OR so
+    a just-written Run key still shows. }
+  TStartup.QueryState(StartupOn, StartupBlocked);
+  if IsStorePackage then
+    ChkStartup.Checked := StartupOn
+  else
+    ChkStartup.Checked := StartupOn or FSettings.Startup;
+  { Store build: the task can be disabled from Task Manager / Settings and
+    RequestEnableAsync cannot override that -- surface it. }
+  if StartupBlocked then
+  begin
+    ChkStartup.Checked := False;
+    ChkStartup.Enabled := False;
+    LblStartupBlocked.Visible := True;
+  end
+  else
+  begin
+    ChkStartup.Enabled := True;
+    LblStartupBlocked.Visible := False;
+  end;
+
   ChkUpdateCheck.Checked := FSettings.UpdateEnabled;
   { Store builds update through Microsoft Store, not GitHub; hide the
     now-irrelevant option rather than leave a checkbox with no effect. }
@@ -353,7 +380,10 @@ begin
   end;
 
   FSettings.StayOnTop := ChkStayOnTop.Checked;
-  FSettings.Startup := ChkStartup.Checked;
+  if ChkStartup.Enabled then
+    FSettings.Startup := ChkStartup.Checked;
+  { When ChkStartup is disabled (Store build, blocked from outside) leave the
+    saved preference alone and skip the registration call below. }
   { Hidden on Store builds (see LoadFromSettings): leave the saved preference
     untouched rather than write back a hidden checkbox's leftover state. }
   if not IsStorePackage then
@@ -382,15 +412,16 @@ begin
   FSettings.PingSlowMs := SlowMs;
   FSettings.PingTimeoutMs := TimeoutMs;
 
-  try
-    TStartup.SetRegistered(FSettings.Startup);
-  except
-    on E: Exception do
-    begin
-      MessageBox(Handle, PChar(E.Message), PChar(S('opt.title')), MB_OK or MB_ICONWARNING);
-      Exit;
+  if ChkStartup.Enabled then
+    try
+      TStartup.SetRegistered(FSettings.Startup);
+    except
+      on E: Exception do
+      begin
+        MessageBox(Handle, PChar(E.Message), PChar(S('opt.title')), MB_OK or MB_ICONWARNING);
+        Exit;
+      end;
     end;
-  end;
 
   ModalResult := mrOk;
 end;

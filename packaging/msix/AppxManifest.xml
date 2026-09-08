@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tracked master copy of the MSIX manifest. At MSIX build time this is copied to
+  dist\msix\layout\AppxManifest.xml (see docs\internal\15 / リリース作業手順書.md).
+  Identity Name/Publisher/PublisherDisplayName must NEVER change (Partner Center
+  is bound to them). Version is the next Store release (x.y.z.0, 4th field always 0);
+  keep it in sync with the other version points in docs\internal\15 §15.5.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap rescap desktop">
+  <Identity
+    Name="SoRaMiMi.DiskLED"
+    Publisher="CN=EBBC7A9B-4589-4899-8BA5-8AA86D1C6415"
+    Version="3.1.2.0"
+    ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>DiskLED</DisplayName>
+    <PublisherDisplayName>SoRaMiMi</PublisherDisplayName>
+    <Logo>PackageAssets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="ja-jp" />
+  </Resources>
+  <Applications>
+    <Application Id="DiskLED"
+      Executable="DiskLED.exe"
+      EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="DiskLED"
+        Description="Desktop-resident system monitor"
+        BackgroundColor="transparent"
+        Square150x150Logo="PackageAssets\Square150x150Logo.png"
+        Square44x44Logo="PackageAssets\Square44x44Logo.png">
+      <uap:DefaultTile Wide310x150Logo="PackageAssets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="DiskLED.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="DiskLEDStartupTask"
+            Enabled="false"
+            DisplayName="DiskLED" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <Capability Name="privateNetworkClientServer" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
