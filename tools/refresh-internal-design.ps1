@@ -115,6 +115,31 @@ function Get-DisplayModes {
     $modes | Sort-Object { [int]$_.Order }
 }
 
+function Get-FormDpi {
+    # Every .dfm's Scaled flag + whether its .pas handles WM_DPICHANGED /
+    # OnAfterMonitorDpiChanged. A Scaled=False form with neither is a DPI bug
+    # (3.1.1 shipped the Trace Route window that way).
+    $rows = @()
+    Get-ChildItem -LiteralPath $Src -Recurse -Filter *.dfm |
+        Where-Object { $_.FullName -notmatch '__history|__recovery' } |
+        ForEach-Object {
+            $dfm = Read-Utf8 $_.FullName
+            $pasPath = [IO.Path]::ChangeExtension($_.FullName, '.pas')
+            $pas = if (Test-Path -LiteralPath $pasPath) { Read-Utf8 $pasPath } else { '' }
+            $scaled = if ($dfm -match '(?m)^\s*Scaled\s*=\s*False') { 'False' } else { 'True (default)' }
+            $dpi =
+                ($pas -match 'WM_DPICHANGED') -or
+                ($dfm -match 'OnAfterMonitorDpiChanged') -or
+                ($pas -match 'ChangeScale')
+            $rows += [pscustomobject]@{
+                Form   = $_.BaseName
+                Scaled = $scaled
+                DpiHandled = $(if ($dpi) { 'yes' } else { 'no' })
+            }
+        }
+    $rows | Sort-Object Form
+}
+
 function Get-Constants {
     $files = @(
         'metrics\uDisplayPipeline.pas', 'metrics\uRangeEngine.pas', 'metrics\uMetricsTypes.pas',
@@ -205,6 +230,16 @@ W '| dir | Id | Caption | Order | Default | compact WxH | ModeFull |'
 W '|---|---|---|---:|---|---|---|'
 foreach ($m in (Get-DisplayModes)) {
     W ('| {0} | {1} | {2} | {3} | {4} | {5} | {6} |' -f $m.Dir, $m.Id, $m.Caption, $m.Order, $m.Default, $m.Size, $m.Full)
+}
+W ''
+W '## Forms: Scaled flag / DPI handling'
+W ''
+W 'Scaled=False with DpiHandled=no is a high-DPI bug (see docs/internal/17 Section 17.6).'
+W ''
+W '| form | Scaled | DpiHandled |'
+W '|---|---|---|'
+foreach ($f in (Get-FormDpi)) {
+    W ('| `{0}` | {1} | {2} |' -f $f.Form, $f.Scaled, $f.DpiHandled)
 }
 W ''
 W '## UI string IDs (uAppStrings.pas)'
