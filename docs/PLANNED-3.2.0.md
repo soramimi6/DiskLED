@@ -17,6 +17,7 @@
 | 6 | assets エディタ（ブラウザ版スキン編集ツール） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジンの丸ごと移植＋UI＋バリデーション） | 未検証（項目内で最大規模、段階的見積りが要る） | 中〜低 |
 | 7 | メモリ詳細・内訳（Standby/Modified） | 中（非公開 API 依存） | 中（実装は易、互換性リスクが本体） | 1〜2日＋実機検証 | 低〜中 |
 | 8 | アクセスされているファイル | 低（管理者権限必須で方針と矛盾） | 最高 | 別製品規模 | 最低 |
+| 9 | メインウィンドウの表示倍率をユーザー選択制にする | 高（拡大は既に `FScale100` 1 変数に集約済み） | 低〜中（ini キー＋メニュー＋`FScale100` の導出変更） | 半日〜1 日 | 中 |
 
 ## 1. UI表示言語の手動選択＋追加言語
 
@@ -179,3 +180,34 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - `docs/DESIGN.md` 1 節の目的に「管理者権限なし・単一起動」が明記され、5 節「計測（Collectors）」も「いずれも管理者不要の API を優先」が原則。ETW カーネルプロバイダーの有効化（管理者権限必須）はこの中核方針と正面から矛盾する
 - ミニフィルタードライバー案は権限要件こそ解決するが、ドライバー署名（EV 証明書等）・カーネルモード実装・インストール／アンインストール手順が新たに必要になり、現行の「インストーラー（ユーザー権限）／ポータブル／Store」という配布形態全体の見直しを伴う。実装規模はこれまでの機能追加とは桁が異なる
 - 現行 3 配布形態のいずれとも相性が悪いため、通常版のロードマップには乗せず、ドキュメントの記載どおり「将来の上位版」（別製品・別配布ラインの検討事項）として塩漬けにするのが妥当
+
+## 9. メインウィンドウの表示倍率をユーザー選択制にする
+
+**ガジェット本体（スキン）の拡大率を、画面 DPI から自動決定する現行方式に代えて、ユーザーがメニューから選ぶ方式にする。** 右クリックに「表示倍率」項目を追加し、サブメニューに `100%` / `150%` / `200%`（＋必要なら `125%` / `自動（画面に合わせる）`）を排他選択で並べ、選んだ倍率をメインウィンドウの表示に反映する。**この倍率はダッシュボードには適用しない**（ダッシュボードは従来どおり実 DPI）。
+
+### 現状の確認結果（`src/uMainForm.pas` / `src/uDpiScale.pas` を確認）
+
+- ガジェットの拡大は `TMainForm.FScale100`（整数パーセント）1 変数に集約されている。設定箇所は 2 つだけ:
+  - `ApplyDpiScale`（[uMainForm.pas:692](../src/uMainForm.pas#L692)）: `FScale100 := GadgetScale100(FMonitorDpi)`
+  - `WMDpiChanged`（[uMainForm.pas:1361](../src/uMainForm.pas#L1361)）: 同上（モニター間移動時）
+- 使用箇所も 2 つ: `ApplyDpiClientSize` → `LayoutClientSize(FLayout.Width, FLayout.Height, FScale100, ...)`（[uMainForm.pas:702-708](../src/uMainForm.pas#L702-L708)）、`FormPaint` の `StretchBlt`（`DestW := MulDiv(FLayout.Width, FScale100, 100)`、[uMainForm.pas:935-946](../src/uMainForm.pas#L935-L946)）。
+- `GadgetScale100(dpi)`（[uDpiScale.pas:22-34](../src/uDpiScale.pas#L22-L34)）は 0.5 刻み（100/150/200…、125%→150）で DPI から倍率を出す。ユーザー選択制にするなら `FScale100` の導出をここではなく設定値から行う。
+- ダッシュボードは `TDashboardForm` で完全に別系統（`FWindowDpi` / `HudMetrics`）。メインの `FScale100` には一切依存しないので、**倍率をダッシュボードに波及させない条件は自動的に満たされる**（追加のガードは不要）。
+- `uSettings.TAppSettings` に倍率キーは無い（[11-settings-ini.md] 参照。`[General]` は `Mode`/`StayOnTop`/`Fps`/`WindowX/Y`/`Startup`）。
+
+### 実装プラン（方針）
+
+1. `uSettings` に `[General] Scale`（int パーセント、既定 `0` ＝「自動」）を追加。`0`＝自動（現行の `GadgetScale100(dpi)`）、`100`/`125`/`150`/`200` ＝固定。`Normalize` で許容値以外は `0` に。
+2. `TMainForm` に倍率導出を 1 箇所へ集約するヘルパー（例 `function ResolveScale100: Integer`）: `FSettings.Scale = 0` なら `GadgetScale100(FMonitorDpi)`、それ以外は設定値。`ApplyDpiScale` と `WMDpiChanged` の両方をこれ経由に。
+   - 固定倍率時に `WM_DPICHANGED` を無視するか、無視せず「モニターが変わっても固定倍率のまま・提案矩形へ移動だけする」かは実装時に決める（後者が素直）。
+3. 右クリックメニュー（`BuildPopup`、[uMainForm.pas:535](../src/uMainForm.pas#L535)）に「表示倍率」サブメニュー（`TMenuItem` の子）を追加。`RadioItem := True` の項目を並べ、`OnClick` で `FSettings.Scale` を更新 → `ApplyDpiScale` → `PersistSettings`。文字列 ID は `menu.scale` ＋各倍率（`menu.scale_auto` / `menu.scale_100` …、または `%d%%` を `Format`）。
+4. `SyncViewMenu` 相当のチェック同期を倍率サブメニューにも。
+5. 公開ドキュメント（`USAGE.md` / `FEATURES.md` の JA+EN）に「表示倍率」の説明を追記（実装後）。
+
+### 設計上の論点（実装前に詰める）
+
+- **「自動」を残すか**: 完全にユーザー選択制にすると、高 DPI モニターで既定 `100%` はガジェットが極端に小さくなる。既定を `0`（自動）にして「固定したい人だけ選ぶ」形が無難。ユーザー要望が「常に手動」なら既定を `100` にする。
+- **倍率の刻み**: 現行エンジンは任意倍率で `StretchBlt` できる（0.5 刻み制約は `GadgetScale100` 側の都合）。`100/125/150/175/200/250/300` まで許容してよい。
+- **ホバーチップ／トレイアイコン**: ホバーチップ位置は `FMonitorDpi` ベースのまま（倍率と独立でよい）。トレイアイコンは DPI ベースのまま（`LoadIconMetric`）。
+
+見積り: 半日〜1 日（`FScale100` の導出変更＋メニュー＋ini キー。ダッシュボード非波及は構造上自動）。
