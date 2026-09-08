@@ -223,7 +223,7 @@
 - ✅ `TThemedHudForm`（`src/uThemedHudForm.pas`）新設。(a) `CreateWnd`＋タイトルバー、(b) `WM_SETTINGCHANGE`→`ApplyPalette` 仮想メソッド を共通化。(c) DPI は各派生形式のまま（`TThemedHudForm` には入れない）
 - ✅ `menu.ping`→`menu.ping_result` / `miPingClick`→`miPingResultClick` / ローカル `miPing`→`miPingResult`
 - ⏭️ **3.1.3 以降へ繰り越し**: `TPingCollector.CurrentTarget` の初回解決前の戻り値、`StartReverseLookup` のスレッドプール化（どちらも最優先度低）
-- ⏭️ **未実施**: `tools/refresh-internal-design.ps1` の `.dfm Scaled=` 監査（別途対応可・小）
+- ✅ `tools/refresh-internal-design.ps1` に `.dfm Scaled=` 監査を追加（`a2dcb9d`）。`GENERATED-reference.md` に Forms 一覧を機械生成し、`Scaled=False` かつ DPI 未処理の窓を検出できるようにした
 
 ## 8. Ping 結果表示ウィンドウの高 DPI 対応
 
