@@ -70,6 +70,7 @@ type
     function CurrentMetrics: THudMetrics;
     procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
+    procedure WMDisplayChange(var Message: TMessage); message WM_DISPLAYCHANGE;
     function ProductVersionText: string;
   protected
     procedure CreateWnd; override;
@@ -78,6 +79,10 @@ type
       AHistory: TDashboardHistory; ACollector: TMetricsCollector;
       ASettings: TAppSettings); reintroduce;
     procedure PersistDashboardDip;
+    { Bring the window back onto a visible monitor if a display change left it
+      off-screen. No-op while maximized/minimized. Called on every show and from
+      the gadget's "Reset position" menu item. }
+    procedure ClampIntoView;
   end;
 
 implementation
@@ -85,7 +90,9 @@ implementation
 {$R *.dfm}
 
 uses
-  uAppStrings;
+  Winapi.MultiMon,
+  uAppStrings,
+  uWindowPlacement;
 
 constructor TDashboardForm.Create(AOwner: TComponent; APipeline: TDisplayPipeline;
   AHistory: TDashboardHistory; ACollector: TMetricsCollector;
@@ -249,6 +256,37 @@ begin
     WindowState := wsMaximized;
 end;
 
+procedure TDashboardForm.ClampIntoView;
+var
+  Wp: TWindowPlacement;
+  R: TRect;
+begin
+  if not HandleAllocated then
+    Exit;
+  FillChar(Wp, SizeOf(Wp), 0);
+  Wp.length := SizeOf(Wp);
+  if not GetWindowPlacement(Handle, Wp) then
+    Exit;
+  R := Wp.rcNormalPosition;
+  { Only rescue a window that has become completely unreachable (every monitor it
+    was on was removed). A window still touching a monitor is left where the user
+    put it — including one deliberately straddling two monitors, or one taller
+    than the work area (common at 1080p / 150%), which an unconditional clamp
+    would yank to the work-area origin on every show. Operating on the restore
+    rectangle (not BoundsRect) also covers a maximized or minimized window whose
+    restore position is off-screen. }
+  if MonitorFromRect(@R, MONITOR_DEFAULTTONULL) <> 0 then
+    Exit;
+  ClampRectToWindowMonitor(R, Handle);
+  if EqualRect(R, Wp.rcNormalPosition) then
+    Exit;
+  { Only correct the restore rectangle; leave showCmd alone so a minimized or
+    maximized window is not disturbed — it simply comes back on-screen when the
+    user next restores it. }
+  Wp.rcNormalPosition := R;
+  SetWindowPlacement(Handle, Wp);
+end;
+
 procedure TDashboardForm.PersistDashboardDip;
 var
   Dpi: Integer;
@@ -305,6 +343,14 @@ begin
   ApplyTheme;
   Invalidate;
   Message.Result := 0;
+end;
+
+procedure TDashboardForm.WMDisplayChange(var Message: TMessage);
+begin
+  inherited;
+  { A monitor was added/removed or a resolution changed while the dashboard is
+    open — pull it back if that left it unreachable (matches TMainForm). }
+  ClampIntoView;
 end;
 
 procedure TDashboardForm.ApplyTheme;
@@ -546,6 +592,8 @@ end;
 
 procedure TDashboardForm.FormShow(Sender: TObject);
 begin
+  { A monitor may have been removed/rearranged while the window was hidden. }
+  ClampIntoView;
   FUiTimer.Enabled := True;
   FMeterTimer.Enabled := True;
   RefreshData;

@@ -1108,8 +1108,16 @@ end;
 procedure TMainForm.miResetPositionClick(Sender: TObject);
 begin
   { Manual recovery for a window stuck off-screen (e.g. a monitor was
-    unplugged): the tray icon stays reachable even then, unlike the body.
-    Reachable during tray size too (same popup) - leave tray size first so
+    unplugged): the tray icon stays reachable even then, unlike the body. }
+
+  { The dashboard is a separate top-level window with its own saved position;
+    bring it back too, whatever we do with the gadget below. Every path out of
+    this handler reaches PersistSettings (directly, or via LeaveTraySize ->
+    SetCompactView), which persists the dashboard rect, so no explicit save. }
+  if FDashboardForm <> nil then
+    FDashboardForm.ClampIntoView;
+
+  { Reachable during tray size too (same popup) - leave tray size first so
     Visible and FSettings.TraySize don't end up disagreeing. }
   if (FSettings <> nil) and FSettings.TraySize then
   begin
