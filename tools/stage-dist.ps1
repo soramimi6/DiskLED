@@ -51,11 +51,16 @@ if (Test-Path -LiteralPath $PublicDocs) {
     Write-Warning "public_docs missing — staged folder will ship without user documentation."
 }
 
-# Drop editor leftovers if any
+# Drop editor leftovers and image-editing sources — kept in git for future
+# edits (assets/**/ImageResource/*.xcf), never shipped to users.
 $junk = Get-ChildItem -LiteralPath (Join-Path $Stage 'assets') -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Extension -in @('.tmp', '.bak') }
+    Where-Object { $_.Extension -in @('.tmp', '.bak', '.xcf') }
 if ($junk) {
     $junk | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+$imgSrc = Join-Path $Stage 'assets\infobar\ImageResource'
+if (Test-Path -LiteralPath $imgSrc) {
+    Remove-Item -LiteralPath $imgSrc -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 if (Test-Path -LiteralPath $Styles) {
