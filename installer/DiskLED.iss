@@ -3,7 +3,7 @@
 ; Requires: Inno Setup 6 (ISCC.exe)
 
 #define MyAppName "DiskLED"
-#define MyAppVersion "3.1.0"
+#define MyAppVersion "3.1.1"
 #define MyAppPublisher "SoRaMiMi"
 #define MyAppURL "https://mg6.jp/"
 #define MyAppExeName "DiskLED.exe"

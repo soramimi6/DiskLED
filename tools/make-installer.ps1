@@ -1,11 +1,11 @@
 # Stages dist and compiles the Inno Setup installer.
-# Usage: .\tools\make-installer.ps1 [-Config Release|Debug]
-# Requires Inno Setup 6 (ISCC.exe).
+# Usage: .\tools\make-installer.ps1 [-Config Release|Debug] [-Version x.y.z]
+# Requires Inno Setup 6 (ISCC.exe). Keep -Version in sync with installer/DiskLED.iss #define MyAppVersion.
 
 param(
     [ValidateSet('Release', 'Debug')]
     [string]$Config = 'Release',
-    [string]$Version = '3.1.0'
+    [string]$Version = '3.1.1'
 )
 
 $ErrorActionPreference = 'Stop'
