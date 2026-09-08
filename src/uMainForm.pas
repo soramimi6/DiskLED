@@ -1480,15 +1480,18 @@ begin
   end;
   if FVersionText = '' then
     FVersionText := GetProductVersionText;
+  { EditionSuffix is ' (Store)' on the MSIX build, '' otherwise — lets a support
+    screenshot tell the Store and GitHub editions apart. Disk/Net labels are
+    kept short so the whole block still fits the tray hint's 128-char cap. }
   Result := Format(
-    'DiskLED %s'#13#10 +
+    'DiskLED %s%s'#13#10 +
     ' CPU: %d%%'#13#10 +
     ' MEM: %d%%'#13#10 +
     ' SWP: %d%%'#13#10 +
-    ' Disk I/O: %s'#13#10 +
-    ' Net I/O: %s'#13#10 +
+    ' Disk: %s'#13#10 +
+    ' Net: %s'#13#10 +
     ' %s',
-    [FVersionText, CpuPct, MemPct, SwapPct, DiskIo, NetIo, PingLine]);
+    [FVersionText, EditionSuffix, CpuPct, MemPct, SwapPct, DiskIo, NetIo, PingLine]);
 end;
 
 procedure TMainForm.RefreshHoverText;

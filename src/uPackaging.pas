@@ -14,6 +14,12 @@ const
 
 function IsStorePackage: Boolean;
 
+{ ' (Store)' on the MSIX/Store build, '' otherwise. Appended to the version
+  string in the hover / tray-hint text so a support screenshot identifies the
+  edition. Non-localized on purpose (short, brand-name, keeps the tray hint
+  under its 128-char cap). }
+function EditionSuffix: string;
+
 implementation
 
 uses
@@ -48,6 +54,14 @@ begin
     FCached := True;
   end;
   Result := FResult;
+end;
+
+function EditionSuffix: string;
+begin
+  if IsStorePackage then
+    Result := ' (Store)'
+  else
+    Result := '';
 end;
 
 end.
