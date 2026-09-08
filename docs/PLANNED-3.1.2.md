@@ -55,7 +55,7 @@
     - `StartupTask.GetAsync("DiskLEDStartupTask")` → `StartupTaskState` を `IsRegistered` に対応させる（`Enabled` → 登録済み、それ以外 → 未登録）
     - 有効化 = `RequestEnableAsync()`、無効化 = `Disable()`
     - `DisabledByUser`（ユーザーがタスクマネージャ／設定で無効化）と `DisabledByPolicy` の状態では `RequestEnableAsync` を呼んでも `State` が変わらない仕様。この場合はチェックボックスを無効化し「Windows の『スタートアップ アプリ』設定で有効化してください」の旨をラベル表示する
-- WinRT を Delphi から呼ぶバインディングが工数の主因。RTL の `Winapi.WinRT` / `Winapi.CommonTypes` と、生成済み名前空間ユニット（`Winapi.ApplicationModel` があればそれ、無ければ `IInspectable` + `RoGetActivationFactory` を最小限手書き）を使う。`IAsyncOperation` の待機は `Winapi.Winrt.Utils` の `AwaitProc` / 手動 `completed` ハンドラ + メッセージポンプで対応。すべて `{$IF Defined(...)}` ではなく実行時 `IsStorePackage` 分岐に閉じ込め、非パッケージ版のコードパスからは WinRT を一切呼ばない
+- WinRT を Delphi から呼ぶバインディングが工数の主因。**開発機は Delphi 13 / Studio 37.0（確認済み）。** RTL の `WinAPI.ApplicationModel.pas` には `StartupTaskState` enum（`Disabled=0` / `DisabledByUser=1` / `Enabled=2` / `DisabledByPolicy=3` / `EnabledByPolicy=4`、[Studio 37.0 WinAPI.ApplicationModel.pas:2297]）と `IAsyncOperation_1__StartupTaskState`（`RequestEnableAsync` の戻り型）が既に生成済み。ただし **`IStartupTask` / `IStartupTaskStatics` インターフェース本体は未投影** → この 2 つ（＋ `GetAsync` 用の `IAsyncOperation<StartupTask>`）を `uStartup` 内で最小限手宣言する。ファクトリ取得は `Winapi.WinRT.RoGetActivationFactory('Windows.ApplicationModel.StartupTask', IStartupTaskStatics)`。`IAsyncOperation` の待機は `WinAPI.WinRT.Utils.Await(op, AProcessMessagesProc)`（RTL 提供）。`RoInitialize` が済んでいなければ `RO_INIT_SINGLETHREADED` で 1 回。すべて `{$IF Defined(...)}` ではなく実行時 `IsStorePackage` 分岐に閉じ込め、非パッケージ版のコードパスからは WinRT を一切呼ばない（uses に WinRT ユニットを足しても、呼ばなければ非パッケージ版の挙動は不変）
 - `uStartup` の公開インターフェース（`IsRegistered: Boolean` / `SetRegistered(AEnabled)`）は変更しない。呼び出し側（`uOptionsForm` / `uMainForm`）は原則そのまま
 
 **C. `TOptionsForm` の UI**
@@ -74,7 +74,7 @@
 - **ランタイム挙動: 変化なし。** `IsStorePackage` は GitHub 配布物（ポータブル ZIP / Inno インストーラ）では常に `False` を返す（`GetCurrentPackageFullName` が `APPMODEL_ERROR_NO_PACKAGE`）。分岐の `else` は現行の Run キーコードそのもので、WinRT のコードパスには一切入らない
 - **`installer/DiskLED.iss`: 無変更。** インストーラの `[Tasks] startup` と `[Registry]` の Run キー書き込み（[installer/DiskLED.iss:47](../installer/DiskLED.iss#L47), [installer/DiskLED.iss:59](../installer/DiskLED.iss#L59)）はアプリと独立して動いており、そのまま
 - **`AppxManifest.xml` の変更は MSIX パッケージ内だけ。** GitHub リリース成果物には含まれない
-- **ビルド影響:** WinRT ユニットを uses に追加するが、`Winapi.WinRT` 等は RAD Studio 標準 RTL。Community Edition でも IDE ビルド（Shift+F9）で解決できる想定（実装ステップ後にユーザー検証）。生成名前空間ユニットが CE の RTL に無い場合は `RoGetActivationFactory` 手書きへ切り替える
+- **ビルド影響:** `uses` に `Winapi.WinRT` / `WinAPI.ApplicationModel` / `WinAPI.WinRT.Utils` を追加する。いずれも Delphi 13 / Studio 37.0 標準 RTL に存在（確認済み）。`IStartupTask` / `IStartupTaskStatics` の手宣言は `uStartup` の implementation 部に閉じる。実装ステップ後にユーザーが IDE ビルド（Shift+F9）で検証
 - **回帰確認（非パッケージ版）:** Inno インストーラでインストール → オプションで「スタートアップに登録」ON/OFF → タスクマネージャのスタートアップタブに反映されること、再ログオンで起動すること。従来どおり動けば OK（分岐追加でここが壊れていないことの確認が主目的）
 
 ### 見積り
