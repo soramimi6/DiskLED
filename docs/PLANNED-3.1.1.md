@@ -1,4 +1,4 @@
-# 3.1.1（リリース中: Microsoft Store 認定審査中、`v3.1.1` タグ未発行）
+# 3.1.1（リリース済み: `v3.1.1` / 2026-09-08。Microsoft Store・GitHub とも公開済み）
 
 公開ドキュメント（`public_docs/`）には予定している内容は書かない。実装が入り、利用者に見えるようになってから CHANGELOG / USAGE / NOTES / INSTALL（JA+EN）へ「実装済み」として書く。
 
