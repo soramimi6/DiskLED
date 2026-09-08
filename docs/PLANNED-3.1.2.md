@@ -15,7 +15,7 @@
 | 5 | BMP → PNG 変換 | 高 | 低〜中（変換自体は容易だが色キー透過の実機確認が要る） | 半日程度 | 中 |
 | 6 | 新スキン: アナログ VU メーター | 高（メーター描画自体は既存のスプライトストリップ方式で対応可） | 高（DiskIO/NetIO 合成パイプライン新設＋コンパクト／フルのパーツ出し分け機構という新エンジン機能が前提） | 未検証（コア変更＋layout.cfg拡張＋素材制作） | 中 |
 | 7 | 項目 5（Tracert）実装時の軽微なコード品質改善（6 件） | 高（すべて局所的な小改修） | 低（既存コードの整理・共通化が中心） | 半日〜1 日（6 件まとめて） | 低 |
-| 8 | Ping 結果表示ウィンドウの高 DPI 対応 | 高（`TDashboardForm` に前例あり） | 中（`Scaled=False` 化＋全寸法の `ScalePx` 化＋描画関数の DPI 対応＋`WM_DPICHANGED`） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
+| 8 | Ping 結果表示ウィンドウの高 DPI 対応 | 高 | 低〜中（案 A: `Scaled=True` に戻して VCL 自動スケール＋自前描画 2 箇所の座標修正。案 B フォールバックあり） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
 | 9 | ホバー／ダッシュボードのバージョン表示に配布形態（Store / GitHub）を併記 | 高（`IsStorePackage` は既存） | 低（表示 2 箇所にサフィックス付与のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
@@ -219,26 +219,50 @@
 
 **画面拡大率 150% 等の環境で `TTraceRouteForm`（「Ping 結果表示」/ 非日本語では「View Trace Route」）の表示が崩れる。** ヘッダー 2 行の文字が重なる、リストヘッダーの列見出しが列幅からはみ出す、リスト本文の文字が周囲より小さすぎる。
 
-### 現状の確認結果（`src/uTraceRouteForm.pas` を確認）
+### 現状の確認結果（`src/uTraceRouteForm.pas` / `.dfm` / `src/dashboard/` を確認）
 
-- **DPI 対応が一切無い。** `TDashboardForm` は `Scaled := False` ＋ `HudMetrics(dpi)`（`ScalePx` で全寸法を物理 px 化）＋ `WM_DPICHANGED` ハンドラ ＋ 描画関数での `Canvas.Font.PixelsPerInch := 96`（[09-dashboard.md](internal/09-dashboard.md) §9.3、内部資料）を持つが、`TTraceRouteForm` にはどれも無い。
-- `FormCreate`（[uTraceRouteForm.pas:97-185](../src/uTraceRouteForm.pas#L97-L185)）: `Scaled` 未設定（VCL 既定の `True`）。`ClientWidth := 700` / `ClientHeight := 560` / `Constraints` / 各 `SetBounds` は生ピクセル値。
-- レイアウト定数がすべて未スケール: `CListHeaderHeight=24` / `CColTtlW=48` / `CColIpW=140` / `CColHostW=280` / `CColRttW=90`（[uTraceRouteForm.pas:70-75](../src/uTraceRouteForm.pas#L70-L75)）、`CMargin=12` / `CHeaderHeight=56` / `CButtonHeight=28` / `CButtonWidth=140`（[uTraceRouteForm.pas:98-102](../src/uTraceRouteForm.pas#L98-L102)）。
-- **ヘッダーの文字重なり**: `HeaderPaint`（[uTraceRouteForm.pas:243-294](../src/uTraceRouteForm.pas#L243-L294)）は `Canvas.Font.Size := 11` の行1を `TextOut(12, 6, ...)`、`Size := 9` の行2を `TextOut(12, 30, ...)` に描く。`Canvas.Font.PixelsPerInch` 未設定なのでフォームの DPI（150%＝144）でフォントが拡大され、行1（約 22px）＋ Y=6 が Y=30 の行2に食い込む。`FHeaderPaint.Height = CHeaderHeight = 56` も未スケール。
-- **リストヘッダーのはみ出し**: `ListHeaderPaint`（[uTraceRouteForm.pas:211-241](../src/uTraceRouteForm.pas#L211-L241)）は `Canvas.Font.Size := 9`（拡大される）の見出しを `X := 4; TextOut(X, 4, ...); Inc(X, CColTtlW)` と**未スケールの列幅**で送るため、拡大フォントが列幅を超える。`FListHeaderPaint` 高さも `CListHeaderHeight = 24` 固定。
-- **リスト本文が小さい**: `FList`（`TListView`）の列幅は `CColTtlW` 等の生値。さらに `SetWindowTheme(FList.Handle, '', '')`（[uTraceRouteForm.pas:174](../src/uTraceRouteForm.pas#L174)、Explorer ビジュアルスタイル無効化）がコントロールを DPI 非対応の既定 GUI フォントへ戻すため、周囲が 150% に拡大される中でリスト本文だけ 96dpi サイズのまま。
-- `WM_DPICHANGED` ハンドラが無い（`WMSettingChange`（[uTraceRouteForm.pas:203](../src/uTraceRouteForm.pas#L203)）はテーマ追従のみ）。モニター間移動で再レイアウトされない。
+**`TTraceRouteForm` は `TDashboardForm` の DPI モデルへの移行が「半分」だけ済んでいる状態。** `.dfm` には `Scaled = False` / `PixelsPerInch = 96` が既にある（[uTraceRouteForm.dfm](../src/uTraceRouteForm.dfm)。当初の想定と違いここは設定済み）が、`TDashboardForm` が持つ残りの仕組み — DPI 追跡（`FWindowDpi` ＋ `WindowDpi`）、`HudMetrics(dpi)`（全寸法を `ScalePx` 済み）、`LayoutContent`、`WM_DPICHANGED` ハンドラ、描画関数の `Canvas.Font.PixelsPerInch := 96`（`uDashboardPainter.TransparentText`、[uDashboardPainter.pas:60-65](../src/dashboard/uDashboardPainter.pas#L60-L65)） — が一切無い。
 
-### 実装プラン（`TDashboardForm` の方式を踏襲）
+`Scaled = False` のため VCL は自動スケールしない。したがって:
 
-1. `FormCreate` で `Scaled := False`。`FDpi: Integer` フィールドと `function Dpi: Integer`（`uDpiScale.MonitorDpiForWindow(Handle)`、`WM_DPICHANGED` の LoWord 優先）を追加。
-2. レイアウト定数を DIP として扱い、配置を `LayoutContent` 相当のメソッドへ集約して `uDpiScale.ScalePx(value, Dpi)` で物理化。`FormCreate` と `WM_DPICHANGED` から呼ぶ。列幅（`FList.Columns[i].Width`）・`FListHeaderPaint` 高さ・`FHeaderPaint` 高さ・ボタン寸法・マージンをすべてスケール。
-3. `FList.Font` を明示的にスケール済み高さで設定（`SetWindowTheme` 後に `FList.Font.Height := -ScalePx(...)`）。テーマ無効化で失われる DPI スケールを補う。
-4. `HeaderPaint` / `ListHeaderPaint`: 先頭で `Canvas.Font.PixelsPerInch := 96`（`uDashboardPainter` の `TransparentText` と同じ）を設定し、Y 座標・行間・列送り幅を `ScalePx` で物理化。
-5. `WM_DPICHANGED` ハンドラを追加（`TDashboardForm.WMDpiChanged`（[uDashboardForm.pas:326](../src/dashboard/uDashboardForm.pas#L326)）と同型）: `FDpi` 更新 → 提案矩形へ移動 → `LayoutContent` → `Invalidate`。
-6. 検証: Windows 10/11 × 100 / 125 / 150 / 200%。ヘッダー 2 行が重ならない、列見出しが列内に収まる、リスト本文が周囲と同じ拡大率、モニター間移動で崩れない。
+- **レイアウトが 96dpi 固定**: `FormCreate`（[uTraceRouteForm.pas:97-185](../src/uTraceRouteForm.pas#L97-L185)）の `ClientWidth := 700` / `ClientHeight := 560` と各 `SetBounds` は生ピクセル。定数 `CListHeaderHeight=24` / `CColTtlW=48` / `CColIpW=140` / `CColHostW=280` / `CColRttW=90`（[uTraceRouteForm.pas:70-75](../src/uTraceRouteForm.pas#L70-L75)）、`CMargin=12` / `CHeaderHeight=56` / `CButtonHeight=28` / `CButtonWidth=140`（[uTraceRouteForm.pas:98-102](../src/uTraceRouteForm.pas#L98-L102)）はすべて 96dpi 前提。150% の画面では窓全体が小さく詰まる。
+- **ヘッダー2行の重なり**: `HeaderPaint`（[uTraceRouteForm.pas:243-294](../src/uTraceRouteForm.pas#L243-L294)）は行1を `Canvas.Font.Size := 11` で `TextOut(12, 6, ...)`、行2を `Size := 9` で `TextOut(12, 30, ...)` に描く。**`Canvas.Font.PixelsPerInch` を設定していない**ため `TPaintBox.Canvas.Font` の既定 PPI（PerMonitorV2 プロセスなのでその時のモニター DPI、150%＝144）で `Size` が解釈され、行1は約 22px（96dpi なら約 15px）になる。一方 Y 座標 `6` / `30` と `FHeaderPaint.Height = 56` は 96dpi 固定 → 行1（22px）＋ Y=6 が Y=30 の行2へ食い込む。
+- **リストヘッダーのはみ出し**: `ListHeaderPaint`（[uTraceRouteForm.pas:211-241](../src/uTraceRouteForm.pas#L211-L241)）も同様に `Canvas.Font.PixelsPerInch` 未設定の `Size := 9`（144dpi で約 18px）で見出しを描き、列送りは `X := 4; TextOut(X, 4, ...); Inc(X, CColTtlW)` と**96dpi 固定の列幅**。拡大フォントが列幅を超える。`FListHeaderPaint` 高さも `CListHeaderHeight = 24` 固定。
+- **リスト本文が小さい**: `FList`（`TListView`）の列幅は生値。フォントは `FList.Font`（フォーム Font 継承、`Height=-12`＝12px＝96dpi サイズ）。`Scaled = False` なので拡大されず、150% の画面で本文だけ 96dpi サイズのまま。さらに `SetWindowTheme(FList.Handle, '', '')`（[uTraceRouteForm.pas:174](../src/uTraceRouteForm.pas#L174)）で Explorer ビジュアルスタイルを外しているため、テーマ由来の DPI スケールも効かない。
+- `WM_DPICHANGED` ハンドラが無い（[uTraceRouteForm.pas:50](../src/uTraceRouteForm.pas#L50) の `WMSettingChange` はテーマ追従専用）。モニター間移動で崩れる。
 
-見積り: 半日〜1 日（`uDashboardForm` に前例があるため）。項目 7 の「`CreateWnd`＋`WM_SETTINGCHANGE` の共通化」と同じユニットを触るので、まとめて着手すると効率的。
+### `TDashboardForm` の DPI モデル（参考・確認済み）
+
+`.dfm` で `Scaled = False` / `PixelsPerInch = 96`。`FWindowDpi` を保持し `WM_DPICHANGED`（[uDashboardForm.pas:326-344](../src/dashboard/uDashboardForm.pas#L326-L344)）で更新。`HudMetrics(dpi)`（[uDashboardTheme.pas:203-234](../src/dashboard/uDashboardTheme.pas#L203-L234)）は Margin/HeaderHeight/… に加えフォントサイズ（`HeaderTitleSize := ScalePx(12, dpi)` 等）まで全フィールドを `ScalePx` で作る。`LayoutContent`（[uDashboardForm.pas:406](../src/dashboard/uDashboardForm.pas#L406)）が子コントロールを metrics で配置し、`FormCreate` / `WM_DPICHANGED` / `FormResize` から呼ばれる。描画関数は先頭で `TransparentText`（`Canvas.Font.PixelsPerInch := 96`）→ `Canvas.Font.Size := Met.<既に ScalePx 済みのサイズ>` とすることでフォントを DPI 比例させている。
+
+### 方針の選択
+
+`TTraceRouteForm` は標準コントロール中心（`TButton`×2・`TPanel`・`TListView`）＋ 小さな自前描画 2 箇所（ヘッダー帯・リスト列見出し）という構成で、`TDashboardForm` のような一枚絵の HUD ではない。そのため 2 案がある:
+
+**案 A（推奨）— VCL の自動 DPI スケールに任せる（`Scaled := True`）**
+
+`.dfm` の `Scaled = False` を **`True`（VCL 既定）に戻す**。VCL の per-monitor DPI スケール（`ScaleForPPI` / `ChangeScale`。`WM_DPICHANGED` もモニター間移動も VCL が処理）に、フォーム・`TButton`・`TPanel`・`TListView`（列幅は `TCustomListView.ChangeScale` がスケールする）を任せる。自前で DPI 追跡・`LayoutContent`・`WM_DPICHANGED` ハンドラを持たない。手を入れるのは自前描画 2 箇所だけ:
+
+1. `.dfm`: `Scaled = False` を削除（`True` 既定に）。`ClientWidth/Height` / `Constraints` は `.dfm` 側（設計 PPI 96）に持たせ、VCL にスケールさせる。
+2. `FormCreate` のコントロール生成はそのまま。VCL の初回スケールパス（`FormCreate` 後、非 96 モニターで実行）と `WM_DPICHANGED` 時のスケールが、`SetBounds` した子コントロールと `FList` の列幅（`FormCreate` 内で `Columns.Add` 済み）を設計 96dpi 基準からスケールする。**この「実行時生成コントロールも VCL がスケールする」前提が案 A の要。想定どおりに効かない値だけ `MulDiv(n, CurrentPPI, 96)` で個別補正する（フォールバック）。**
+3. `HeaderPaint` / `ListHeaderPaint`: **ここだけ手動 DPI 対応。** `Canvas.Font.Size`（ポイント指定）は `Scaled=True` フォームの `TPaintBox.Canvas.Font.PixelsPerInch = モニター DPI` により自動でスケールするので現状維持でよい。ただし**ハードコードの Y/X オフセット**を DPI 非依存にする:
+   - `HeaderPaint` の行1 `TextOut(12, 6, ...)` / 行2 `TextOut(12, 30, ...)` → 左マージンは `MulDiv(12, CurrentPPI, 96)`、行2 の Y は `行1Y + Canvas.TextHeight(行1) + gap` と**テキスト実測から算出**（Y=30 固定をやめる）。これで重なりが構造的に起きない。
+   - `ListHeaderPaint` の列送り `X := 4; Inc(X, CColTtlW)` → 定数ではなく**実際の現在列幅** `FList.Columns[i].Width`（VCL がスケール済み）を積算。左パディング `4` は `MulDiv`。
+4. `FList` の行フォント: `Scaled=True` なら VCL が `FList.Font` をスケールする。`SetWindowTheme(FList.Handle, '', '')` 後もフォントは `WM_SETFONT` で維持される想定。崩れる場合のみ `FList.Font` を明示設定（`Height` は VCL がスケール済みの値を使う）。
+5. `FListHeaderPaint` は `FListBorder` 子で `Height := CListHeaderHeight` 固定。`.dfm` に無いので `FormCreate` で `SetBounds`。案 A では VCL のスケールに乗るか要確認、乗らなければ `MulDiv(CListHeaderHeight, CurrentPPI, 96)`。
+6. 検証: Windows 10/11 × 100 / 125 / 150 / 200%、実行中の拡大率変更、モニター間移動。余白・重なり・列はみ出し・リスト本文サイズ・リサイズ追従。
+
+見積り: 半日（自前描画 2 箇所の座標修正＋ VCL スケール挙動の実機確認が主）。
+
+**案 B（フォールバック）— `TDashboardForm` 方式を移植（`Scaled := False` のまま手動）**
+
+案 A で VCL の実行時コントロールスケールが不安定だった場合。`FDpi` 追跡 ＋ `HudMetrics(dpi)` 流用（パレットで既に `uDashboardTheme` 依存済み）＋ `LayoutContent`（`FHeaderPaint`/ボタン/`FListBorder`/`FListHeaderPaint`/`FList` bounds・`FList.Columns[].Width`・`Constraints` を全部 `ScalePx`）＋ `WM_DPICHANGED` ハンドラ（`TDashboardForm.WMDpiChanged`（[uDashboardForm.pas:326](../src/dashboard/uDashboardForm.pas#L326)）と同型）＋ 描画で `Canvas.Font.PixelsPerInch := 96` ＋ metrics のスケール済みサイズ。`SetWindowTheme` 後に `FList.Font.Height := -ScalePx(15, Dpi)` 明示。
+
+見積り: 半日〜1 日。
+
+### 項目 7 との関係
+
+案 B を採る場合、`WM_DPICHANGED` が `CreateWnd` ＋ `WM_SETTINGCHANGE`（項目 7）に続く 3 つ目の `uDashboardForm` との重複になるため、7 と 8 をまとめてテーマ追従＋DPI 追従の共通ヘルパー（ミックスイン or 基底フォーム）へ括り出すのが効率的。案 A なら `WM_DPICHANGED` は VCL 任せで重複が増えないので、7 とは独立に進めてよい。
 
 ## 9. バージョン表示に配布形態（Store / GitHub）を併記
 
@@ -255,11 +279,13 @@
 
 ### 実装プラン
 
-1. 配布形態サフィックスを返す小さなヘルパーを用意する（`uPackaging` に `function EditionSuffix: string;` を追加し、`IsStorePackage` なら `' (Microsoft Store)'`、それ以外は `''` を返す、が素直）。「Microsoft Store」はブランド名なので JA/EN 共通の literal でよい（`uAppStrings` に文字列 ID を切る必要は薄いが、揃えたければ `hover.edition_store` を追加してもよい）。
-2. **表示 2 箇所だけ**にサフィックスを付ける:
-   - `HoverInfoText` の `'DiskLED %s'` を `'DiskLED %s%s'`（版＋サフィックス）に
-   - `TDashboardForm.ProductVersionText` の戻り値に連結
-3. `GetProductVersionText` 本体・User-Agent・版比較は無変更。
-4. 検証: GitHub 版（ポータブル / Inno）でサフィックスが出ないこと、実機 MSIX でホバーとダッシュボードに `(Microsoft Store)` が出ること。
+1. `uAppStrings` に配布形態マーカー用の文字列 ID とヘルパーを追加:
+   - `AddStr('app.edition_store', 'Microsoft Store 版', 'Microsoft Store')`（JA/EN で語尾を変える。他の literal に合わせ `uAppStrings` 経由が一貫）
+   - `function EditionMarker: string;` — `uPackaging.IsStorePackage` が真なら `' (' + S('app.edition_store') + ')'`、偽なら `''` を返す。`uAppStrings` の implementation uses に `uPackaging` を足す（`uPackaging` は `Winapi.Windows` のみ依存なので循環しない）。
+2. **表示 2 箇所だけ**に付ける:
+   - **ホバー／トレイ Hint**（必須）: `TMainForm.HoverInfoText` の `'DiskLED %s'` を `'DiskLED %s'` のまま `FVersionText` 側に連結、または書式を `'DiskLED %s%s'` にして `EditionMarker` を渡す。ツールチップなので幅制約なし。
+   - **ダッシュボードヘッダー**（任意）: `TDashboardForm.ProductVersionText` の戻り値に `EditionMarker` を連結。ただし `DrawHudHeader`（[uDashboardPainter.pas](../src/dashboard/uDashboardPainter.pas)）は版を `● LIVE` の左に右詰めで描く（`LiveX - Dip(12) - TextWidth(AVersion)`）。`(Microsoft Store)` を足すと幅が倍以上になりタイトル `DISKLED HUD` と詰まる可能性があるため、**ダッシュボード側は短縮形 `(Store)` にするか、そもそも付けない**（ホバーで足りるなら見送り）。実装時に最小幅 1000 DIP での見え方で判断。
+3. `GetProductVersionText` 本体・`uUpdateCheck` の User-Agent・版比較（`VersionIsNewer` / `CompareVersionText`）は**無変更**。
+4. 検証: GitHub 版（ポータブル / Inno）でマーカーが出ないこと、実機 MSIX（`tools/make-msix-sideload.ps1`）でホバーに `(Microsoft Store)` が出ること。`CDebugForceStorePackage = True` でも `IsStorePackage` 経由なので開発ビルドで表示確認は可能（ただし最終は実機 MSIX）。
 
 見積り: 1〜2 時間。
