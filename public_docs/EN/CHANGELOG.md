@@ -20,6 +20,7 @@ Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 - Added **Reset Position** to the right-click menu, so a main window stuck off-screen can be recovered from the tray icon's right-click menu
 - Fixed the main window being pulled back to the primary monitor on restart when it had been left on a secondary monitor
 - Fixed the startup update-check menu item briefly showing stale state left over from a previous session
+- Distribution: `DiskLED_Setup_3.1.1.exe` and `DiskLED-3.1.1-portable.zip`
 
 ## 3.1.0
 
