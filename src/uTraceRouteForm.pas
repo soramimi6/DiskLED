@@ -17,11 +17,12 @@ uses
   Vcl.ComCtrls,
   Vcl.StdCtrls,
   Vcl.Graphics,
+  uThemedHudForm,
   uCollector,
   uTracertCollector;
 
 type
-  TTraceRouteForm = class(TForm)
+  TTraceRouteForm = class(TThemedHudForm)
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -51,9 +52,8 @@ type
     function Sc(V: Integer): Integer;
     procedure LayoutButtonsAndBorder;
     procedure RelayoutList;
-    procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
   protected
-    procedure CreateWnd; override;
+    procedure ApplyPalette; override;
   public
     constructor Create(AOwner: TComponent; ACollector: TMetricsCollector); reintroduce;
     destructor Destroy; override;
@@ -96,12 +96,9 @@ begin
   inherited;
 end;
 
-procedure TTraceRouteForm.CreateWnd;
+procedure TTraceRouteForm.ApplyPalette;
 begin
-  inherited;
-  { Per-HWND DWM attribute: must be reasserted on every handle (re)creation,
-    same as uDashboardForm's CreateWnd. }
-  ApplyHudTitleBar(Handle);
+  ApplyTheme;
 end;
 
 function TTraceRouteForm.Sc(V: Integer): Integer;
@@ -238,14 +235,6 @@ begin
     ApplyHudTitleBar(Handle);
   FHeaderPaint.Invalidate;
   FListHeaderPaint.Invalidate;
-end;
-
-procedure TTraceRouteForm.WMSettingChange(var Message: TWMSettingChange);
-begin
-  inherited;
-  if (Message.Section <> nil) and
-    SameText(string(Message.Section), 'ImmersiveColorSet') then
-    ApplyTheme;
 end;
 
 procedure TTraceRouteForm.ListHeaderPaint(Sender: TObject);

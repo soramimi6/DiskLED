@@ -112,7 +112,7 @@ type
     procedure ResetTrayToAppIcon;
     procedure RefreshTrayIconForState;
     function TrayIconPath(const AAssetDir, AFileName: string): string;
-    procedure miPingClick(Sender: TObject);
+    procedure miPingResultClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
     procedure miResetPositionClick(Sender: TObject);
     procedure miDashboardClick(Sender: TObject);
@@ -547,7 +547,7 @@ var
   Def: TDisplayModeDef;
   miMode: TMenuItem;
   Sep: TMenuItem;
-  miPing: TMenuItem;
+  miPingResult: TMenuItem;
   miOpt: TMenuItem;
   miResetPosition: TMenuItem;
   miExit: TMenuItem;
@@ -601,10 +601,10 @@ begin
   miOpt.OnClick := miDashboardClick;
   FPopup.Items.Add(miOpt);
 
-  miPing := TMenuItem.Create(FPopup);
-  miPing.Caption := S('menu.ping');
-  miPing.OnClick := miPingClick;
-  FPopup.Items.Add(miPing);
+  miPingResult := TMenuItem.Create(FPopup);
+  miPingResult.Caption := S('menu.ping_result');
+  miPingResult.OnClick := miPingResultClick;
+  FPopup.Items.Add(miPingResult);
 
   miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.options');
@@ -1095,7 +1095,7 @@ begin
   SetCompactView(FSettings.Compact);
 end;
 
-procedure TMainForm.miPingClick(Sender: TObject);
+procedure TMainForm.miPingResultClick(Sender: TObject);
 begin
   ShowTraceRouteForm;
 end;

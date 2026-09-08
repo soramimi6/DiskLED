@@ -83,7 +83,8 @@ uses
   System.SysUtils,
   Winapi.Windows,
   Winapi.Winsock,
-  uIcmpApi;
+  uIcmpApi,
+  uHostResolve;
 
 const
   CMaxHops = 30;
@@ -107,23 +108,6 @@ end;
 function TTracertCancelToken.IsCancelled: Boolean;
 begin
   Result := FCancelled;
-end;
-
-function ResolveIPv4(const AHost: string; out AAddr: Cardinal): Boolean;
-var
-  HostEnt: PHostEnt;
-  AnsiHost: AnsiString;
-begin
-  AAddr := 0;
-  Result := False;
-  AnsiHost := AnsiString(AHost);
-  HostEnt := gethostbyname(PAnsiChar(AnsiHost));
-  if (HostEnt = nil) or (HostEnt^.h_addrtype <> AF_INET) or (HostEnt^.h_length <> 4) then
-    Exit;
-  if (HostEnt^.h_addr_list = nil) or (HostEnt^.h_addr_list^ = nil) then
-    Exit;
-  AAddr := PCardinal(HostEnt^.h_addr_list^)^;
-  Result := AAddr <> 0;
 end;
 
 function AddrToStr(AAddr: Cardinal): string;
@@ -255,6 +239,8 @@ var
   Host: string;
   Gen: Integer;
   Token: ITracertCancelToken;
+  Worker: TThread;
+  FailRes: TTracertResult;
 begin
   if FRunning then
     Exit;
@@ -263,8 +249,10 @@ begin
   Gen := FGeneration;
   Host := AHost;
   Token := FCancelToken;
+  Worker := nil;
 
-  TThread.CreateAnonymousThread(
+  try
+  Worker := TThread.CreateAnonymousThread(
     procedure
     var
       Dest: Cardinal;
@@ -353,7 +341,22 @@ begin
           if not Token.IsCancelled then
             Self.DoComplete(Res);
         end);
-    end).Start;
+    end);
+    Worker.Start;
+  except
+    { The OS refused a new thread — DoComplete would never run and FRunning
+      would latch on, so reset it and surface the failure. }
+    FRunning := False;
+    if Assigned(Worker) then
+      Worker.Free;
+    if Assigned(FOnComplete) then
+    begin
+      FailRes := Default(TTracertResult);
+      FailRes.TargetHost := Host;
+      FailRes.Failed := True;
+      FOnComplete(FailRes);
+    end;
+  end;
 end;
 
 end.

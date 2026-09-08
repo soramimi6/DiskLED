@@ -20,7 +20,8 @@ uses
   uDashboardGraph,
   uSettings,
   uMetricsTypes,
-  uDpiScale;
+  uDpiScale,
+  uThemedHudForm;
 
 { Dashboard regions (docs/DESIGN.md, .cursor/rules/dashboard-regions.mdc):
   ヘッダー
@@ -28,7 +29,7 @@ uses
   右カラム — サブセクション × 5 (CPU / メモリ / 電源（左：電源 | 右：音量） / ディスクキュー / Ping)
   Do not put subsection facts inside a left-column section. }
 type
-  TDashboardForm = class(TForm)
+  TDashboardForm = class(TThemedHudForm)
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -68,11 +69,11 @@ type
     procedure ApplySavedDipBounds;
     function WindowDpi: Integer;
     function CurrentMetrics: THudMetrics;
-    procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
     procedure WMDisplayChange(var Message: TMessage); message WM_DISPLAYCHANGE;
     function ProductVersionText: string;
   protected
+    procedure ApplyPalette; override;
     procedure CreateWnd; override;
   public
     constructor Create(AOwner: TComponent; APipeline: TDisplayPipeline;
@@ -201,14 +202,18 @@ end;
 
 procedure TDashboardForm.CreateWnd;
 begin
-  inherited;
+  inherited; { TThemedHudForm.CreateWnd applies the DWM title bar }
   if FWindowDpi < 1 then
   begin
     FWindowDpi := MonitorDpiForWindow(Handle);
     if FWindowDpi < 1 then
       FWindowDpi := 96;
   end;
-  ApplyHudTitleBar(Handle);
+end;
+
+procedure TDashboardForm.ApplyPalette;
+begin
+  ApplyTheme;
 end;
 
 function TDashboardForm.WindowDpi: Integer;
@@ -390,13 +395,6 @@ begin
   Invalidate;
 end;
 
-procedure TDashboardForm.WMSettingChange(var Message: TWMSettingChange);
-begin
-  inherited;
-  if (Message.Section <> nil) and
-    SameText(string(Message.Section), 'ImmersiveColorSet') then
-    ApplyTheme;
-end;
 
 function TDashboardForm.ProductVersionText: string;
 begin

@@ -36,7 +36,6 @@ type
     FHistoryCount: Integer;
     procedure PushHistory(const E: TPingHistoryEntry);
     procedure WorkerExecute;
-    function ResolveIPv4(const AHost: string; out AAddr: Cardinal): Boolean;
     function TryDefaultGateway(out AHost: string): Boolean;
     function SendEcho(ADest: Cardinal; out ARttMs: Double): Boolean;
     function LevelFromRtt(AOk: Boolean; ARttMs: Double): TPingLevel;
@@ -60,7 +59,8 @@ uses
   System.SysUtils,
   Winapi.Windows,
   Winapi.Winsock,
-  uIcmpApi;
+  uIcmpApi,
+  uHostResolve;
 
 const
   CDefaultHost = 'mg6.jp';
@@ -379,23 +379,6 @@ begin
   finally
     FreeMem(Buf);
   end;
-end;
-
-function TPingCollector.ResolveIPv4(const AHost: string; out AAddr: Cardinal): Boolean;
-var
-  HostEnt: PHostEnt;
-  AnsiHost: AnsiString;
-begin
-  AAddr := 0;
-  Result := False;
-  AnsiHost := AnsiString(AHost);
-  HostEnt := gethostbyname(PAnsiChar(AnsiHost));
-  if (HostEnt = nil) or (HostEnt^.h_addrtype <> AF_INET) or (HostEnt^.h_length <> 4) then
-    Exit;
-  if (HostEnt^.h_addr_list = nil) or (HostEnt^.h_addr_list^ = nil) then
-    Exit;
-  AAddr := PCardinal(HostEnt^.h_addr_list^)^;
-  Result := AAddr <> 0;
 end;
 
 function TPingCollector.SendEcho(ADest: Cardinal; out ARttMs: Double): Boolean;

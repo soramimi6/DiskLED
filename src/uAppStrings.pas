@@ -48,7 +48,7 @@ begin
   if GStringsReady then
     Exit;
 
-  AddStr('menu.ping', 'Ping結果表示', 'View Trace Route');
+  AddStr('menu.ping_result', 'Ping結果表示', 'View Trace Route');
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
