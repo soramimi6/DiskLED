@@ -4,17 +4,83 @@
 
 3.1.1 は Microsoft Store の認定へ提出済みのため、以降に見つかった変更はこの 3.1.2 に積む。
 
-一覧は優先度（高い順）、同順位内は工数目安（小さい順）で並べている。
+一覧は優先度（高い順）、同順位内は工数目安（小さい順）で並べている。#1 は 3.1.1 で出荷済みの機能（オプション「スタートアップに登録」）が Store 版で全く動かない実害バグのため、工数に関わらず最優先で着手する。
 
 | # | 機能 | 実現可能性 | 難易度 | 工数目安 | 優先度 |
 |---|---|---|---|---|---|
-| 1 | Dashboard ウィンドウの画面外復帰 | 高（原因特定済み・実装プランも決定事項） | 低（小規模、既存関数の流用） | 半日未満 | 高 |
-| 2 | assets 読み込みの堅牢化 | 高（アーキテクチャ変更は不要） | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
-| 3 | 未使用アセットの削除 | 高 | 低（`git rm` のみ） | 半日未満 | 中〜高 |
-| 4 | BMP → PNG 変換 | 高 | 低〜中（変換自体は容易だが色キー透過の実機確認が要る） | 半日程度 | 中 |
-| 5 | 新スキン: アナログ VU メーター | 高（メーター描画自体は既存のスプライトストリップ方式で対応可） | 高（DiskIO/NetIO 合成パイプライン新設＋コンパクト／フルのパーツ出し分け機構という新エンジン機能が前提） | 未検証（コア変更＋layout.cfg拡張＋素材制作） | 中 |
+| 1 | Store 版スタートアップ登録の修正（`windows.startupTask` 化） | 高（原因特定済み） | 中（WinRT `StartupTask` API バインディング＋マニフェスト拡張＋`IsStorePackage` 分岐） | 1〜2日＋実機 MSIX 検証 | 最優先 |
+| 2 | Dashboard ウィンドウの画面外復帰 | 高（原因特定済み・実装プランも決定事項） | 低（小規模、既存関数の流用） | 半日未満 | 高 |
+| 3 | assets 読み込みの堅牢化 | 高（アーキテクチャ変更は不要） | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
+| 4 | 未使用アセットの削除 | 高 | 低（`git rm` のみ） | 半日未満 | 中〜高 |
+| 5 | BMP → PNG 変換 | 高 | 低〜中（変換自体は容易だが色キー透過の実機確認が要る） | 半日程度 | 中 |
+| 6 | 新スキン: アナログ VU メーター | 高（メーター描画自体は既存のスプライトストリップ方式で対応可） | 高（DiskIO/NetIO 合成パイプライン新設＋コンパクト／フルのパーツ出し分け機構という新エンジン機能が前提） | 未検証（コア変更＋layout.cfg拡張＋素材制作） | 中 |
 
-## 1. Dashboard ウィンドウの画面外復帰
+## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
+
+**Microsoft Store（MSIX）版では、オプションの「スタートアップに登録」をどう切り替えてもスタートアップ登録が全く機能しない。** 3.1.1 のスタートアップ処理調査で発覚。3.1.1 で利用者に見えている機能が Store 版で無効という実害バグのため、3.1.2 では最優先で着手する。
+
+### 現状の確認結果
+
+- `TStartup`（[uStartup.pas](../src/uStartup.pas)）は `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` の `DiskLED` 値を読み書きするだけで、`IsStorePackage` による分岐が無い。`SetRegistered(True)` は `'"' + ParamStr(0) + '"'` を書き込む（[uStartup.pas:51-54](../src/uStartup.pas#L51-L54)）
+- MSIX コンテナ内から `HKCU\...\Run` へ書くと、書き込みは例外も戻り値エラーも出さず「成功」するが、実体はパッケージ専用の仮想レジストリ（`%LOCALAPPDATA%\Packages\SoRaMiMi.DiskLED_*\` 配下にマージされるオーバーレイ）へ隔離され、実ユーザーハイブには届かない。Windows のログオン時自動起動と `タスクマネージャ > スタートアップ` タブは実ハイブしか列挙しないため、Store 版の書き込み・削除は一切反映されない
+- `IsRegistered`（[uStartup.pas:25-38](../src/uStartup.pas#L25-L38)）も同じ仮想ビューを読むため、書き込み後は `True` を返し続け、アプリ内では「登録済み」に見える。`TOptionsForm` の適用（[uOptionsForm.pas:385-393](../src/uOptionsForm.pas#L385-L393)）・`TMainForm.ApplyStartupRegistration`（[uMainForm.pas:485-493](../src/uMainForm.pas#L485-L493)、`except end` で握りつぶし）とも失敗に気づけない
+- `ParamStr(0)` 依存も問題: パッケージ版の exe は `C:\Program Files\WindowsApps\SoRaMiMi.DiskLED_<version>_x64__<hash>\DiskLED.exe` で、バージョンごとにパスが変わり ACL ロックされている。生パス起動はパッケージ ID もバイパスする
+- `dist/msix/layout/AppxManifest.xml` に `windows.startupTask` 拡張が無く、Store 版には有効な自動起動手段が存在しない。同マニフェストは `xmlns:desktop=...` を宣言済み（`IgnorableNamespaces="uap rescap desktop"`）のため名前空間追加は不要
+- 開発機のタスクマネージャに出ている「別パスの DiskLED」エントリは、過去に非パッケージのデバッグビルド／Inno インストーラ版を実行したときに実 Run キーへ書かれた残骸。Store 版からは参照も削除もできない
+
+### 実装プラン（方針）
+
+**A. マニフェスト（Store 版のみ）**
+
+- `AppxManifest.xml` の `<Application>` 直下に startup 拡張を追加する:
+
+  ```xml
+  <Extensions>
+    <desktop:Extension Category="windows.startupTask" Executable="DiskLED.exe" EntryPoint="Windows.FullTrustApplication">
+      <desktop:StartupTask TaskId="DiskLEDStartupTask" Enabled="false" DisplayName="DiskLED" />
+    </desktop:Extension>
+  </Extensions>
+  ```
+
+- `Enabled="false"` で同梱し、既定では自動起動しない（既存利用者の環境を勝手に変えない）。オン／オフはアプリ内チェックボックスから WinRT で制御する
+- 新しい capability は不要。WACK / Store 認定でも `windows.startupTask` は許可された拡張
+- `AppxManifest.xml` は現状どの追跡下スクリプトからも生成されていない（`dist/` は `.gitignore` 対象、`tools/` 配下に MSIX パッケージング処理は無い）。手編集での維持が正。パッケージング資産の正本手順（`docs/internal/` §MSIX、`packaging/msix/`）にこの拡張の記載を追加する
+
+**B. `uStartup` の分岐**
+
+- `TStartup.IsRegistered` / `SetRegistered` を `IsStorePackage`（[uPackaging.pas:34](../src/uPackaging.pas#L34)）で分岐:
+  - **非パッケージ版（GitHub / Inno）**: 現行の `HKCU\...\Run` 方式を**そのまま維持**（コード無変更）
+  - **Store 版**: WinRT `Windows.ApplicationModel.StartupTask` を使う
+    - `StartupTask.GetAsync("DiskLEDStartupTask")` → `StartupTaskState` を `IsRegistered` に対応させる（`Enabled` → 登録済み、それ以外 → 未登録）
+    - 有効化 = `RequestEnableAsync()`、無効化 = `Disable()`
+    - `DisabledByUser`（ユーザーがタスクマネージャ／設定で無効化）と `DisabledByPolicy` の状態では `RequestEnableAsync` を呼んでも `State` が変わらない仕様。この場合はチェックボックスを無効化し「Windows の『スタートアップ アプリ』設定で有効化してください」の旨をラベル表示する
+- WinRT を Delphi から呼ぶバインディングが工数の主因。RTL の `Winapi.WinRT` / `Winapi.CommonTypes` と、生成済み名前空間ユニット（`Winapi.ApplicationModel` があればそれ、無ければ `IInspectable` + `RoGetActivationFactory` を最小限手書き）を使う。`IAsyncOperation` の待機は `Winapi.Winrt.Utils` の `AwaitProc` / 手動 `completed` ハンドラ + メッセージポンプで対応。すべて `{$IF Defined(...)}` ではなく実行時 `IsStorePackage` 分岐に閉じ込め、非パッケージ版のコードパスからは WinRT を一切呼ばない
+- `uStartup` の公開インターフェース（`IsRegistered: Boolean` / `SetRegistered(AEnabled)`）は変更しない。呼び出し側（`uOptionsForm` / `uMainForm`）は原則そのまま
+
+**C. `TOptionsForm` の UI**
+
+- `ChkStartup` は Store 版でも**表示したまま機能させる**。`ChkUpdateCheck` は Store 版で `Visible := not IsStorePackage` として隠している（[uOptionsForm.pas:241-243](../src/uOptionsForm.pas#L241-L243)）が、startup は Store 版でも有効な機能なので同じ扱いにはしない
+- `LoadFromSettings` の `ChkStartup.Checked := TStartup.IsRegistered or FSettings.Startup`（[uOptionsForm.pas:239](../src/uOptionsForm.pas#L239)）は分岐後の `IsRegistered` でそのまま動く
+- `DisabledByUser` / `DisabledByPolicy` のときだけ `ChkStartup.Enabled := False` + 補足ラベル。新しいエラー文字列 ID を `uAppStrings.pas` に追加（例 `opt.startup_disabled_by_user`）
+- 適用時の `try TStartup.SetRegistered(...) except`（[uOptionsForm.pas:385-393](../src/uOptionsForm.pas#L385-L393)）は WinRT 例外もそのまま拾える。握りつぶしている `TMainForm.ApplyStartupRegistration`（[uMainForm.pas:489-492](../src/uMainForm.pas#L489-L492)）は Store 版では `DisabledByUser` を正常系として扱うため、握りつぶしのままでよい（起動・終了時に毎回 `RequestEnableAsync` を呼ばないよう、状態が変わるときだけ呼ぶガードは入れる）
+
+**D. 既存の残骸レジストリ**
+
+- 旧デバッグビルド／Inno 版が実 Run キーへ残したエントリは MSIX 版からは消せない（仮想レジストリしか見えない）。Store のみのユーザー環境には元々存在しないので実害は限定的。Inno インストーラ（`installer/DiskLED.iss` の `[Registry]` + `uninsdeletevalue`）は従来どおりアンインストール時に自分の書いた値を消す
+
+### GitHub 版（非パッケージ）への影響
+
+- **ランタイム挙動: 変化なし。** `IsStorePackage` は GitHub 配布物（ポータブル ZIP / Inno インストーラ）では常に `False` を返す（`GetCurrentPackageFullName` が `APPMODEL_ERROR_NO_PACKAGE`）。分岐の `else` は現行の Run キーコードそのもので、WinRT のコードパスには一切入らない
+- **`installer/DiskLED.iss`: 無変更。** インストーラの `[Tasks] startup` と `[Registry]` の Run キー書き込み（[installer/DiskLED.iss:47](../installer/DiskLED.iss#L47), [installer/DiskLED.iss:59](../installer/DiskLED.iss#L59)）はアプリと独立して動いており、そのまま
+- **`AppxManifest.xml` の変更は MSIX パッケージ内だけ。** GitHub リリース成果物には含まれない
+- **ビルド影響:** WinRT ユニットを uses に追加するが、`Winapi.WinRT` 等は RAD Studio 標準 RTL。Community Edition でも IDE ビルド（Shift+F9）で解決できる想定（実装ステップ後にユーザー検証）。生成名前空間ユニットが CE の RTL に無い場合は `RoGetActivationFactory` 手書きへ切り替える
+- **回帰確認（非パッケージ版）:** Inno インストーラでインストール → オプションで「スタートアップに登録」ON/OFF → タスクマネージャのスタートアップタブに反映されること、再ログオンで起動すること。従来どおり動けば OK（分岐追加でここが壊れていないことの確認が主目的）
+
+### 見積り
+
+1〜2日＋実機 MSIX 検証（`CDebugForceStorePackage` では仮想レジストリ／WinRT 挙動を再現できないため、実際にインストールしたパッケージでタスクマネージャのスタートアップタブに反映されること・再起動で実際に起動すること・`DisabledByUser` からの復帰導線の確認が必須）。関連: 内部設計資料 §17.9（MSIX で挙動が変わる永続化パスの再検証）。
+
+## 2. Dashboard ウィンドウの画面外復帰
 
 **モニター構成の変更（サブモニター取り外し等）で、Dashboard ウィンドウが画面外に出て操作できなくなる不具合を修正する。**
 
@@ -36,7 +102,7 @@
 
 見積り: 半日未満（小規模）。
 
-## 2. assets 読み込みの堅牢化
+## 3. assets 読み込みの堅牢化
 
 `assets/` 以下の `layout.cfg` や画像ファイルに問題（設定ミス・必須項目欠落・任意項目の異常値・ファイル破損）があったときの挙動を洗い出した結果、現状は次の4パターンに分かれる。3.1.2 ではこの方針で統一する。
 
@@ -79,7 +145,7 @@
 - C: `ApplyMode` への try/except 追加自体は半日未満の小規模変更。ただし「意図的に壊した layout.cfg／画像で起動・モード切替の両方を試す」実機検証に別途時間が必要
 - 全体見積り: 2〜3日＋実機検証
 
-## 3. 未使用アセットの削除
+## 4. 未使用アセットの削除
 
 `assets/` 以下に、どの `layout.cfg` からも参照されていない画像ファイルがある。全 `layout.cfg` の `Bg=`/`File=`/`Font=`/`Off=`/`On=` 参照とリポジトリ全体（ソース・docs・packaging）を突き合わせて確認した結果、以下が未参照:
 
@@ -98,20 +164,20 @@
 
 見積り: 半日未満（`git rm` と各 `.gitignore`/参照有無の最終確認のみ）。
 
-## 4. BMP → PNG 変換
+## 5. BMP → PNG 変換
 
 `assets/crystal/` と `assets/metalic/` の `.bmp` 画像を可逆変換で `.png` に置き換える（`assets/original/` は既に PNG）。
 
 ### 技術的な裏付け
 
 - 画像ローダー `TAssetStore.LoadGraphic`（[uAssetStore.pas:36-63](../src/view/uAssetStore.pas#L36-L63)）は拡張子で分岐: `.png` は `TPngImage`、それ以外は `TBitmap.LoadFromFile` で読み込み、どちらも最終的に `pf24bit` へ正規化される。**PNG は既に一級のフォーマットとして扱われており、コード変更なしで拡張子を変えるだけで読み込める**
-- 置き換え対象は `layout.cfg` の `Bg=`/`File=`/`Font=` に書かれたファイル名のみ。項目3で削除予定の `Crystal_Banner.bmp`/`Crystal_CPU_Level_6.bmp`/`Crystal_Memory_10.bmp` は未参照なので変換せず削除で処理し、変換対象から除く
+- 置き換え対象は `layout.cfg` の `Bg=`/`File=`/`Font=` に書かれたファイル名のみ。項目4で削除予定の `Crystal_Banner.bmp`/`Crystal_CPU_Level_6.bmp`/`Crystal_Memory_10.bmp` は未参照なので変換せず削除で処理し、変換対象から除く
 - **色キー透過の精度に注意**: Metalic は `Cpu`/`Mem`/`Swap`/`DiskRead`/`DiskWrite`/`DiskRW`/`NetIn`/`NetOut`/`NetTotal`/`Ping` の全パーツが `MaskColor=#000000` によるパーツ単位の色キー透過を使っている（[metalic/layout.cfg:44](../assets/metalic/layout.cfg#L44) 等）。変換時に色空間変換やアンチエイリアス・ICC プロファイル埋め込みが起きると `#000000` の一致判定がずれて透過が壊れるため、**可逆・無劣化（ピクセル値をそのまま保持）の変換**が必須。Crystal は `[Mode] MaskColor=#000000`（ウィンドウ形状の透過用、`Crystal_Base.bmp` の背景色）のみが対象で、パーツ単位の `MaskColor` は使っていない
 - ファイルサイズ削減は副次効果（例: `Metalic_Base.bmp` 18,488 bytes、非圧縮 BMP が大半）
 
 見積り: 半日程度（可逆変換の実行＋ `layout.cfg` のファイル名更新＋実機での透過崩れ目視確認）。
 
-## 5. 新スキン: アナログ VU メーター
+## 6. 新スキン: アナログ VU メーター
 
 新しい表示モード（スキン）として、往年の VU メーター（可動コイル式アナログメーター）風のデザインを追加する。同じ意匠のメーターを横に並べ、**コンパクトモードでは CPU/MEM/DiskIO/NetIO の 4 本**、**フルモードでは CPU/MEM/SWP/DiskR/DiskW/NetIn/NetOut の 7 本**に分けて表示する。Disk・Net の Read/Write（In/Out）合成パイプラインの追加は前提として確定。
 
