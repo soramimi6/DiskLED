@@ -4,19 +4,19 @@
 
 3.1.1 は Microsoft Store の認定へ提出済みのため、以降に見つかった変更はこの 3.1.2 に積む。
 
-一覧は優先度（高い順）、同順位内は工数目安（小さい順）で並べている。#1 は 3.1.1 で出荷済みの機能（オプション「スタートアップに登録」）が Store 版で全く動かない実害バグのため、工数に関わらず最優先で着手する。
+一覧は概ね優先度（高い順）で並べている（#8・#9 は後から追加されたが優先度は高／中）。着手済みの状況は「対応状況」列に簡潔に記す。
 
-| # | 機能 | 実現可能性 | 難易度 | 工数目安 | 優先度 |
+| # | 機能 | 対応状況 | 難易度 | 工数目安 | 優先度 |
 |---|---|---|---|---|---|
-| 1 | Store 版スタートアップ登録の修正（`windows.startupTask` 化） | 高（原因特定済み） | 中（WinRT `StartupTask` API バインディング＋マニフェスト拡張＋`IsStorePackage` 分岐） | 1〜2日＋実機 MSIX 検証 | 最優先 |
-| 2 | Dashboard ウィンドウの画面外復帰 | 高（原因特定済み・実装プランも決定事項） | 低（小規模、既存関数の流用） | 半日未満 | 高 |
-| 3 | assets 読み込みの堅牢化 | 高（アーキテクチャ変更は不要） | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
-| 4 | 未使用アセットの削除 | 高 | 低（`git rm` のみ） | 半日未満 | 中〜高 |
-| 5 | BMP → PNG 変換 | 高 | 低〜中（変換自体は容易だが色キー透過の実機確認が要る） | 半日程度 | 中 |
-| 6 | 新スキン: アナログ VU メーター | 高（メーター描画自体は既存のスプライトストリップ方式で対応可） | 高（DiskIO/NetIO 合成パイプライン新設＋コンパクト／フルのパーツ出し分け機構という新エンジン機能が前提） | 未検証（コア変更＋layout.cfg拡張＋素材制作） | 中 |
-| 7 | 項目 5（Tracert）実装時の軽微なコード品質改善（6 件） | 高（すべて局所的な小改修） | 低（既存コードの整理・共通化が中心） | 半日〜1 日（6 件まとめて） | 低 |
-| 8 | Ping 結果表示ウィンドウの高 DPI 対応 | 高 | 低〜中（案 A: `Scaled=True` に戻して VCL 自動スケール＋自前描画 2 箇所の座標修正。案 B フォールバックあり） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
-| 9 | ホバー／ダッシュボードのバージョン表示に配布形態（Store / GitHub）を併記 | 高（`IsStorePackage` は既存） | 低（表示 2 箇所にサフィックス付与のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
+| 1 | Store 版スタートアップ登録の修正（`windows.startupTask` 化） | ✅ 完了。`feature/3.1.2` へ squash merge（`c81a352`）。Store（実機 MSIX）・非パッケージ両方で実機確認済み | 中（WinRT `StartupTask` バインディング＋マニフェスト拡張＋`IsStorePackage` 分岐） | 1〜2日＋実機 MSIX 検証 | 最優先 |
+| 2 | Dashboard ウィンドウの画面外復帰 | 実装済み・`/code-review` 指摘反映済み。verify 通知待ちで `work/3.1.2-2-dashboard-offscreen` 未マージ | 低（既存関数の流用） | 半日未満 | 高 |
+| 3 | assets 読み込みの堅牢化 | 未着手（プラン確定） | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
+| 4 | 未使用アセットの削除 | 未着手（削除対象 6 ファイル特定済み） | 低（`git rm` のみ） | 半日未満 | 中〜高 |
+| 5 | BMP → PNG 変換 | 未着手（プラン確定） | 低〜中（色キー透過の実機確認が要る） | 半日程度 | 中 |
+| 6 | 新スキン: アナログ VU メーター | 未着手（要設計・コア変更前提） | 高（DiskIO/NetIO 合成パイプライン＋コンパクト／フルのパーツ出し分け機構が前提） | 未検証 | 中 |
+| 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | 未着手（プラン確定。#8 の再発防止を兼ねる） | 中（`TThemedHudForm` 基底化＋両フォームの載せ替え回帰確認） | 1 日程度（改名・スレッドプールは +半日） | 低〜中 |
+| 8 | Ping 結果表示ウィンドウの高 DPI 対応 | 未着手（プラン確定・案 A 採用＝`Scaled=True` へ戻し VCL 自動スケール） | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
+| 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | 未着手（プラン確定。マーカーは `(Store)` 非ローカライズ、`Disk:`/`Net:` へ短縮） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
 
@@ -209,11 +209,12 @@
 - `TPingCollector.CurrentTarget`（`src/metrics/uPingCollector.pas`）は起動直後・自動ゲートウェイ有効時、初回 Ping 完了前は設定ホストを返す（解決済みゲートウェイではない）。TraceRouteResult ウィンドウを起動直後に開くと最初のトレース先が設定ホストになりうる。実害は数秒待てば解消する程度だが、「初回解決前」を呼び出し側が区別できるようにするか、解決完了までトレース開始を遅らせる
 - `TTracertCollector.RunAsync`（`src/metrics/uTracertCollector.pas`）は `TThread.CreateAnonymousThread(...).Start` が例外を投げた場合 `FRunning` が `True` のまま戻らず、以後そのインスタンスで二度と実行できなくなる。`try/except` で `FRunning` を戻す
 - `uTracertCollector.pas` の `ResolveIPv4` が `uPingCollector.pas` の同名関数とほぼ同一のコピーになっている。共通ユニット `src/metrics/uIcmpApi.pas` へ移して 1 本にする
-- `uTraceRouteForm.pas` の `CreateWnd` オーバーライド＋`WM_SETTINGCHANGE`（`ImmersiveColorSet` によるダークモード追従）が `src/dashboard/uDashboardForm.pas` と実質同一内容で重複している。テーマ追従の共通ヘルパー（ミックスインユニットか基底フォーム）に括り出す
+- **`TThemedHudForm` 基底クラスの新設**（項目 8 の再発防止も兼ねる）: `uTraceRouteForm.pas` と `uDashboardForm.pas` で重複している **(a) `CreateWnd`＋`ApplyHudTitleBar`**、**(b) `WM_SETTINGCHANGE`（`ImmersiveColorSet`）でのダークモード追従**、**(c) DPI 追従**（`Scaled` 方針・`WM_DPICHANGED` 処理）を、共通の基底フォーム（または mixin ユニット）へ括り出す。二次ウィンドウはこれを継承することで「テーマ追従だけ／DPI 追従だけ」の半分採用が構造的にできなくなる（3.1.1 で Ping 結果表示ウィンドウがまさにこれで壊れて出荷された — 詳細は項目 8）。ダッシュボードは `Scaled=False` 手動、Ping 結果表示は `Scaled=True` VCL 任せ、と方針が分かれるため、基底クラスは「テーマ追従＋タイトルバー」を必須、「DPI は派生側の方針に応じたフック」を提供する形にする
 - `menu.ping` の文字列 ID・`miPingClick` ハンドラ名が「Ping 更新」時代のまま残っており、現在の役割（「Ping 結果表示」＝ウィンドウを開く）と合っていない。ID とハンドラ名を実態に合わせて改名する（`uAppStrings.pas` の ID 変更を伴うため、他の参照箇所と併せて一括で）
 - `uTracertCollector.pas` の `StartReverseLookup` はホップごとに新規スレッドを生成する（最大 30 本）。1 つのワーカー／スレッドプールで捌く設計の方が効率的（実用上の速度差は小さいので優先度は最も低い）
+- **`tools/refresh-internal-design.ps1` に `.dfm` の `Scaled=` 監査を追加**（項目 8 の再発防止）: 全 `.dfm` の `Scaled` 値を `GENERATED-reference.md` に一覧化し、`Scaled = False` の窓が手動 DPI 機構（`WM_DPICHANGED` ハンドラ）を持つかレビュー時に確認できるようにする
 
-見積り: 半日〜1 日（6 件まとめて。改名は他ユニットへの波及確認、共通化はダッシュボード側の回帰確認を含む）。
+見積り: 1 日程度（`TThemedHudForm` 基底化＋ダッシュボード／Ping 結果表示の両方をそれに載せ替える回帰確認を含む。改名・スレッドプールは +半日）。
 
 ## 8. Ping 結果表示ウィンドウの高 DPI 対応
 
@@ -264,28 +265,47 @@
 
 案 B を採る場合、`WM_DPICHANGED` が `CreateWnd` ＋ `WM_SETTINGCHANGE`（項目 7）に続く 3 つ目の `uDashboardForm` との重複になるため、7 と 8 をまとめてテーマ追従＋DPI 追従の共通ヘルパー（ミックスイン or 基底フォーム）へ括り出すのが効率的。案 A なら `WM_DPICHANGED` は VCL 任せで重複が増えないので、7 とは独立に進めてよい。
 
-## 9. バージョン表示に配布形態（Store / GitHub）を併記
+## 9. ホバー／トレイ Hint に配布形態（Store）を併記＋ラベル短縮
 
-**マウスホバーのポップアップ（およびダッシュボードヘッダー）のバージョン記載に、通常版（GitHub）か Microsoft Store 版かを見分ける情報が無い。** スクリーンショットだけでどちらの配布物か判別できず、サポート時の切り分けに手間がかかる。
+**マウスホバーのポップアップ／トレイ Hint のバージョン記載に、通常版（GitHub）か Microsoft Store 版かを見分ける情報が無い。** スクリーンショットだけでどちらの配布物か判別できず、サポート時の切り分けに手間がかかる。あわせて I/O 行のラベルを短縮し、トレイ Hint の 128 文字上限に対する余裕を作る。
 
 ### 現状の確認結果
 
 - バージョン文字列の生成は `uAppStrings.GetProductVersionText`（[uAppStrings.pas:242-284](../src/uAppStrings.pas#L242-L284)）。exe の `VS_FIXEDFILEINFO` から `Maj.Min.Rel[.Bld]` を返すだけで、配布形態の情報は持たない。
-- 表示箇所は 2 つ:
-  - ホバーチップ／トレイ Hint: `TMainForm.HoverInfoText`（[uMainForm.pas:1481-1491](../src/uMainForm.pas#L1481-L1491)）の `'DiskLED %s'` 行（`FVersionText := GetProductVersionText`、[uMainForm.pas:361](../src/uMainForm.pas#L361) / [1482](../src/uMainForm.pas#L1482)）
-  - ダッシュボードヘッダー: `TDashboardForm.ProductVersionText`（[uDashboardForm.pas:401-403](../src/dashboard/uDashboardForm.pas#L401-L403)）→ `DrawHudHeader`（[uDashboardPainter.pas](../src/dashboard/uDashboardPainter.pas)）
-- `GetProductVersionText` は表示以外にも使われる: `uUpdateCheck` の User-Agent 文字列（`'DiskLED/' + GetProductVersionText + ...'`、[uUpdateCheck.pas:182](../src/uUpdateCheck.pas#L182)）、`BumpPatchVersion`（[uUpdateCheck.pas:152](../src/uUpdateCheck.pas#L152)）、版比較（[uMainForm.pas:1169](../src/uMainForm.pas#L1169) / [1236](../src/uMainForm.pas#L1236)）。**ここに配布形態を混ぜてはいけない。**
-- 配布形態の判定は `uPackaging.IsStorePackage`（既存、[uPackaging.pas](../src/uPackaging.pas)）で可能。
+- ホバー文の生成は `TMainForm.HoverInfoText`（[uMainForm.pas:1481-1491](../src/uMainForm.pas#L1481-L1491)）。書式:
+  ```
+  'DiskLED %s'#13#10 ' CPU: %d%%'#13#10 ' MEM: %d%%'#13#10 ' SWP: %d%%'#13#10
+  ' Disk I/O: %s'#13#10 ' Net I/O: %s'#13#10 ' %s'
+  ```
+  ラベルはハードコード英語（ローカライズ対象外）。この文字列がガジェットのホバーチップ（`FHoverTip`、上限なし）と **`FTray.Hint`（`RefreshHoverText`、[uMainForm.pas:1511](../src/uMainForm.pas#L1511)）** の両方に入る。トレイ Hint は Windows の `NOTIFYICONDATA.szTip`（**128 文字**）に切り詰められる。現状の全文は約 104 文字。
+- ダッシュボードヘッダー（`DrawHudHeader`）は**対象外**（幅制約があり、ホバーで足りる。ユーザー確定）。
+- `GetProductVersionText` は `uUpdateCheck` の User-Agent（[uUpdateCheck.pas:182](../src/uUpdateCheck.pas#L182)）・`BumpPatchVersion`（[uUpdateCheck.pas:152](../src/uUpdateCheck.pas#L152)）・版比較（[uMainForm.pas:1169](../src/uMainForm.pas#L1169) / [1236](../src/uMainForm.pas#L1236)）でも使う。**ここに配布形態を混ぜてはいけない。**
+- 配布形態の判定は `uPackaging.IsStorePackage`（既存、[uPackaging.pas](../src/uPackaging.pas)）。
 
-### 実装プラン
+### 実装プラン（確定）
 
-1. `uAppStrings` に配布形態マーカー用の文字列 ID とヘルパーを追加:
-   - `AddStr('app.edition_store', 'Microsoft Store 版', 'Microsoft Store')`（JA/EN で語尾を変える。他の literal に合わせ `uAppStrings` 経由が一貫）
-   - `function EditionMarker: string;` — `uPackaging.IsStorePackage` が真なら `' (' + S('app.edition_store') + ')'`、偽なら `''` を返す。`uAppStrings` の implementation uses に `uPackaging` を足す（`uPackaging` は `Winapi.Windows` のみ依存なので循環しない）。
-2. **表示 2 箇所だけ**に付ける:
-   - **ホバー／トレイ Hint**（必須）: `TMainForm.HoverInfoText` の `'DiskLED %s'` を `'DiskLED %s'` のまま `FVersionText` 側に連結、または書式を `'DiskLED %s%s'` にして `EditionMarker` を渡す。ツールチップなので幅制約なし。
-   - **ダッシュボードヘッダー**（任意）: `TDashboardForm.ProductVersionText` の戻り値に `EditionMarker` を連結。ただし `DrawHudHeader`（[uDashboardPainter.pas](../src/dashboard/uDashboardPainter.pas)）は版を `● LIVE` の左に右詰めで描く（`LiveX - Dip(12) - TextWidth(AVersion)`）。`(Microsoft Store)` を足すと幅が倍以上になりタイトル `DISKLED HUD` と詰まる可能性があるため、**ダッシュボード側は短縮形 `(Store)` にするか、そもそも付けない**（ホバーで足りるなら見送り）。実装時に最小幅 1000 DIP での見え方で判断。
-3. `GetProductVersionText` 本体・`uUpdateCheck` の User-Agent・版比較（`VersionIsNewer` / `CompareVersionText`）は**無変更**。
-4. 検証: GitHub 版（ポータブル / Inno）でマーカーが出ないこと、実機 MSIX（`tools/make-msix-sideload.ps1`）でホバーに `(Microsoft Store)` が出ること。`CDebugForceStorePackage = True` でも `IsStorePackage` 経由なので開発ビルドで表示確認は可能（ただし最終は実機 MSIX）。
+1. `uPackaging` に `function EditionSuffix: string;` を追加。`IsStorePackage` が真なら `' (Store)'`（**非ローカライズ・短縮形**。ユーザー確定）、偽なら `''`。`uAppStrings` に文字列 ID は切らない。
+2. `TMainForm.HoverInfoText` を 2 点変更:
+   - 1 行目の書式を `'DiskLED %s%s'` にして 版＋`EditionSuffix` を渡す
+   - I/O 行のラベルを短縮: `' Disk I/O: %s'` → `' Disk: %s'`、`' Net I/O: %s'` → `' Net: %s'`（各 5 文字節約、計 10 文字。`' (Store)'` の 8 文字を相殺してなお短くなる）
+3. `GetProductVersionText` 本体・User-Agent・版比較・ダッシュボードヘッダーは**無変更**。
+4. 検証:
+   - GitHub 版（ポータブル / Inno）: ホバー／トレイ Hint に `(Store)` が出ない。ラベルが `Disk:` / `Net:` に短縮。
+   - 実機 MSIX（`tools/make-msix-sideload.ps1`）: `DiskLED x.y.z (Store)` が出る。長い Ping ホスト名でもトレイ Hint（128 文字）で末尾が切れない。
+   - `CDebugForceStorePackage = True` の開発ビルドでも `(Store)` の見え方は確認可（最終は実機 MSIX）。
+
+**表示サンプル**（版 `3.1.2` 想定）:
+
+```
+GitHub 版                          Store 版
+─────────────────────              ─────────────────────
+DiskLED 3.1.2                      DiskLED 3.1.2 (Store)
+ CPU: 12%                           CPU: 12%
+ MEM: 47%                           MEM: 47%
+ SWP: 8%                            SWP: 8%
+ Disk: 3.24 MB/s                    Disk: 3.24 MB/s
+ Net: 128.5 KB/s                    Net: 128.5 KB/s
+ Ping: 18ms (mg6.jp)                Ping: 18ms (mg6.jp)
+```
 
 見積り: 1〜2 時間。
