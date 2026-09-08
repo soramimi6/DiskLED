@@ -16,6 +16,7 @@
 | 6 | 新スキン: アナログ VU メーター | 高（メーター描画自体は既存のスプライトストリップ方式で対応可） | 高（DiskIO/NetIO 合成パイプライン新設＋コンパクト／フルのパーツ出し分け機構という新エンジン機能が前提） | 未検証（コア変更＋layout.cfg拡張＋素材制作） | 中 |
 | 7 | 項目 5（Tracert）実装時の軽微なコード品質改善（6 件） | 高（すべて局所的な小改修） | 低（既存コードの整理・共通化が中心） | 半日〜1 日（6 件まとめて） | 低 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | 高（`TDashboardForm` に前例あり） | 中（`Scaled=False` 化＋全寸法の `ScalePx` 化＋描画関数の DPI 対応＋`WM_DPICHANGED`） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
+| 9 | ホバー／ダッシュボードのバージョン表示に配布形態（Store / GitHub）を併記 | 高（`IsStorePackage` は既存） | 低（表示 2 箇所にサフィックス付与のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
 
@@ -238,3 +239,27 @@
 6. 検証: Windows 10/11 × 100 / 125 / 150 / 200%。ヘッダー 2 行が重ならない、列見出しが列内に収まる、リスト本文が周囲と同じ拡大率、モニター間移動で崩れない。
 
 見積り: 半日〜1 日（`uDashboardForm` に前例があるため）。項目 7 の「`CreateWnd`＋`WM_SETTINGCHANGE` の共通化」と同じユニットを触るので、まとめて着手すると効率的。
+
+## 9. バージョン表示に配布形態（Store / GitHub）を併記
+
+**マウスホバーのポップアップ（およびダッシュボードヘッダー）のバージョン記載に、通常版（GitHub）か Microsoft Store 版かを見分ける情報が無い。** スクリーンショットだけでどちらの配布物か判別できず、サポート時の切り分けに手間がかかる。
+
+### 現状の確認結果
+
+- バージョン文字列の生成は `uAppStrings.GetProductVersionText`（[uAppStrings.pas:242-284](../src/uAppStrings.pas#L242-L284)）。exe の `VS_FIXEDFILEINFO` から `Maj.Min.Rel[.Bld]` を返すだけで、配布形態の情報は持たない。
+- 表示箇所は 2 つ:
+  - ホバーチップ／トレイ Hint: `TMainForm.HoverInfoText`（[uMainForm.pas:1481-1491](../src/uMainForm.pas#L1481-L1491)）の `'DiskLED %s'` 行（`FVersionText := GetProductVersionText`、[uMainForm.pas:361](../src/uMainForm.pas#L361) / [1482](../src/uMainForm.pas#L1482)）
+  - ダッシュボードヘッダー: `TDashboardForm.ProductVersionText`（[uDashboardForm.pas:401-403](../src/dashboard/uDashboardForm.pas#L401-L403)）→ `DrawHudHeader`（[uDashboardPainter.pas](../src/dashboard/uDashboardPainter.pas)）
+- `GetProductVersionText` は表示以外にも使われる: `uUpdateCheck` の User-Agent 文字列（`'DiskLED/' + GetProductVersionText + ...'`、[uUpdateCheck.pas:182](../src/uUpdateCheck.pas#L182)）、`BumpPatchVersion`（[uUpdateCheck.pas:152](../src/uUpdateCheck.pas#L152)）、版比較（[uMainForm.pas:1169](../src/uMainForm.pas#L1169) / [1236](../src/uMainForm.pas#L1236)）。**ここに配布形態を混ぜてはいけない。**
+- 配布形態の判定は `uPackaging.IsStorePackage`（既存、[uPackaging.pas](../src/uPackaging.pas)）で可能。
+
+### 実装プラン
+
+1. 配布形態サフィックスを返す小さなヘルパーを用意する（`uPackaging` に `function EditionSuffix: string;` を追加し、`IsStorePackage` なら `' (Microsoft Store)'`、それ以外は `''` を返す、が素直）。「Microsoft Store」はブランド名なので JA/EN 共通の literal でよい（`uAppStrings` に文字列 ID を切る必要は薄いが、揃えたければ `hover.edition_store` を追加してもよい）。
+2. **表示 2 箇所だけ**にサフィックスを付ける:
+   - `HoverInfoText` の `'DiskLED %s'` を `'DiskLED %s%s'`（版＋サフィックス）に
+   - `TDashboardForm.ProductVersionText` の戻り値に連結
+3. `GetProductVersionText` 本体・User-Agent・版比較は無変更。
+4. 検証: GitHub 版（ポータブル / Inno）でサフィックスが出ないこと、実機 MSIX でホバーとダッシュボードに `(Microsoft Store)` が出ること。
+
+見積り: 1〜2 時間。
