@@ -16,7 +16,7 @@
 | 6 | 新スキン: アナログ VU メーター | 未着手（要設計・コア変更前提） | 高（DiskIO/NetIO 合成パイプライン＋コンパクト／フルのパーツ出し分け機構が前提） | 未検証 | 中 |
 | 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | 未着手（プラン確定。#8 の再発防止を兼ねる） | 中（`TThemedHudForm` 基底化＋両フォームの載せ替え回帰確認） | 1 日程度（改名・スレッドプールは +半日） | 低〜中 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | ✅ 完了。`feature/3.1.2` へ squash merge（`8f30c91`）。案 A（`Scaled=True`）で実装。100/125/150/200%・実行中の拡大率変更・モニター間移動・リサイズを実機確認済み | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
-| 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | 未着手（プラン確定。マーカーは `(Store)` 非ローカライズ、`Disk:`/`Net:` へ短縮） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
+| 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | ✅ 完了。`feature/3.1.2` へ squash merge（`b63f1a6`）。非 Store／`CDebugForceStorePackage=True` で実機確認済み（最終 MSIX 確認は他項目と一括） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
 
