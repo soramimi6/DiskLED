@@ -12,7 +12,7 @@
 | 2 | Dashboard ウィンドウの画面外復帰 | ✅ 完了。`feature/3.1.2` へ squash merge（`16eac11`）。150% での F6 回帰なし・「位置をリセット」での復帰・表示中のモニター構成変更への追従を実機確認済み | 低（既存関数の流用） | 半日未満 | 高 |
 | 3 | assets 読み込みの堅牢化 | ✅ 完了。`feature/3.1.2` へ squash merge（`1f2d5b9`）。layout.cfg 任意項目の不正値検知（B）と `TMainForm.Render` の画像読み込み失敗捕捉（C）を実装。既存4スキンの無修正通過・全モード切替の正常描画を実機確認済み | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
 | 4 | 未使用アセットの削除 | ✅ 完了。`feature/3.1.2` へ squash merge（`9d67654`）。6 ファイル削除＋`stage-dist.ps1` で `.xcf`/`ImageResource/` を配布物から除外。全モード切替・`stage-dist` 実行を確認済み | 低（`git rm` のみ） | 半日未満 | 中〜高 |
-| 5 | BMP → PNG 変換 | 未着手（プラン確定） | 低〜中（色キー透過の実機確認が要る） | 半日程度 | 中 |
+| 5 | BMP → PNG 変換 | ✅ 完了。`feature/3.1.2` へ squash merge（`e5cd09d`）。Crystal/Metalic 計17ファイルを可逆変換（ピクセル完全一致を検証済み）。実機でCrystal/Metalic両モードの透過表示崩れが無いことを確認済み | 低〜中（色キー透過の実機確認が要る） | 半日程度 | 中 |
 | 6 | 新スキン: アナログ VU メーター | 未着手（要設計・コア変更前提） | 高（DiskIO/NetIO 合成パイプライン＋コンパクト／フルのパーツ出し分け機構が前提） | 未検証 | 中 |
 | 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | ✅ 完了（6 件中 4 件）。`feature/3.1.2` へ squash merge（`fa24f2d`）。`RunAsync` ガード／`ResolveIPv4` を `uHostResolve` に集約／`TThemedHudForm` 基底化（両窓のテーマ追従を実機確認）／`menu.ping`→`menu.ping_result` 改名。残り 2 件（`CurrentTarget` 初回・`StartReverseLookup` プール化）は最優先度低のため 3.1.3 以降へ | 中 | 1 日程度 | 低〜中 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | ✅ 完了。`feature/3.1.2` へ squash merge（`8f30c91`）。案 A（`Scaled=True`）で実装。100/125/150/200%・実行中の拡大率変更・モニター間移動・リサイズを実機確認済み | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
