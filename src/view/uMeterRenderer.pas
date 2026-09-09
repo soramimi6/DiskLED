@@ -15,8 +15,10 @@ type
     Swap: Integer;
     DiskReadMeter: Integer;
     DiskWriteMeter: Integer;
+    DiskIoMeter: Integer;
     NetInMeter: Integer;
     NetOutMeter: Integer;
+    NetIoMeter: Integer;
     Audio: Integer;
     AudioL: Integer;
     AudioR: Integer;
@@ -84,8 +86,10 @@ begin
   Result.Swap := StripFrame(ALayout.Swap, AState.Swap);
   Result.DiskReadMeter := StripFrame(ALayout.DiskReadMeter, AState.DiskRead);
   Result.DiskWriteMeter := StripFrame(ALayout.DiskWriteMeter, AState.DiskWrite);
+  Result.DiskIoMeter := StripFrame(ALayout.DiskIoMeter, AState.DiskIo);
   Result.NetInMeter := StripFrame(ALayout.NetInMeter, AState.NetIn);
   Result.NetOutMeter := StripFrame(ALayout.NetOutMeter, AState.NetOut);
+  Result.NetIoMeter := StripFrame(ALayout.NetIoMeter, AState.NetIo);
   Result.Audio := StripFrame(ALayout.Audio, AState.Audio);
   Result.AudioL := StripFrame(ALayout.AudioL, AState.AudioL);
   Result.AudioR := StripFrame(ALayout.AudioR, AState.AudioR);
@@ -111,7 +115,9 @@ begin
   Result :=
     (A.Cpu = B.Cpu) and (A.Mem = B.Mem) and (A.Swap = B.Swap) and
     (A.DiskReadMeter = B.DiskReadMeter) and (A.DiskWriteMeter = B.DiskWriteMeter) and
+    (A.DiskIoMeter = B.DiskIoMeter) and
     (A.NetInMeter = B.NetInMeter) and (A.NetOutMeter = B.NetOutMeter) and
+    (A.NetIoMeter = B.NetIoMeter) and
     (A.Audio = B.Audio) and (A.AudioL = B.AudioL) and (A.AudioR = B.AudioR) and
     (A.DiskReadOn = B.DiskReadOn) and (A.DiskWriteOn = B.DiskWriteOn) and
     (A.DiskRWOn = B.DiskRWOn) and
@@ -212,8 +218,10 @@ begin
 
   DrawStrip(ADest, ALayout, AAssets, ALayout.DiskReadMeter, AState.DiskRead);
   DrawStrip(ADest, ALayout, AAssets, ALayout.DiskWriteMeter, AState.DiskWrite);
+  DrawStrip(ADest, ALayout, AAssets, ALayout.DiskIoMeter, AState.DiskIo);
   DrawStrip(ADest, ALayout, AAssets, ALayout.NetInMeter, AState.NetIn);
   DrawStrip(ADest, ALayout, AAssets, ALayout.NetOutMeter, AState.NetOut);
+  DrawStrip(ADest, ALayout, AAssets, ALayout.NetIoMeter, AState.NetIo);
   DrawStrip(ADest, ALayout, AAssets, ALayout.Audio, AState.Audio);
   DrawStrip(ADest, ALayout, AAssets, ALayout.AudioL, AState.AudioL);
   DrawStrip(ADest, ALayout, AAssets, ALayout.AudioR, AState.AudioR);

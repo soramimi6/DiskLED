@@ -20,8 +20,10 @@ type
     FDirSwap: TMeterFollowDir;
     FDirDiskRead: TMeterFollowDir;
     FDirDiskWrite: TMeterFollowDir;
+    FDirDiskIo: TMeterFollowDir;
     FDirNetIn: TMeterFollowDir;
     FDirNetOut: TMeterFollowDir;
+    FDirNetIo: TMeterFollowDir;
     FDirAudio: TMeterFollowDir;
     FDirAudioL: TMeterFollowDir;
     FDirAudioR: TMeterFollowDir;
@@ -100,8 +102,10 @@ begin
   FBallistics.Swap.Strength := ClampStrength(FBallistics.Swap.Strength);
   FBallistics.DiskRead.Strength := ClampStrength(FBallistics.DiskRead.Strength);
   FBallistics.DiskWrite.Strength := ClampStrength(FBallistics.DiskWrite.Strength);
+  FBallistics.DiskIo.Strength := ClampStrength(FBallistics.DiskIo.Strength);
   FBallistics.NetIn.Strength := ClampStrength(FBallistics.NetIn.Strength);
   FBallistics.NetOut.Strength := ClampStrength(FBallistics.NetOut.Strength);
+  FBallistics.NetIo.Strength := ClampStrength(FBallistics.NetIo.Strength);
   FBallistics.Audio.Strength := ClampStrength(FBallistics.Audio.Strength);
   FBallistics.AudioL.Strength := ClampStrength(FBallistics.AudioL.Strength);
   FBallistics.AudioR.Strength := ClampStrength(FBallistics.AudioR.Strength);
@@ -228,7 +232,7 @@ end;
 procedure TDisplayPipeline.Update(const ASnap: TMetricsSnapshot);
 var
   CpuT, MemT, SwapT: Double;
-  DiskRT, DiskWT, NetIT, NetOT, AudioT, AudioLT, AudioRT: Double;
+  DiskRT, DiskWT, DiskIoT, NetIT, NetOT, NetIoT, AudioT, AudioLT, AudioRT: Double;
   Progress: Double;
   NowTick: Cardinal;
   DtSec: Double;
@@ -241,8 +245,13 @@ begin
   SwapT := Clamp01(ASnap.SwapUsage / 100.0);
   DiskRT := FRange.DiskReadNorm(ASnap);
   DiskWT := FRange.DiskWriteNorm(ASnap);
+  { DiskRead/DiskWrite share one auto-ranged ceiling (uRangeEngine.FDiskMaxBps),
+    so their normalized values are directly comparable -- Max is enough, no
+    separate range tracking needed for the combined channel. Same for Net. }
+  DiskIoT := Max(DiskRT, DiskWT);
   NetIT := FRange.NetInNorm(ASnap);
   NetOT := FRange.NetOutNorm(ASnap);
+  NetIoT := Max(NetIT, NetOT);
   AudioT := Clamp01(ASnap.AudioPeak);
   AudioLT := Clamp01(ASnap.AudioPeakL);
   AudioRT := Clamp01(ASnap.AudioPeakR);
@@ -252,8 +261,10 @@ begin
   FNormalized.Swap := SwapT;
   FNormalized.DiskRead := DiskRT;
   FNormalized.DiskWrite := DiskWT;
+  FNormalized.DiskIo := DiskIoT;
   FNormalized.NetIn := NetIT;
   FNormalized.NetOut := NetOT;
+  FNormalized.NetIo := NetIoT;
   FNormalized.Audio := AudioT;
   FNormalized.AudioL := AudioLT;
   FNormalized.AudioR := AudioRT;
@@ -291,8 +302,10 @@ begin
     FState.Swap := Clamp01(SwapT * Progress);
     FState.DiskRead := Clamp01(DiskRT * Progress);
     FState.DiskWrite := Clamp01(DiskWT * Progress);
+    FState.DiskIo := Clamp01(DiskIoT * Progress);
     FState.NetIn := Clamp01(NetIT * Progress);
     FState.NetOut := Clamp01(NetOT * Progress);
+    FState.NetIo := Clamp01(NetIoT * Progress);
     FState.Audio := Clamp01(AudioT * Progress);
     FState.AudioL := Clamp01(AudioLT * Progress);
     FState.AudioR := Clamp01(AudioRT * Progress);
@@ -305,8 +318,10 @@ begin
   FState.Swap := Follow(FState.Swap, SwapT, FBallistics.Swap, FDirSwap, DtSec);
   FState.DiskRead := Follow(FState.DiskRead, DiskRT, FBallistics.DiskRead, FDirDiskRead, DtSec);
   FState.DiskWrite := Follow(FState.DiskWrite, DiskWT, FBallistics.DiskWrite, FDirDiskWrite, DtSec);
+  FState.DiskIo := Follow(FState.DiskIo, DiskIoT, FBallistics.DiskIo, FDirDiskIo, DtSec);
   FState.NetIn := Follow(FState.NetIn, NetIT, FBallistics.NetIn, FDirNetIn, DtSec);
   FState.NetOut := Follow(FState.NetOut, NetOT, FBallistics.NetOut, FDirNetOut, DtSec);
+  FState.NetIo := Follow(FState.NetIo, NetIoT, FBallistics.NetIo, FDirNetIo, DtSec);
   FState.Audio := Follow(FState.Audio, AudioT, FBallistics.Audio, FDirAudio, DtSec);
   FState.AudioL := Follow(FState.AudioL, AudioLT, FBallistics.AudioL, FDirAudioL, DtSec);
   FState.AudioR := Follow(FState.AudioR, AudioRT, FBallistics.AudioR, FDirAudioR, DtSec);

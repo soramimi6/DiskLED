@@ -15,6 +15,12 @@ type
     Frames: Integer;
     Transparent: Boolean;
     MaskColor: TColor;
+    { Ballistic follow for meter-kind parts only (Cpu/Mem/Swap/*Meter/Audio*).
+      Every meter part's layout.cfg section states its own Kind/Strength --
+      there is no shared default any more, so LED/Ping parts simply never
+      read these two fields. }
+    BallisticKind: TBallisticKind;
+    BallisticStrength: Integer;
   end;
 
   TDigitStyle = (dsBitmap, dsSystem);
@@ -26,10 +32,16 @@ type
     Y: Integer;
     Digits: Integer;
     FillZero: Boolean;
+    { ValStyle=system only. }
     FontName: string;
     FontSize: Integer;
     Color: TColor;
     Bold: Boolean;
+    { ValStyle=bitmap only -- each part with a bitmap readout owns its font
+      sheet now, instead of sharing one mode-wide [Mode] Font=. }
+    BitmapFile: string;
+    FontMaskColor: TColor;
+    FontTransparent: Boolean;
   end;
 
   TGraphStyle = (gsLine, gsBar);
@@ -62,9 +74,6 @@ type
     Transparent: Boolean;
     MaskColor: TColor;
     BgFile: string;
-    FontFile: string;
-    FontMaskColor: TColor;
-    FontTransparent: Boolean;
     Cpu: TSpriteStrip;
     Mem: TSpriteStrip;
     Swap: TSpriteStrip;
@@ -78,8 +87,12 @@ type
     NetTotal: TSpriteStrip;
     DiskReadMeter: TSpriteStrip;
     DiskWriteMeter: TSpriteStrip;
+    { Max(DiskRead, DiskWrite) combined dial — see TMeterBallistics.DiskIo. }
+    DiskIoMeter: TSpriteStrip;
     NetInMeter: TSpriteStrip;
     NetOutMeter: TSpriteStrip;
+    { Max(NetIn, NetOut) combined dial — see TMeterBallistics.NetIo. }
+    NetIoMeter: TSpriteStrip;
     Audio: TSpriteStrip;
     AudioL: TSpriteStrip;
     AudioR: TSpriteStrip;
@@ -87,32 +100,17 @@ type
     MemVal: TDigitValue;
     SwapVal: TDigitValue;
     Graph: TGraphLayout;
-    Ballistics: TMeterBallistics;
   end;
 
-function Sprite(const AFileName: string; AX, AY, AFrames: Integer): TSpriteStrip;
-function SpriteKey(const AFileName: string; AX, AY, AFrames: Integer;
-  AMaskColor: TColor): TSpriteStrip;
 function GraphMaxWidth(const AGraph: TGraphLayout): Integer;
 
+{ Assembles a TMeterBallistics from the 12 meter parts' own BallisticKind/
+  BallisticStrength -- built fresh from whichever TViewLayout (compact or
+  full) is currently active, since each part carries its own ballistic
+  behavior instead of it living in one shared, mode-wide record. }
+function BuildMeterBallistics(const ALayout: TViewLayout): TMeterBallistics;
+
 implementation
-
-function Sprite(const AFileName: string; AX, AY, AFrames: Integer): TSpriteStrip;
-begin
-  Result := SpriteKey(AFileName, AX, AY, AFrames, 0);
-  Result.Transparent := False;
-end;
-
-function SpriteKey(const AFileName: string; AX, AY, AFrames: Integer;
-  AMaskColor: TColor): TSpriteStrip;
-begin
-  Result.FileName := AFileName;
-  Result.X := AX;
-  Result.Y := AY;
-  Result.Frames := AFrames;
-  Result.Transparent := True;
-  Result.MaskColor := AMaskColor;
-end;
 
 function GraphMaxWidth(const AGraph: TGraphLayout): Integer;
 begin
@@ -131,6 +129,28 @@ begin
     Result := AGraph.NetIn.W;
   if AGraph.NetOut.Enabled and (AGraph.NetOut.W > Result) then
     Result := AGraph.NetOut.W;
+end;
+
+function ToParams(const AStrip: TSpriteStrip): TBallisticParams;
+begin
+  Result.Kind := AStrip.BallisticKind;
+  Result.Strength := AStrip.BallisticStrength;
+end;
+
+function BuildMeterBallistics(const ALayout: TViewLayout): TMeterBallistics;
+begin
+  Result.Cpu := ToParams(ALayout.Cpu);
+  Result.Mem := ToParams(ALayout.Mem);
+  Result.Swap := ToParams(ALayout.Swap);
+  Result.DiskRead := ToParams(ALayout.DiskReadMeter);
+  Result.DiskWrite := ToParams(ALayout.DiskWriteMeter);
+  Result.DiskIo := ToParams(ALayout.DiskIoMeter);
+  Result.NetIn := ToParams(ALayout.NetInMeter);
+  Result.NetOut := ToParams(ALayout.NetOutMeter);
+  Result.NetIo := ToParams(ALayout.NetIoMeter);
+  Result.Audio := ToParams(ALayout.Audio);
+  Result.AudioL := ToParams(ALayout.AudioL);
+  Result.AudioR := ToParams(ALayout.AudioR);
 end;
 
 end.

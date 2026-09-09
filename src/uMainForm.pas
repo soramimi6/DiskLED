@@ -757,7 +757,7 @@ begin
   ClientWidth := FLayout.Width;
   ClientHeight := FLayout.Height;
   if FPipeline <> nil then
-    FPipeline.ApplyBallistics(FLayout.Ballistics);
+    FPipeline.ApplyBallistics(BuildMeterBallistics(FLayout));
   ApplyDpiClientSize;
 end;
 

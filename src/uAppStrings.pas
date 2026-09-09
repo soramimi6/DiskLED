@@ -150,6 +150,12 @@ begin
   AddStr('err.layout_value_invalid',
     'layout.cfg の値が不正です: %s [%s] %s=%s',
     'Invalid value in layout.cfg: %s [%s] %s=%s');
+  AddStr('err.layout_ballistic_required',
+    'layout.cfg のメーターパーツに Kind/Strength がありません: %s [%s]',
+    'Missing Kind/Strength for a meter part in layout.cfg: %s [%s]');
+  AddStr('err.layout_digit_font_required',
+    'layout.cfg の数値readoutに ValFontFile がありません: %s [%s]',
+    'Missing ValFontFile for a bitmap digit readout in layout.cfg: %s [%s]');
 
   AddStr('dash.title', 'DiskLED ダッシュボード', 'DiskLED Dashboard');
   AddStr('dash.cpu', 'CPU', 'CPU');

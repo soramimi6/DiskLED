@@ -73,10 +73,10 @@ var
   GlyphIndex: Integer;
   DestX: Integer;
 begin
-  if ALayout.FontFile = '' then
+  if AVal.BitmapFile = '' then
     Exit;
 
-  FontBmp := AAssets.Graphic(ALayout, ALayout.FontFile);
+  FontBmp := AAssets.Graphic(ALayout, AVal.BitmapFile);
   GlyphW := FontBmp.Width div CFontGlyphs;
   GlyphH := FontBmp.Height;
   if (GlyphW <= 0) or (GlyphH <= 0) then
@@ -93,10 +93,10 @@ begin
     else
       GlyphIndex := 10;
 
-    if ALayout.FontTransparent then
+    if AVal.FontTransparent then
       TransparentBlt(ADest.Handle, DestX, AVal.Y, GlyphW, GlyphH,
         FontBmp.Canvas.Handle, GlyphIndex * GlyphW, 0, GlyphW, GlyphH,
-        ColorToRGB(ALayout.FontMaskColor))
+        ColorToRGB(AVal.FontMaskColor))
     else
       BitBlt(ADest.Handle, DestX, AVal.Y, GlyphW, GlyphH,
         FontBmp.Canvas.Handle, GlyphIndex * GlyphW, 0, SRCCOPY);

@@ -65,8 +65,13 @@ type
     Swap: TBallisticParams;
     DiskRead: TBallisticParams;
     DiskWrite: TBallisticParams;
+    { Max(DiskRead, DiskWrite) — a single combined disk-activity channel for
+      skins that show one dial per resource instead of one per direction. }
+    DiskIo: TBallisticParams;
     NetIn: TBallisticParams;
     NetOut: TBallisticParams;
+    { Max(NetIn, NetOut) — combined network-activity channel, see DiskIo. }
+    NetIo: TBallisticParams;
     Audio: TBallisticParams;
     AudioL: TBallisticParams;
     AudioR: TBallisticParams;
@@ -79,8 +84,10 @@ type
     Swap: Double;
     DiskRead: Double;
     DiskWrite: Double;
+    DiskIo: Double;
     NetIn: Double;
     NetOut: Double;
+    NetIo: Double;
     Audio: Double;
     AudioL: Double;
     AudioR: Double;
@@ -96,8 +103,10 @@ type
     SwapDigit: Double;
     DiskRead: Double;
     DiskWrite: Double;
+    DiskIo: Double;
     NetIn: Double;
     NetOut: Double;
+    NetIo: Double;
     Audio: Double;
     AudioL: Double;
     AudioR: Double;
@@ -283,8 +292,10 @@ begin
   Result.Swap := P;
   Result.DiskRead := P;
   Result.DiskWrite := P;
+  Result.DiskIo := P;
   Result.NetIn := P;
   Result.NetOut := P;
+  Result.NetIo := P;
   Result.Audio := P;
   Result.Audio.Kind := bkPeak;
   Result.AudioL := Result.Audio;
