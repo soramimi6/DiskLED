@@ -13,7 +13,7 @@
 | 3 | assets 読み込みの堅牢化 | ✅ 完了。`feature/3.1.2` へ squash merge（`1f2d5b9`）。layout.cfg 任意項目の不正値検知（B）と `TMainForm.Render` の画像読み込み失敗捕捉（C）を実装。既存4スキンの無修正通過・全モード切替の正常描画を実機確認済み | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
 | 4 | 未使用アセットの削除 | ✅ 完了。`feature/3.1.2` へ squash merge（`9d67654`）。6 ファイル削除＋`stage-dist.ps1` で `.xcf`/`ImageResource/` を配布物から除外。全モード切替・`stage-dist` 実行を確認済み | 低（`git rm` のみ） | 半日未満 | 中〜高 |
 | 5 | BMP → PNG 変換 | ✅ 完了。`feature/3.1.2` へ squash merge（`e5cd09d`）。Crystal/Metalic 計17ファイルを可逆変換（ピクセル完全一致を検証済み）。実機でCrystal/Metalic両モードの透過表示崩れが無いことを確認済み | 低〜中（色キー透過の実機確認が要る） | 半日程度 | 中 |
-| 6 | 新スキン: Vintage（アナログ VU メーター） | 🔧 進行中。DiskIO/NetIO 合成チャンネル・layout.cfg 完全独立化（`4c389f8`）・Vintage placeholder 素材一式（`c1f5365`）は `work/3.1.2-6-vu-meter-engine` へコミット済み。未実施: 実機ビルド確認 | 高（layout.cfg 仕様の全面再設計を含む） | 未検証 | 中 |
+| 6 | 新スキン: Vintage（アナログ VU メーター） | ✅ 完了。`feature/3.1.2` へ squash merge（`c43367d`）。コンパクト⇔フル切替・DiskIO/NetIO 針の動き・ランプ点灯/消灯・針のアンチエイリアシング・既存4スキンの回帰を実機確認済み | 高（layout.cfg 仕様の全面再設計を含む） | 実績: 複数日（layout.cfg 再設計＋素材作り直しを含む） | 中 |
 | 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | ✅ 完了（6 件中 4 件）。`feature/3.1.2` へ squash merge（`fa24f2d`）。`RunAsync` ガード／`ResolveIPv4` を `uHostResolve` に集約／`TThemedHudForm` 基底化（両窓のテーマ追従を実機確認）／`menu.ping`→`menu.ping_result` 改名。残り 2 件（`CurrentTarget` 初回・`StartReverseLookup` プール化）は最優先度低のため 3.1.3 以降へ | 中 | 1 日程度 | 低〜中 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | ✅ 完了。`feature/3.1.2` へ squash merge（`8f30c91`）。案 A（`Scaled=True`）で実装。100/125/150/200%・実行中の拡大率変更・モニター間移動・リサイズを実機確認済み | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
 | 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | ✅ 完了。`feature/3.1.2` へ squash merge（`b63f1a6`）。非 Store／`CDebugForceStorePackage=True` で実機確認済み（最終 MSIX 確認は他項目と一括） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
@@ -192,7 +192,7 @@
   - エンジン側は `TSpriteStrip` が `BallisticKind`/`BallisticStrength` を、`TDigitValue` が `BitmapFile`/`FontMaskColor`/`FontTransparent` を持つ。`TDisplayPipeline.ApplyBallistics` へ渡す値は `uLayoutTypes.pas` の `BuildMeterBallistics` がコンパクト/フル切替のたびにその時点の `TViewLayout` から組み立てる
   - 既存4スキン（original/crystal/metalic/infobar）はこのフォーマットで記述されている（見た目・動作は変えない）
 - **Vintage の各メーターは、文字盤・目盛り・針をフレームごとに1枚の不透明画像として焼き込んだ専用の64コマストリップ（`vintage_<meter>.png`）を持つ**（`assets/original/Original_Meters.png` と同じ方式）。色キー境界は全フレームで不変なハウジング外形のみに限定される。`assets/vintage/layout.cfg` は上記フォーマットで記述されている
-- **実機確認済み**（`work/3.1.2-6-vu-meter-engine`）: コンパクト⇔フル切替、DiskIO/NetIO 針の動き、ランプ点灯/消灯、針のアンチエイリアシング、既存4スキンの回帰、タスクトレイアイコン
+- **実機確認済み**（`feature/3.1.2` へ squash merge `c43367d`）: コンパクト⇔フル切替、DiskIO/NetIO 針の動き、ランプ点灯/消灯、針のアンチエイリアシング、既存4スキンの回帰、タスクトレイアイコン
 
 ### 素材について
 
