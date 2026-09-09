@@ -57,6 +57,10 @@ type
     FGraphGen: Cardinal;
     FLastFp: TVisualFingerprint;
     FHasFp: Boolean;
+    { Set once Render hits an unrecoverable asset error and starts shutting
+      down; guards against showing the same error dialog again on every
+      TimerTick before Application.Terminate actually stops the message loop. }
+    FRenderFailed: Boolean;
     FMiCompact: TMenuItem;
     FMiFull: TMenuItem;
     FHoverTip: THoverTip;
@@ -849,16 +853,34 @@ end;
 
 procedure TMainForm.Render;
 begin
+  if FRenderFailed then
+    Exit;
   if (FAssets = nil) or (FBuffer = nil) then
     Exit;
   if (FLayout.Width < 1) or (FLayout.Height < 1) or (FLayout.BgFile = '') then
     Exit;
-  FBuffer.SetSize(FLayout.Width, FLayout.Height);
-  TMeterRenderer.DrawBackground(FBuffer.Canvas, FLayout, FAssets);
-  if FPipeline <> nil then
-    TMeterRenderer.DrawMeters(FBuffer.Canvas, FLayout, FAssets, FPipeline.State);
-  if UsingFullView and (FHistory <> nil) and FLayout.Graph.Enabled then
-    TGraphRenderer.Draw(FBuffer.Canvas, FLayout.Graph, FHistory);
+  try
+    { Loads the mode's image assets (background, meters, digit font) on first
+      use; a missing/corrupt file raises here. This is the single choke point
+      for all four call sites (FormCreate's initial ApplyMode, ApplyMode
+      itself, the compact/full toggle, and every TimerTick while the
+      fingerprint changes) -- guarding it here instead of at one caller covers
+      all of them, including the periodic TimerTick call that would otherwise
+      keep re-raising the same error after a failed mode switch. }
+    FBuffer.SetSize(FLayout.Width, FLayout.Height);
+    TMeterRenderer.DrawBackground(FBuffer.Canvas, FLayout, FAssets);
+    if FPipeline <> nil then
+      TMeterRenderer.DrawMeters(FBuffer.Canvas, FLayout, FAssets, FPipeline.State);
+    if UsingFullView and (FHistory <> nil) and FLayout.Graph.Enabled then
+      TGraphRenderer.Draw(FBuffer.Canvas, FLayout.Graph, FHistory);
+  except
+    on E: Exception do
+    begin
+      FRenderFailed := True;
+      MessageDlg(E.Message, mtError, [mbOK], 0);
+      Application.Terminate;
+    end;
+  end;
 end;
 
 procedure TMainForm.TimerTick(Sender: TObject);

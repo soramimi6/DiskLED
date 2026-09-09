@@ -141,6 +141,9 @@ begin
   AddStr('err.layout_mode_incomplete',
     'layout.cfg の Mode 定義が不完全です: %s',
     'Incomplete Mode section in layout.cfg: %s');
+  AddStr('err.layout_value_invalid',
+    'layout.cfg の値が不正です: %s [%s] %s=%s',
+    'Invalid value in layout.cfg: %s [%s] %s=%s');
 
   AddStr('dash.title', 'DiskLED ダッシュボード', 'DiskLED Dashboard');
   AddStr('dash.cpu', 'CPU', 'CPU');

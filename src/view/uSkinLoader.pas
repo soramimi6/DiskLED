@@ -33,6 +33,19 @@ uses
   uAppStrings,
   uMetricsTypes;
 
+var
+  { Path of the layout.cfg currently being parsed, for the strict Read*
+    validators' error text below. Set once per LoadSkinLayout call; this
+    loader runs synchronously and is never reentrant, so a module var is
+    simpler than threading the path through every helper's parameter list. }
+  GCurrentPath: string;
+
+function ErrValue(const ASection, AKey, ARaw: string): Exception;
+begin
+  Result := Exception.CreateFmt(uAppStrings.S('err.layout_value_invalid'),
+    [GCurrentPath, ASection, AKey, ARaw]);
+end;
+
 function ParseBool(const S: string; ADefault: Boolean): Boolean;
 var
   V: string;
@@ -48,14 +61,12 @@ begin
   Result := CharInSet(C, ['0'..'9', 'A'..'F', 'a'..'f']);
 end;
 
-function ParseColor(const S: string; ADefault: TColor): TColor;
+function TryParseColor(const S: string; out AColor: TColor): Boolean;
 var
   V: string;
   R, G, B: Integer;
 begin
   V := Trim(S);
-  if V = '' then
-    Exit(ADefault);
   if (Length(V) = 7) and (V[1] = '#') and
     IsHexChar(V[2]) and IsHexChar(V[3]) and IsHexChar(V[4]) and
     IsHexChar(V[5]) and IsHexChar(V[6]) and IsHexChar(V[7]) then
@@ -63,18 +74,66 @@ begin
     R := StrToInt('$' + Copy(V, 2, 2));
     G := StrToInt('$' + Copy(V, 4, 2));
     B := StrToInt('$' + Copy(V, 6, 2));
-    Result := RGB(R, G, B);
-    Exit;
+    AColor := RGB(R, G, B);
+    Exit(True);
   end;
   if (Length(V) >= 2) and (LowerCase(Copy(V, 1, 2)) = 'cl') then
   try
-    Result := StringToColor(V);
-    Exit;
+    AColor := StringToColor(V);
+    Exit(True);
   except
-    Result := ADefault;
-    Exit;
+    Exit(False);
   end;
-  Result := ADefault;
+  Result := False;
+end;
+
+function ParseColor(const S: string; ADefault: TColor): TColor;
+begin
+  if (Trim(S) = '') or not TryParseColor(S, Result) then
+    Result := ADefault;
+end;
+
+{ Strict Read* helpers: a missing key or a key whose value trims to empty is
+  "unused", same as the legacy Parse* helpers above -- returns ADefault. A key
+  that IS present with a non-empty value that fails to parse raises, instead
+  of silently falling back (this is what item 3/B in docs/PLANNED-3.1.2.md
+  hardens: previously only the required Mode fields were checked this way). }
+
+function ReadStrictInt(Ini: TCustomIniFile; const ASection, AKey: string; ADefault: Integer): Integer;
+var
+  Raw: string;
+begin
+  Raw := Trim(Ini.ReadString(ASection, AKey, ''));
+  if Raw = '' then
+    Exit(ADefault);
+  if not TryStrToInt(Raw, Result) then
+    raise ErrValue(ASection, AKey, Raw);
+end;
+
+function ReadStrictBool(Ini: TCustomIniFile; const ASection, AKey: string; ADefault: Boolean): Boolean;
+var
+  Raw, V: string;
+begin
+  Raw := Trim(Ini.ReadString(ASection, AKey, ''));
+  if Raw = '' then
+    Exit(ADefault);
+  V := LowerCase(Raw);
+  if (V = '1') or (V = 'true') or (V = 'yes') or (V = 'on') then
+    Exit(True);
+  if (V = '0') or (V = 'false') or (V = 'no') or (V = 'off') then
+    Exit(False);
+  raise ErrValue(ASection, AKey, Raw);
+end;
+
+function ReadStrictColor(Ini: TCustomIniFile; const ASection, AKey: string; ADefault: TColor): TColor;
+var
+  Raw: string;
+begin
+  Raw := Trim(Ini.ReadString(ASection, AKey, ''));
+  if Raw = '' then
+    Exit(ADefault);
+  if not TryParseColor(Raw, Result) then
+    raise ErrValue(ASection, AKey, Raw);
 end;
 
 function ParseDigitStyle(const S: string): TDigitStyle;
@@ -88,27 +147,31 @@ begin
     Result := dsBitmap;
 end;
 
-function ParseBallisticKind(const S: string; ADefault: TBallisticKind): TBallisticKind;
+function TryParseBallisticKind(const S: string; out AKind: TBallisticKind): Boolean;
 var
   V: string;
 begin
   V := LowerCase(Trim(S));
+  Result := True;
   if V = 'bar' then
-    Result := bkBar
+    AKind := bkBar
   else if V = 'peak' then
-    Result := bkPeak
+    AKind := bkPeak
   else if V = 'vu' then
-    Result := bkVu
+    AKind := bkVu
   else
-    Result := ADefault;
+    Result := False;
 end;
 
-function ParseBallisticParams(const Raw: string; const AFallback: TBallisticParams): TBallisticParams;
+function ParseBallisticParamsStrict(const ASection, AKey, Raw: string;
+  const AFallback: TBallisticParams): TBallisticParams;
 var
   V: string;
   KindStr: string;
   StrStr: string;
   P: Integer;
+  Kind: TBallisticKind;
+  Strength: Integer;
 begin
   Result := AFallback;
   V := Trim(Raw);
@@ -126,9 +189,17 @@ begin
     StrStr := '';
   end;
   if KindStr <> '' then
-    Result.Kind := ParseBallisticKind(KindStr, AFallback.Kind);
+  begin
+    if not TryParseBallisticKind(KindStr, Kind) then
+      raise ErrValue(ASection, AKey, Raw);
+    Result.Kind := Kind;
+  end;
   if StrStr <> '' then
-    Result.Strength := ClampStrength(StrToIntDef(StrStr, AFallback.Strength));
+  begin
+    if (not TryStrToInt(StrStr, Strength)) or (Strength < 0) or (Strength > 100) then
+      raise ErrValue(ASection, AKey, Raw);
+    Result.Strength := Strength;
+  end;
 end;
 
 function ReadBallisticChannel(Ini: TCustomIniFile; const AKey: string;
@@ -136,18 +207,26 @@ function ReadBallisticChannel(Ini: TCustomIniFile; const AKey: string;
 begin
   if not Ini.ValueExists('Ballistic', AKey) then
     Exit(AFallback);
-  Result := ParseBallisticParams(Ini.ReadString('Ballistic', AKey, ''), AFallback);
+  Result := ParseBallisticParamsStrict('Ballistic', AKey, Ini.ReadString('Ballistic', AKey, ''), AFallback);
 end;
 
 procedure ReadBallistics(Ini: TCustomIniFile; var ALayout: TViewLayout);
 var
   Def, AudioDef: TBallisticParams;
+  DefaultRaw: string;
+  Kind: TBallisticKind;
 begin
   Def := DefaultBallisticParams;
-  if Ini.ValueExists('Ballistic', 'Default') then
-    Def.Kind := ParseBallisticKind(Ini.ReadString('Ballistic', 'Default', 'vu'), bkVu);
-  if Ini.ValueExists('Ballistic', 'Strength') then
-    Def.Strength := ClampStrength(Ini.ReadInteger('Ballistic', 'Strength', 50));
+  DefaultRaw := Trim(Ini.ReadString('Ballistic', 'Default', ''));
+  if DefaultRaw <> '' then
+  begin
+    if not TryParseBallisticKind(DefaultRaw, Kind) then
+      raise ErrValue('Ballistic', 'Default', DefaultRaw);
+    Def.Kind := Kind;
+  end;
+  Def.Strength := ReadStrictInt(Ini, 'Ballistic', 'Strength', Def.Strength);
+  if (Def.Strength < 0) or (Def.Strength > 100) then
+    raise ErrValue('Ballistic', 'Strength', IntToStr(Def.Strength));
 
   ALayout.Ballistics.Cpu := ReadBallisticChannel(Ini, 'Cpu', Def);
   ALayout.Ballistics.Mem := ReadBallisticChannel(Ini, 'Mem', Def);
@@ -169,7 +248,6 @@ function ReadSprite(Ini: TCustomIniFile; const ASection: string): TSpriteStrip;
 var
   FileName: string;
   HasMask: Boolean;
-  Mask: TColor;
 begin
   Result := Default(TSpriteStrip);
   FileName := Trim(Ini.ReadString(ASection, 'File', ''));
@@ -177,50 +255,46 @@ begin
     Exit;
 
   Result.FileName := FileName;
-  Result.X := Ini.ReadInteger(ASection, 'X', 0);
-  Result.Y := Ini.ReadInteger(ASection, 'Y', 0);
-  Result.Frames := Ini.ReadInteger(ASection, 'Frames', 1);
+  Result.X := ReadStrictInt(Ini, ASection, 'X', 0);
+  Result.Y := ReadStrictInt(Ini, ASection, 'Y', 0);
+  Result.Frames := ReadStrictInt(Ini, ASection, 'Frames', 1);
   if Result.Frames < 1 then
-    Result.Frames := 1;
+    raise ErrValue(ASection, 'Frames', IntToStr(Result.Frames));
 
   HasMask := Trim(Ini.ReadString(ASection, 'MaskColor', '')) <> '';
-  if Ini.ValueExists(ASection, 'Transparent') then
-    Result.Transparent := ParseBool(Ini.ReadString(ASection, 'Transparent', ''), HasMask)
-  else
-    Result.Transparent := HasMask;
+  Result.Transparent := ReadStrictBool(Ini, ASection, 'Transparent', HasMask);
 
   if Result.Transparent then
-  begin
-    Mask := ParseColor(Ini.ReadString(ASection, 'MaskColor', ''), clBlack);
-    Result.MaskColor := Mask;
-  end;
+    Result.MaskColor := ReadStrictColor(Ini, ASection, 'MaskColor', clBlack)
+  else if HasMask then
+    ReadStrictColor(Ini, ASection, 'MaskColor', clBlack); // validate even though unused
 end;
 
 function ReadDigitValue(Ini: TCustomIniFile; const ASection: string): TDigitValue;
 begin
   Result := Default(TDigitValue);
-  Result.Enabled := ParseBool(Ini.ReadString(ASection, 'ValSW', '0'), False);
+  Result.Enabled := ReadStrictBool(Ini, ASection, 'ValSW', False);
   Result.Style := ParseDigitStyle(Ini.ReadString(ASection, 'ValStyle', 'bitmap'));
-  Result.X := Ini.ReadInteger(ASection, 'ValX', 0);
-  Result.Y := Ini.ReadInteger(ASection, 'ValY', 0);
-  Result.Digits := Ini.ReadInteger(ASection, 'ValB', 3);
+  Result.X := ReadStrictInt(Ini, ASection, 'ValX', 0);
+  Result.Y := ReadStrictInt(Ini, ASection, 'ValY', 0);
+  Result.Digits := ReadStrictInt(Ini, ASection, 'ValB', 3);
   if Result.Digits < 1 then
-    Result.Digits := 1;
-  Result.FillZero := ParseBool(Ini.ReadString(ASection, 'ValFZ', '0'), False);
+    raise ErrValue(ASection, 'ValB', IntToStr(Result.Digits));
+  Result.FillZero := ReadStrictBool(Ini, ASection, 'ValFZ', False);
   Result.FontName := Trim(Ini.ReadString(ASection, 'ValFont', ''));
-  Result.FontSize := Ini.ReadInteger(ASection, 'ValFontSize', 9);
+  Result.FontSize := ReadStrictInt(Ini, ASection, 'ValFontSize', 9);
   if Result.FontSize < 1 then
-    Result.FontSize := 9;
-  Result.Color := ParseColor(Ini.ReadString(ASection, 'ValColor', ''), clBlack);
-  Result.Bold := ParseBool(Ini.ReadString(ASection, 'ValBold', '0'), False);
+    raise ErrValue(ASection, 'ValFontSize', IntToStr(Result.FontSize));
+  Result.Color := ReadStrictColor(Ini, ASection, 'ValColor', clBlack);
+  Result.Bold := ReadStrictBool(Ini, ASection, 'ValBold', False);
 end;
 
 procedure ReadParts(Ini: TCustomIniFile; var ALayout: TViewLayout);
 var
   FontMaskRaw: string;
 begin
-  ALayout.Transparent := ParseBool(Ini.ReadString('Mode', 'Transparent', '1'), True);
-  ALayout.MaskColor := ParseColor(Ini.ReadString('Mode', 'MaskColor', ''), clBlack);
+  ALayout.Transparent := ReadStrictBool(Ini, 'Mode', 'Transparent', True);
+  ALayout.MaskColor := ReadStrictColor(Ini, 'Mode', 'MaskColor', clBlack);
   ALayout.BgFile := Trim(Ini.ReadString('Mode', 'Bg', ''));
   ALayout.Width := Ini.ReadInteger('Mode', 'Width', 0);
   ALayout.Height := Ini.ReadInteger('Mode', 'Height', 0);
@@ -228,7 +302,7 @@ begin
   FontMaskRaw := Trim(Ini.ReadString('Mode', 'FontMaskColor', ''));
   ALayout.FontTransparent := FontMaskRaw <> '';
   if ALayout.FontTransparent then
-    ALayout.FontMaskColor := ParseColor(FontMaskRaw, clBlack)
+    ALayout.FontMaskColor := ReadStrictColor(Ini, 'Mode', 'FontMaskColor', clBlack)
   else
     ALayout.FontMaskColor := clBlack;
 
@@ -261,30 +335,24 @@ function ReadGraphLane(Ini: TCustomIniFile; const AKey, AColorKey: string;
   ADefaultColor: TColor): TGraphLane;
 var
   Raw: string;
-  P1, P2, P3: Integer;
+  Parts: TArray<string>;
+  X, Y, W, H: Integer;
 begin
   Result := Default(TGraphLane);
   Raw := Trim(Ini.ReadString('Graph', AKey, ''));
   if Raw = '' then
     Exit;
-  P1 := Pos(',', Raw);
-  if P1 <= 0 then
-    Exit;
-  Result.X := StrToIntDef(Trim(Copy(Raw, 1, P1 - 1)), 0);
-  Delete(Raw, 1, P1);
-  P2 := Pos(',', Raw);
-  if P2 <= 0 then
-    Exit;
-  Result.Y := StrToIntDef(Trim(Copy(Raw, 1, P2 - 1)), 0);
-  Delete(Raw, 1, P2);
-  P3 := Pos(',', Raw);
-  if P3 <= 0 then
-    Exit;
-  Result.W := StrToIntDef(Trim(Copy(Raw, 1, P3 - 1)), 0);
-  Result.H := StrToIntDef(Trim(Copy(Raw, P3 + 1, MaxInt)), 0);
-  if (Result.W <= 0) or (Result.H <= 0) then
-    Exit;
-  Result.Color := ParseColor(Ini.ReadString('Graph', AColorKey, ''), ADefaultColor);
+  Parts := Raw.Split([',']);
+  if (Length(Parts) <> 4) or
+    (not TryStrToInt(Trim(Parts[0]), X)) or (not TryStrToInt(Trim(Parts[1]), Y)) or
+    (not TryStrToInt(Trim(Parts[2]), W)) or (not TryStrToInt(Trim(Parts[3]), H)) or
+    (W <= 0) or (H <= 0) then
+    raise ErrValue('Graph', AKey, Raw);
+  Result.X := X;
+  Result.Y := Y;
+  Result.W := W;
+  Result.H := H;
+  Result.Color := ReadStrictColor(Ini, 'Graph', AColorKey, ADefaultColor);
   Result.Enabled := True;
 end;
 
@@ -330,6 +398,7 @@ begin
   if not FileExists(ALayoutIniPath) then
     Exit;
 
+  GCurrentPath := ALayoutIniPath;
   Ini := TMemIniFile.Create(ALayoutIniPath);
   try
     FolderName := ExtractFileName(ExcludeTrailingPathDelimiter(ExtractFilePath(ALayoutIniPath)));
@@ -337,8 +406,8 @@ begin
     if AMeta.Id = '' then
       AMeta.Id := FolderName;
     AMeta.Caption := Trim(Ini.ReadString('Mode', 'Caption', AMeta.Id));
-    AMeta.Order := Ini.ReadInteger('Mode', 'Order', 100);
-    AMeta.IsDefault := ParseBool(Ini.ReadString('Mode', 'Default', '0'), False);
+    AMeta.Order := ReadStrictInt(Ini, 'Mode', 'Order', 100);
+    AMeta.IsDefault := ReadStrictBool(Ini, 'Mode', 'Default', False);
 
     AMeta.Layout := Default(TViewLayout);
     AMeta.Layout.ModeId := AMeta.Id;
@@ -358,12 +427,10 @@ begin
       AMeta.FullLayout.Width := FullW;
       AMeta.FullLayout.Height := FullH;
       AMeta.FullLayout.BgFile := FullBg;
-      if Ini.ValueExists('ModeFull', 'Transparent') then
-        AMeta.FullLayout.Transparent :=
-          ParseBool(Ini.ReadString('ModeFull', 'Transparent', ''), AMeta.Layout.Transparent);
-      if Trim(Ini.ReadString('ModeFull', 'MaskColor', '')) <> '' then
-        AMeta.FullLayout.MaskColor :=
-          ParseColor(Ini.ReadString('ModeFull', 'MaskColor', ''), AMeta.Layout.MaskColor);
+      AMeta.FullLayout.Transparent :=
+        ReadStrictBool(Ini, 'ModeFull', 'Transparent', AMeta.Layout.Transparent);
+      AMeta.FullLayout.MaskColor :=
+        ReadStrictColor(Ini, 'ModeFull', 'MaskColor', AMeta.Layout.MaskColor);
       if Trim(Ini.ReadString('ModeFull', 'Font', '')) <> '' then
         AMeta.FullLayout.FontFile := Trim(Ini.ReadString('ModeFull', 'Font', ''));
       AMeta.FullLayout.Graph := ReadGraph(Ini);
