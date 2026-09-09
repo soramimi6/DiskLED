@@ -272,75 +272,84 @@ begin
       StartTick := GetTickCount;
       HopCount := 0;
       try
-        if (not FWSAOk) or (Host = '') or (not ResolveIPv4(Host, Dest)) then
-        begin
-          Res.Failed := True;
-          Exit;
-        end;
-        Res.TargetIp := AddrToStr(Dest);
-
-        Icmp := IcmpCreateFile;
-        if (Icmp = 0) or (Icmp = INVALID_HANDLE_VALUE) then
-        begin
-          Res.Failed := True;
-          Exit;
-        end;
         try
-          ConsecutiveTimeouts := 0;
-          Ttl := 1;
-          while Ttl <= CMaxHops do
+          if (not FWSAOk) or (Host = '') or (not ResolveIPv4(Host, Dest)) then
           begin
-            if SendEchoWithTtl(Icmp, Dest, Ttl, HopAddr, HopRtt, Reached) then
-            begin
-              ConsecutiveTimeouts := 0;
-              Inc(HopCount);
-              Hop.Ttl := Ttl;
-              Hop.Ip := AddrToStr(HopAddr);
-              Hop.RttMs := HopRtt;
-              Hop.Ok := True;
-              Hop.HostName := ''; { resolved asynchronously; reported via OnHostName }
-              QueueHopNotify(Self, Token, Hop);
-              StartReverseLookup(HopAddr, Ttl,
-                procedure(AResolvedTtl: Integer; AName: string)
-                begin
-                  if (not Token.IsCancelled) and (Gen = Self.FGeneration) then
-                    Self.DoHostName(AResolvedTtl, AName);
-                end);
-              if Reached then
-              begin
-                Res.Completed := True;
-                Break;
-              end;
-            end
-            else
-            begin
-              Inc(ConsecutiveTimeouts);
-              Inc(HopCount);
-              Hop.Ttl := Ttl;
-              Hop.Ip := '';
-              Hop.HostName := '';
-              Hop.RttMs := 0;
-              Hop.Ok := False;
-              QueueHopNotify(Self, Token, Hop);
-              if ConsecutiveTimeouts >= CMaxConsecutiveTimeouts then
-                Break;
-            end;
-            Inc(Ttl);
+            Res.Failed := True;
+            Exit;
           end;
-        finally
-          IcmpCloseHandle(Icmp);
+          Res.TargetIp := AddrToStr(Dest);
+
+          Icmp := IcmpCreateFile;
+          if (Icmp = 0) or (Icmp = INVALID_HANDLE_VALUE) then
+          begin
+            Res.Failed := True;
+            Exit;
+          end;
+          try
+            ConsecutiveTimeouts := 0;
+            Ttl := 1;
+            while Ttl <= CMaxHops do
+            begin
+              if SendEchoWithTtl(Icmp, Dest, Ttl, HopAddr, HopRtt, Reached) then
+              begin
+                ConsecutiveTimeouts := 0;
+                Inc(HopCount);
+                Hop.Ttl := Ttl;
+                Hop.Ip := AddrToStr(HopAddr);
+                Hop.RttMs := HopRtt;
+                Hop.Ok := True;
+                Hop.HostName := ''; { resolved asynchronously; reported via OnHostName }
+                QueueHopNotify(Self, Token, Hop);
+                StartReverseLookup(HopAddr, Ttl,
+                  procedure(AResolvedTtl: Integer; AName: string)
+                  begin
+                    if (not Token.IsCancelled) and (Gen = Self.FGeneration) then
+                      Self.DoHostName(AResolvedTtl, AName);
+                  end);
+                if Reached then
+                begin
+                  Res.Completed := True;
+                  Break;
+                end;
+              end
+              else
+              begin
+                Inc(ConsecutiveTimeouts);
+                Inc(HopCount);
+                Hop.Ttl := Ttl;
+                Hop.Ip := '';
+                Hop.HostName := '';
+                Hop.RttMs := 0;
+                Hop.Ok := False;
+                QueueHopNotify(Self, Token, Hop);
+                if ConsecutiveTimeouts >= CMaxConsecutiveTimeouts then
+                  Break;
+              end;
+              Inc(Ttl);
+            end;
+          finally
+            IcmpCloseHandle(Icmp);
+          end;
+          Res.HopCount := HopCount;
+          Res.TotalMs := GetTickCount - StartTick;
+        except
+          Res.Failed := True;
         end;
-        Res.HopCount := HopCount;
-        Res.TotalMs := GetTickCount - StartTick;
-      except
-        Res.Failed := True;
+      finally
+        { finally, not a trailing statement: the two early-failure Exits
+          above (bad host/DNS, ICMP handle creation) must still reach this
+          dispatch. They used to skip it, leaving FRunning latched True
+          forever -- DoComplete is the only place that clears it, so a
+          single DNS/offline failure permanently bricked this collector
+          until the app restarted. }
+        TThread.Queue(nil,
+          procedure
+          begin
+            if not Token.IsCancelled then
+              Self.DoComplete(Res);
+          end);
       end;
-      TThread.Queue(nil,
-        procedure
-        begin
-          if not Token.IsCancelled then
-            Self.DoComplete(Res);
-        end);
     end);
     Worker.Start;
   except
