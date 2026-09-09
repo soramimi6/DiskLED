@@ -2,7 +2,7 @@
 
 `docs/PLANNED-3.1.1.md` の「将来機能アイデア」から移動。3.1.1 では見送り、3.2.0 以降で改めて優先度を検討する。実装するか・どう組み込むかは着手時に詳細を詰める。技術的な前提はここに残すが、設計・公開文には書かない。
 
-事前検証（2026-09-04、現行コード `src/metrics/*` / `src/dashboard/*` を確認）の結果は各項目に残してある。詳細は `docs/PLANNED-3.1.1.md` の版管理履歴（3.1.1 スコープ確定時点のスナップショット）も参照可能。
+事前検証（現行コード `src/metrics/*` / `src/dashboard/*` を確認済み）の結果は各項目に残してある。
 
 一覧は優先度（高い順）、同順位内は工数目安（小さい順）で並べている。
 
@@ -25,7 +25,7 @@
 
 **対象は「アプリ UI 文字列」のみ。`public_docs/` と Microsoft Store の説明文は日本語＋英語のみを継続する方針で、この項目のスコープには含まない**（それ以外の言語のユーザーには英語版を案内する前提）。ユーザー数の増加が見えてから、追加言語での文章掲示を改めて検討する。
 
-### 技術的な裏付け（2026-09-06 時点、`src/uAppStrings.pas` / `src/uSettings.pas` / `src/uOptionsForm.pas` / `public_docs/` を確認）
+### 技術的な裏付け（`src/uAppStrings.pas` / `src/uSettings.pas` / `src/uOptionsForm.pas` / `public_docs/` を確認済み）
 
 1. **文字列基盤は2言語決め打ち**: `TAppLang = (alJapanese, alEnglish)`（[uAppStrings.pas:9](../src/uAppStrings.pas#L9)）、文字列本体は `TStrEntry{Id, Ja, En}` の固定2フィールド構造で `AddStr` により約 100 件登録されている（[uAppStrings.pas:22-44](../src/uAppStrings.pas#L22-L44)）。`S()` は `GLang = alJapanese` の分岐で `.Ja`/`.En` を返すだけ（[uAppStrings.pas:225-240](../src/uAppStrings.pas#L225-L240)）。**Auto/JA/EN の 3 択どまりなら現行構造のままでも対応できるが、3 言語目（独語・繁体字中国語）を足すには `TStrEntry` を言語コード可変のマップ（または言語コード順の配列）に置き換え、`S()` のロジックも列挙型の二分岐からルックアップへ変更する必要がある**。約 100 件の文字列を洗い替える構造変更が翻訳作業とは別に先行タスクになる
 2. **手動上書きは最初から想定だけされていた**: ユニット冒頭のコメントに「Manual override is out of scope for now (ini `Language=` later)」とあり（[uAppStrings.pas:3-4](../src/uAppStrings.pas#L3-L4)）、3.2.0 のこの項目はその「later」に当たる
@@ -49,7 +49,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - NVIDIA NVAPI / AMD ADL は詳細（温度・クロック）が取れるが実装コストが高くベンダー依存のため、まず PDH のみで実装する方針が堅実
 - 左カラムのドーナツ＋履歴グラフのセクションとして自然に追加できる
 
-**検証結果（2026-09-04）:**
+**検証結果:**
 
 - データ構造面の相性は良い: `TDashboardLane` は `array[TDashboardLane]` で自動拡張される列挙型（`src/metrics/uDashboardHistory.pas`）、`FCards` は `array[0..4]` の固定配列（`uDashboardForm.pas`）なので、`dlGpu` を足して 6 枚目のカードを増やすのは CPU〜ネットまでの既存 5 セクションと同じ手順で機械的にできる。GPU 使用率は 0..100% の単純な値なので `RangeEngine` を通さず CPU/メモリと同じ扱いでよい
 - 難所は PDH の `GPU Engine` カウンターがディスクと違い**動的インスタンス**であること。インスタンス名は LUID・PID・エンジン種別（3D / Copy / VideoDecode 等）ごとに生成され、GPU コンテキストの開閉に応じて増減するため、`PhysicalDisk(_Total)` のような固定パスの 1 カウンタ追加では済まず、ワイルドカードパスでの列挙・集計と定期的なカウンタリストの再構築が要る
@@ -65,7 +65,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - **LED ソースの拡張**: ディスク（全体・ドライブ別）に加えてネット、将来的にはユーザーが表示するソースを選べるようにする
 - **多段階色化**: ON/OFF の 2 値ではなく、ディスクレイテンシや CPU/メモリ/SWAP の負荷を色（緑→黄→赤等）で示す
 
-**技術的な裏付け（2026-09-05 時点、`src/uSettings.pas` / `src/uMainForm.pas` / `src/view/uDisplayModes.pas` / `src/view/uSkinLoader.pas` / `src/metrics/uDiskCollector.pas` を確認）:**
+**技術的な裏付け（`src/uSettings.pas` / `src/uMainForm.pas` / `src/view/uDisplayModes.pas` / `src/view/uSkinLoader.pas` / `src/metrics/uDiskCollector.pas` を確認済み）:**
 
 - 設定モデルは**既に分離済み**: `FCompact` と `FTraySize` は `uSettings.pas` 上で独立した bool フィールド（[uSettings.pas:20-21](../src/uSettings.pas#L20-L21)）。排他 3 択にしているのは UI 側のロジックで、`SetCompactView`（[uMainForm.pas:748-775](../src/uMainForm.pas#L748-L775)）が compact/full 選択時に `FSettings.TraySize := False` を強制しているだけ。設定モデル自体の作り直しは不要
 - ウィンドウ非表示は `EnterTraySize` の `Visible := False` 一箇所（[uMainForm.pas:1064-1076](../src/uMainForm.pas#L1064-L1076)）に集約されている。ここを「トレイ LED 有効時でも Visible を触らない」条件に変えるだけで「ウィンドウ＋トレイ LED」の組み合わせが作れる
@@ -85,7 +85,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - ネット: プロセス別の帯域は IPヘルパーAPI では難しい。簡易的な差分計測にとどまる可能性あり
 - ダッシュボードの各セクションをクリックして展開する形が自然（常時 HUD に出すと行数が増えすぎる）
 
-**検証結果（2026-09-04）:**
+**検証結果:**
 
 - 実現可能性・難易度: 中〜高。CPU/メモリ/ディスク IO はプロセス別 API（`EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime` / `GetProcessIoCounters`）で一般権限のまま取得できるため技術的な壁はない。ネットは案どおり困難（プロセス別帯域の一般権限 API が無く、簡易差分推定に留まる）ため、最初はネットを除いた 3 リソースに絞るのが現実的
 - 工数の主因は UI: 現行の `TDashboardCard`（`src/dashboard/uDashboardCard.pas`）は固定サイズの GDI カスタム描画で、展開／折りたたみや行リストの仕組みが存在しない。TOP5 一覧を出すには、新規の一覧描画（プロセス名・アイコン・値）とカード高さの動的変更、ダッシュボードのレイアウト計算（`uDashboardForm` の `Heights[]`／`SetBounds` 群）への手当てが必要
@@ -159,7 +159,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - `NtQuerySystemInformation`（`SystemMemoryListInformation`）で Modified / Standby / Free の内訳が取れる
 - ただし非公式 API（Undocumented）のため将来の互換性リスクあり。採用するか要検討
 
-**検証結果（2026-09-04）:**
+**検証結果:**
 
 - `src/metrics/uMemCollector.pas` 側は `GlobalMemoryStatusEx` と `GetPerformanceInfo` による現状値（使用率・空き・キャッシュ・コミット）のみで、Standby/Modified の区別は持っていない。実装自体は `NtQuerySystemInformation(SystemMemoryListInformation)` の呼び出しと `TMetricsSnapshot` へのフィールド追加程度で小さい
 - リスクの本体は実装コストではなく「非公開 API への依存」。`docs/DESIGN.md` は他の項目（CPU パッケージ温度）を「一般権限 API では安定して取れないため出さない」として意図的に見送っており、本プロジェクトは一般権限・公式 API 優先の方針が明確。この方針との整合を優先するなら、Standby/Modified 内訳は見送るのが筋が良い
@@ -175,7 +175,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - ミニフィルタードライバーを使えば権限問題は解決できるが、ドライバー署名・インストールが必要になり配布コストが大幅に増加
 - 3.x の配布方針（インストーラー / ポータブル / Store）とは合わない可能性が高い。将来の上位版として位置づけ
 
-**検証結果（2026-09-04）:**
+**検証結果:**
 
 - `docs/DESIGN.md` 1 節の目的に「管理者権限なし・単一起動」が明記され、5 節「計測（Collectors）」も「いずれも管理者不要の API を優先」が原則。ETW カーネルプロバイダーの有効化（管理者権限必須）はこの中核方針と正面から矛盾する
 - ミニフィルタードライバー案は権限要件こそ解決するが、ドライバー署名（EV 証明書等）・カーネルモード実装・インストール／アンインストール手順が新たに必要になり、現行の「インストーラー（ユーザー権限）／ポータブル／Store」という配布形態全体の見直しを伴う。実装規模はこれまでの機能追加とは桁が異なる

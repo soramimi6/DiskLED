@@ -117,7 +117,7 @@
 | C. layout.cfg は正常だが参照先の画像ファイルが無い・壊れている | 例外は投げるが、**起動時の初回描画では未捕捉（クラッシュの恐れ）。起動後のモード切替時はVCL既定の例外処理でダイアログは出るがアプリは終了せず不完全な描画のまま残る** | 例外を捕捉し、A と同じ `MessageDlg`＋`Application.Terminate` にする |
 | D. タスクトレイ用 `.ico`（TrayOff/TrayOn）が無い・壊れている | 例外を握りつぶしてアプリアイコン固定にフォールバック（`assets/LAYOUT.md` の仕様どおり） | **維持**（変更なし） |
 
-### 技術的な裏付け（2026-09-06 時点、`src/view/uSkinLoader.pas` / `src/view/uAssetStore.pas` / `src/uMainForm.pas` / `DiskLED.dpr` を確認）
+### 技術的な裏付け（`src/view/uSkinLoader.pas` / `src/view/uAssetStore.pas` / `src/uMainForm.pas` / `DiskLED.dpr` を確認済み）
 
 **A（現状維持）**: `TAssetStore.LocateRoot`（[uAssetStore.pas:117-148](../src/view/uAssetStore.pas#L117-L148)）が例外を送出し、`TMainForm.FormCreate` の `try`（[uMainForm.pas:301-312](../src/uMainForm.pas#L301-L312)）が `MessageDlg` 表示後 `Application.Terminate` する。変更不要。
 
