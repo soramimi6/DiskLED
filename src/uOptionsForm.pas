@@ -235,33 +235,60 @@ end;
 
 procedure TOptionsForm.LoadFromSettings;
 var
-  StartupOn, StartupBlocked: Boolean;
+  StartupOn, StartupBlocked, StartupUnknown: Boolean;
 begin
   if FSettings = nil then
     Exit;
   ChkStayOnTop.Checked := FSettings.StayOnTop;
 
-  { One state read for both the checkbox value and the blocked state. On the
-    Store build this is the authoritative StartupTask state; OR-ing the persisted
-    flag would mask a task Windows reports as disabled. Off Store, keep the OR so
-    a just-written Run key still shows. }
-  TStartup.QueryState(StartupOn, StartupBlocked);
-  if IsStorePackage then
-    ChkStartup.Checked := StartupOn
-  else
-    ChkStartup.Checked := StartupOn or FSettings.Startup;
-  { Store build: the task can be disabled from Task Manager / Settings and
-    RequestEnableAsync cannot override that -- surface it. }
-  if StartupBlocked then
+  if IsStorePackage and TStartup.EnablePending then
   begin
-    ChkStartup.Checked := False;
+    { A previous "enable" is still settling (its consent prompt may still be
+      on screen). Keep the checkbox out of the loop instead of letting a
+      same-session disable race it -- see StoreSetRegistered (uStartup.pas)
+      for what used to happen if that race was allowed to occur. }
+    ChkStartup.Checked := True;
     ChkStartup.Enabled := False;
+    LblStartupBlocked.Caption := S('opt.startup_pending');
     LblStartupBlocked.Visible := True;
   end
   else
   begin
-    ChkStartup.Enabled := True;
-    LblStartupBlocked.Visible := False;
+    { One state read for the checkbox value, the blocked state, and whether
+      the read itself failed. On the Store build this is the authoritative
+      StartupTask state; OR-ing the persisted flag would mask a task Windows
+      reports as disabled. Off Store, keep the OR so a just-written Run key
+      still shows. }
+    TStartup.QueryState(StartupOn, StartupBlocked, StartupUnknown);
+    if StartupUnknown then
+    begin
+      { Could not determine the real state (transient WinRT failure). Show
+        the last-saved value but disable the control so Save cannot persist
+        or act on an unconfirmed answer -- a stale correct value is safer
+        than a wrong one written back with confidence. }
+      ChkStartup.Checked := FSettings.Startup;
+      ChkStartup.Enabled := False;
+      LblStartupBlocked.Caption := S('opt.startup_unknown');
+      LblStartupBlocked.Visible := True;
+    end
+    else if StartupBlocked then
+    begin
+      { Store build: the task can be disabled from Task Manager / Settings and
+        RequestEnableAsync cannot override that -- surface it. }
+      ChkStartup.Checked := False;
+      ChkStartup.Enabled := False;
+      LblStartupBlocked.Caption := S('opt.startup_blocked');
+      LblStartupBlocked.Visible := True;
+    end
+    else
+    begin
+      if IsStorePackage then
+        ChkStartup.Checked := StartupOn
+      else
+        ChkStartup.Checked := StartupOn or FSettings.Startup;
+      ChkStartup.Enabled := True;
+      LblStartupBlocked.Visible := False;
+    end;
   end;
 
   ChkUpdateCheck.Checked := FSettings.UpdateEnabled;

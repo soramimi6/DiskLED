@@ -87,6 +87,12 @@ begin
   AddStr('opt.startup_blocked',
     'Windows の「スタートアップ アプリ」設定で有効にしてください。',
     'Enable this in Windows Startup Apps settings.');
+  AddStr('opt.startup_pending',
+    '処理中です。しばらくしてからオプションを開き直してください。',
+    'Still processing. Please reopen Options in a moment.');
+  AddStr('opt.startup_unknown',
+    '現在の登録状態を確認できませんでした。しばらくしてからオプションを開き直してください。',
+    'Could not check the current registration state. Please reopen Options in a moment.');
   AddStr('opt.err.startup_task',
     'スタートアップの登録状態を確認できませんでした（Windows の機能呼び出しに失敗）。しばらくしてからもう一度お試しください。',
     'Could not check the Windows startup registration state (a system call failed). Please try again in a moment.');

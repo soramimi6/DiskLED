@@ -29,9 +29,21 @@ type
       should disable the checkbox and point the user at Windows settings.
       Always False on non-packaged builds. }
     class function BlockedBySystem: Boolean; static;
-    { Both answers from a single state read (one WinRT round-trip on Store,
-      one registry read off Store). Prefer this where the caller needs both. }
-    class procedure QueryState(out ARegistered, ABlockedBySystem: Boolean); static;
+    { All three answers from a single state read (one WinRT round-trip on
+      Store, one registry read off Store). Prefer this where the caller needs
+      more than just IsRegistered.
+      AUnknown (Store build only, always False off Store): the WinRT query
+      itself failed (transient StartupTask/broker error), so ARegistered and
+      ABlockedBySystem could not be determined and must not be trusted -- in
+      particular, do not persist ARegistered as if it were a confirmed
+      "not registered" answer. }
+    class procedure QueryState(out ARegistered, ABlockedBySystem, AUnknown: Boolean); static;
+    { Store build only: True while a previous "enable" (RequestEnableAsync) is
+      still settling -- e.g. its first-run consent prompt is still on screen.
+      Callers should not offer a conflicting "disable" action during this
+      window (see StoreSetRegistered for why the request can otherwise be
+      lost). Always False on non-packaged builds. }
+    class function EnablePending: Boolean; static;
   end;
 
 implementation
@@ -278,12 +290,13 @@ begin
   end;
 end;
 
-procedure StoreQuery(out ARegistered, ABlockedBySystem: Boolean);
+procedure StoreQuery(out ARegistered, ABlockedBySystem, AUnknown: Boolean);
 var
   St: StartupTaskState;
   Have: Boolean;
 begin
   Have := StoreTaskState(St);
+  AUnknown := not Have;
   ARegistered := Have and (St in [StartupTaskState.Enabled, StartupTaskState.EnabledByPolicy]);
   ABlockedBySystem := Have and (St in [StartupTaskState.DisabledByUser, StartupTaskState.DisabledByPolicy]);
 end;
@@ -348,11 +361,11 @@ end;
 
 class function TStartup.IsRegistered: Boolean;
 var
-  Reg, Blocked: Boolean;
+  Reg, Blocked, Unknown: Boolean;
 begin
   if IsStorePackage then
   begin
-    StoreQuery(Reg, Blocked);
+    StoreQuery(Reg, Blocked, Unknown);
     Result := Reg;
   end
   else
@@ -369,24 +382,30 @@ end;
 
 class function TStartup.BlockedBySystem: Boolean;
 var
-  Reg, Blocked: Boolean;
+  Reg, Blocked, Unknown: Boolean;
 begin
   Result := False;
   if not IsStorePackage then
     Exit;
-  StoreQuery(Reg, Blocked);
+  StoreQuery(Reg, Blocked, Unknown);
   Result := Blocked;
 end;
 
-class procedure TStartup.QueryState(out ARegistered, ABlockedBySystem: Boolean);
+class procedure TStartup.QueryState(out ARegistered, ABlockedBySystem, AUnknown: Boolean);
 begin
   if IsStorePackage then
-    StoreQuery(ARegistered, ABlockedBySystem)
+    StoreQuery(ARegistered, ABlockedBySystem, AUnknown)
   else
   begin
     ARegistered := RunKeyRegistered;
     ABlockedBySystem := False;
+    AUnknown := False;
   end;
+end;
+
+class function TStartup.EnablePending: Boolean;
+begin
+  Result := IsStorePackage and PendingEnableInFlight;
 end;
 
 end.
