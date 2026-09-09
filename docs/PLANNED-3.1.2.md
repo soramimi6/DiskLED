@@ -10,13 +10,14 @@
 |---|---|---|---|---|---|
 | 1 | Store 版スタートアップ登録の修正（`windows.startupTask` 化） | ✅ 完了。`feature/3.1.2` へ squash merge（`c81a352`）。Store（実機 MSIX）・非パッケージ両方で実機確認済み | 中（WinRT `StartupTask` バインディング＋マニフェスト拡張＋`IsStorePackage` 分岐） | 1〜2日＋実機 MSIX 検証 | 最優先 |
 | 2 | Dashboard ウィンドウの画面外復帰 | ✅ 完了。`feature/3.1.2` へ squash merge（`16eac11`）。150% での F6 回帰なし・「位置をリセット」での復帰・表示中のモニター構成変更への追従を実機確認済み | 低（既存関数の流用） | 半日未満 | 高 |
-| 3 | assets 読み込みの堅牢化 | 未着手（プラン確定） | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
+| 3 | assets 読み込みの堅牢化 | ✅ 完了。`feature/3.1.2` へ squash merge（`1f2d5b9`）。layout.cfg 任意項目の不正値検知（B）と `TMainForm.Render` の画像読み込み失敗捕捉（C）を実装。既存4スキンの無修正通過・全モード切替の正常描画を実機確認済み | 中（既存パース関数群への横断的な変更） | 2〜3日＋実機検証 | 高 |
 | 4 | 未使用アセットの削除 | ✅ 完了。`feature/3.1.2` へ squash merge（`9d67654`）。6 ファイル削除＋`stage-dist.ps1` で `.xcf`/`ImageResource/` を配布物から除外。全モード切替・`stage-dist` 実行を確認済み | 低（`git rm` のみ） | 半日未満 | 中〜高 |
 | 5 | BMP → PNG 変換 | 未着手（プラン確定） | 低〜中（色キー透過の実機確認が要る） | 半日程度 | 中 |
 | 6 | 新スキン: アナログ VU メーター | 未着手（要設計・コア変更前提） | 高（DiskIO/NetIO 合成パイプライン＋コンパクト／フルのパーツ出し分け機構が前提） | 未検証 | 中 |
 | 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | ✅ 完了（6 件中 4 件）。`feature/3.1.2` へ squash merge（`fa24f2d`）。`RunAsync` ガード／`ResolveIPv4` を `uHostResolve` に集約／`TThemedHudForm` 基底化（両窓のテーマ追従を実機確認）／`menu.ping`→`menu.ping_result` 改名。残り 2 件（`CurrentTarget` 初回・`StartReverseLookup` プール化）は最優先度低のため 3.1.3 以降へ | 中 | 1 日程度 | 低〜中 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | ✅ 完了。`feature/3.1.2` へ squash merge（`8f30c91`）。案 A（`Scaled=True`）で実装。100/125/150/200%・実行中の拡大率変更・モニター間移動・リサイズを実機確認済み | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
 | 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | ✅ 完了。`feature/3.1.2` へ squash merge（`b63f1a6`）。非 Store／`CDebugForceStorePackage=True` で実機確認済み（最終 MSIX 確認は他項目と一括） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
+| 10 | Store 版スタートアップ状態管理の堅牢化（項目1のフォローアップ） | 未着手（プラン確定） | 中〜高（WinRT 非同期完了イベントのフック、または UI 側での再入防止が前提） | 1日程度＋実機 MSIX 検証 | 高（実害バグの再発） |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
 
@@ -318,3 +319,30 @@ DiskLED 3.1.2                      DiskLED 3.1.2 (Store)
 ```
 
 見積り: 1〜2 時間。
+
+## 10. Store 版スタートアップ状態管理の堅牢化（項目1のフォローアップ）
+
+項目1（Store 版 `windows.startupTask` 対応）の実装後に `/code-review` へ通した際に見つかった、状態管理の実害バグ2件。項目1本体（マニフェスト拡張・WinRTバインディング・UI連携）は実装・実機確認済みだが、以下はさらに設計変更が要るため別項目として切り出す。
+
+### 現状の確認結果
+
+**A. 有効化処理が完了する前に無効化すると、要求が永久に失われうる**（`src/uStartup.pas`）
+
+- `StoreSetRegistered`（[uStartup.pas:299-343](../src/uStartup.pas#L299-L343)）の無効化分岐は、直前の `RequestEnableAsync`（fire-and-forget。初回同意プロンプトが出ることがある）がまだ完了していないと `GPendingDisableRequested := True` をセットするだけで `Exit` する（[uStartup.pas:308-317](../src/uStartup.pas#L308-L317)）
+- この保留中の意図を実際に適用するのは `SettlePendingEnable`（[uStartup.pas:250-261](../src/uStartup.pas#L250-L261)）のみで、`StoreTaskState`／`StoreSetRegistered` からしか呼ばれない。どちらも `TOptionsForm` を開いたときにしか到達しない
+- `GPendingEnable`／`GPendingDisableRequested` はプロセス内メモリの変数で永続化されない。ユーザーが Options を二度と開かずにアプリを終了すると、保留中の無効化要求はそのまま消える。後から Windows 側で有効化が完了すると、タスクは Enabled のまま確定し、ユーザーの最後の明示的な操作（無効化）と矛盾する状態が残る
+
+**B. 一時的な WinRT 問い合わせ失敗が、実際に有効な登録を意図せず無効化しうる**（`src/uStartup.pas` / `src/uOptionsForm.pas`）
+
+- `StoreTaskState`（[uStartup.pas:263-279](../src/uStartup.pas#L263-L279)）は `Task.State` 読み取りが例外を投げると `Result := False` を返す。`StoreQuery`（[uStartup.pas:281-289](../src/uStartup.pas#L281-L289)）はこれを「未登録」と同じ扱いにし、「本当に未登録」か「問い合わせに失敗しただけ」かを呼び出し元へ伝える手段が無い
+- `TOptionsForm.LoadFromSettings`（[uOptionsForm.pas:236-265](../src/uOptionsForm.pas#L236-L265)）は `QueryState` の結果をそのまま信用する。一時的な失敗が起きた瞬間に Options を開くと、実際は Enabled でもチェックボックスが未チェック・操作可能（「ブロックされています」表示にはならない）のまま出る
+- ユーザーがそれに気づかず他の設定だけ変えて OK を押すと、`BtnOkClick`（[uOptionsForm.pas:358-424](../src/uOptionsForm.pas#L358-L424)）が `FSettings.Startup := False` をセットして `TStartup.SetRegistered(False)` を呼ぶ。このときには一時的な失敗が解消していると、`Task.State` は本当に Enabled と返り、`Task.Disable` が実行されて実際の登録が無言で無効化される
+
+### 実装プラン（方針・未確定、着手時に詰める）
+
+- **A への対応**: `RequestEnableAsync` の戻り値（`IAsyncOperation_1__StartupTaskState`）に完了ハンドラをフックし、完了時に `GPendingDisableRequested` を能動的に消化する（`IStartupTask` 用に手宣言済みの `AsyncOperationCompletedHandler_1__IStartupTask` と同様の型を `StartupTaskState` 版として追加する必要がある）。設計・実機検証コストが高い場合は、UI側の妥協案として「有効化処理が in-flight の間は Options の『スタートアップ』チェックボックスを一時的に無効化し、そもそも競合状態を作らせない」も検討する
+- **B への対応**: `StoreTaskState`／`StoreQuery` の戻り値に「不明（問い合わせ失敗）」を表す第三の状態を持たせる。`LoadFromSettings` はこの状態のときチェックボックスを操作不能にしてエラー表示するか、少なくとも「読み取れなかった」ことを理由に保存時の上書きを避ける
+
+### 見積り
+
+1日程度＋実機 MSIX 検証（A・Bとも意図的にタイミングを作って再現させる必要があり、実機確認に時間がかかる）。
