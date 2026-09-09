@@ -290,7 +290,13 @@ begin
 
   FSettings := TAppSettings.Create;
   FSettings.Load;
-  FSettings.Startup := TStartup.IsRegistered;
+  { Store build: FSettings.Startup is not read for the Options checkbox
+    (TOptionsForm.LoadFromSettings reads TStartup.QueryState directly) and
+    ApplyStartupRegistration below skips Store builds entirely -- so there is
+    nothing to sync here, and a WinRT round-trip this early (before
+    Application.Run's message loop even starts) could stall launch. }
+  if not IsStorePackage then
+    FSettings.Startup := TStartup.IsRegistered;
 
   { Starting directly in tray size: Application.Run otherwise force-shows
     the main form right after this method returns (FMainForm.Visible := True
@@ -494,8 +500,12 @@ begin
     Exit;
   try
     { Non-packaged: re-assert the Run key so a moved/updated exe path follows.
-      Only write when it actually differs. }
-    if TStartup.IsRegistered <> FSettings.Startup then
+      IsRegistered only checks whether the value exists, not whether its path
+      still matches ParamStr(0) -- comparing it against FSettings.Startup would
+      never write once startup is enabled, silently breaking the path
+      self-heal. Skip only when there is definitely nothing to do (startup
+      off and no stale key present); otherwise always re-write. }
+    if FSettings.Startup or TStartup.IsRegistered then
       TStartup.SetRegistered(FSettings.Startup);
   except
   end;

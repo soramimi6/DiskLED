@@ -44,7 +44,8 @@ uses
   Winapi.CommonTypes,
   Winapi.ApplicationModel,
   Winapi.Foundation,
-  uPackaging;
+  uPackaging,
+  uAppStrings;
 
 const
   CRunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
@@ -52,10 +53,16 @@ const
   { Must match <desktop:StartupTask TaskId="..."> in packaging/msix/AppxManifest.xml. }
   CTaskId = 'DiskLEDStartupTask';
   CStartupTaskClass = 'Windows.ApplicationModel.StartupTask';
+  { GetAsync is a local, no-network call (package manager query); this is a
+    generous ceiling to keep a genuine stall from freezing the UI for long. }
+  CGetAsyncTimeoutMs = 1500;
 
 var
   { Keeps a fire-and-forget RequestEnableAsync operation alive until it settles. }
   GPendingEnable: IInterface;
+  { A disable was requested while GPendingEnable was still settling; applied by
+    SettlePendingEnable once that operation completes (see StoreSetRegistered). }
+  GPendingDisableRequested: Boolean = False;
   { RoInitialize is called once per process, not once per call. }
   GRoInited: Boolean = False;
 
@@ -140,6 +147,10 @@ type
     function GetAsync(taskId: HSTRING): IAsyncOperation_1__IStartupTask; safecall;
   end;
 
+var
+  { RoGetActivationFactory result is stable for the process lifetime. }
+  GStatics: IStartupTaskStatics;
+
 function MakeHString(const S: string; out H: HSTRING): Boolean;
 begin
   Result := WindowsCreateString(PWideChar(S), Length(S), H) = S_OK;
@@ -182,6 +193,8 @@ var
   ClassId: HSTRING;
   Factory: IInspectable;
 begin
+  if GStatics <> nil then
+    Exit(GStatics);
   Result := nil;
   if not GRoInited then
   begin
@@ -199,6 +212,7 @@ begin
   finally
     WindowsDeleteString(ClassId);
   end;
+  GStatics := Result;
 end;
 
 function GetStartupTask: IStartupTask;
@@ -219,10 +233,30 @@ begin
     finally
       WindowsDeleteString(TaskId);
     end;
-    if (Op <> nil) and PumpAwait(Op, 5000) then
+    if (Op <> nil) and PumpAwait(Op, CGetAsyncTimeoutMs) then
       Result := Op.GetResults;
   except
     Result := nil; // any WinRT failure -> treat as "no task"; callers default safely
+  end;
+end;
+
+function PendingEnableInFlight: Boolean; forward;
+
+{ If a previous RequestEnableAsync has settled (or there is none), applies a
+  disable that was requested while it was still in flight (see
+  StoreSetRegistered) instead of silently dropping it. Called from every read
+  and write of the task state, so it self-corrects the next time Options is
+  opened even if the user never clicks OK again. }
+procedure SettlePendingEnable(const ATask: IStartupTask);
+begin
+  if PendingEnableInFlight then
+    Exit; // still settling -- do not touch it (see StoreSetRegistered comment)
+  GPendingEnable := nil;
+  if GPendingDisableRequested then
+  begin
+    GPendingDisableRequested := False;
+    if (ATask <> nil) and (ATask.State in [StartupTaskState.Enabled, StartupTaskState.EnabledByPolicy]) then
+      ATask.Disable;
   end;
 end;
 
@@ -235,6 +269,7 @@ begin
   Task := GetStartupTask;
   if Task = nil then
     Exit;
+  SettlePendingEnable(Task);
   try
     AState := Task.State;
     Result := True;
@@ -265,11 +300,28 @@ procedure StoreSetRegistered(AEnabled: Boolean);
 var
   Task: IStartupTask;
 begin
-  if AEnabled and PendingEnableInFlight then
-    Exit; // a RequestEnableAsync (possibly with consent prompt) is still settling
+  if AEnabled then
+  begin
+    if PendingEnableInFlight then
+      Exit; // a RequestEnableAsync (possibly with consent prompt) is still settling
+  end
+  else if PendingEnableInFlight then
+  begin
+    { A previous enable is still settling (its consent prompt may still be on
+      screen). Do not tear down that operation here -- WinRT would cancel it
+      out from under the prompt. Remember the disable and let
+      SettlePendingEnable apply it once the enable completes (the next state
+      read, e.g. the next time Options opens), instead of dropping it. }
+    GPendingDisableRequested := True;
+    Exit;
+  end;
+
   Task := GetStartupTask;
   if Task = nil then
-    Exit; // best-effort: no task -> nothing to do, next Options open re-reads state
+    raise Exception.Create(S('opt.err.startup_task')); // WinRT call failed -- do not report success
+
+  SettlePendingEnable(Task);
+
   if AEnabled then
   begin
     if Task.State in [StartupTaskState.Enabled, StartupTaskState.EnabledByPolicy,
@@ -280,11 +332,11 @@ begin
       blocking on the result here suppresses it. Hold the operation in a module
       var so the WinRT runtime does not tear it down before it completes; the
       resulting state is read back the next time Options opens. }
+    GPendingDisableRequested := False;
     GPendingEnable := Task.RequestEnableAsync;
   end
   else
   begin
-    GPendingEnable := nil;
     if Task.State in [StartupTaskState.Enabled, StartupTaskState.EnabledByPolicy] then
       Task.Disable;
   end;

@@ -87,6 +87,9 @@ begin
   AddStr('opt.startup_blocked',
     'Windows の「スタートアップ アプリ」設定で有効にしてください。',
     'Enable this in Windows Startup Apps settings.');
+  AddStr('opt.err.startup_task',
+    'スタートアップの登録状態を確認できませんでした（Windows の機能呼び出しに失敗）。しばらくしてからもう一度お試しください。',
+    'Could not check the Windows startup registration state (a system call failed). Please try again in a moment.');
   AddStr('opt.update_check', '起動時に新しい版を確認する', 'Check for a new version at startup');
   AddStr('opt.fps', '表示頻度 (fps)', 'Refresh rate (fps)');
   AddStr('opt.graph_rate', 'グラフ更新 (Hz)', 'Graph update (Hz)');
