@@ -23,12 +23,6 @@ type
   public
     class function IsRegistered: Boolean; static;
     class procedure SetRegistered(AEnabled: Boolean); static;
-    { Store build only: True when the startup task has been turned off from
-      outside the app (Task Manager / Settings > Startup Apps) or by group
-      policy. In that state RequestEnableAsync is a no-op, so the Options UI
-      should disable the checkbox and point the user at Windows settings.
-      Always False on non-packaged builds. }
-    class function BlockedBySystem: Boolean; static;
     { All three answers from a single state read (one WinRT round-trip on
       Store, one registry read off Store). Prefer this where the caller needs
       more than just IsRegistered.
@@ -378,17 +372,6 @@ begin
     StoreSetRegistered(AEnabled)
   else
     RunKeySetRegistered(AEnabled);
-end;
-
-class function TStartup.BlockedBySystem: Boolean;
-var
-  Reg, Blocked, Unknown: Boolean;
-begin
-  Result := False;
-  if not IsStorePackage then
-    Exit;
-  StoreQuery(Reg, Blocked, Unknown);
-  Result := Blocked;
 end;
 
 class procedure TStartup.QueryState(out ARegistered, ABlockedBySystem, AUnknown: Boolean);

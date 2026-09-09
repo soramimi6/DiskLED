@@ -241,7 +241,7 @@ begin
     Exit;
   ChkStayOnTop.Checked := FSettings.StayOnTop;
 
-  if IsStorePackage and TStartup.EnablePending then
+  if TStartup.EnablePending then
   begin
     { A previous "enable" is still settling (its consent prompt may still be
       on screen). Keep the checkbox out of the loop instead of letting a
@@ -293,7 +293,11 @@ begin
 
   ChkUpdateCheck.Checked := FSettings.UpdateEnabled;
   { Store builds update through Microsoft Store, not GitHub; hide the
-    now-irrelevant option rather than leave a checkbox with no effect. }
+    now-irrelevant option rather than leave a checkbox with no effect.
+    LblStartupBlocked (.dfm) sits at the same coordinates as this checkbox and
+    is only ever made Visible on Store builds -- the two are mutually
+    exclusive by construction, reusing the row instead of overlapping. Keep
+    that pairing in mind before changing either control's Visible logic. }
   ChkUpdateCheck.Visible := not IsStorePackage;
   case FSettings.Fps of
     10:
