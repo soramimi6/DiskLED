@@ -17,7 +17,7 @@
 | 7 | 項目 5（Tracert）由来のコード品質改善＋`TThemedHudForm` 基底化 | ✅ 完了（6 件中 4 件）。`feature/3.1.2` へ squash merge（`fa24f2d`）。`RunAsync` ガード／`ResolveIPv4` を `uHostResolve` に集約／`TThemedHudForm` 基底化（両窓のテーマ追従を実機確認）／`menu.ping`→`menu.ping_result` 改名。残り 2 件（`CurrentTarget` 初回・`StartReverseLookup` プール化）は最優先度低のため 3.1.3 以降へ | 中 | 1 日程度 | 低〜中 |
 | 8 | Ping 結果表示ウィンドウの高 DPI 対応 | ✅ 完了。`feature/3.1.2` へ squash merge（`8f30c91`）。案 A（`Scaled=True`）で実装。100/125/150/200%・実行中の拡大率変更・モニター間移動・リサイズを実機確認済み | 低〜中（自前描画 2 箇所の座標修正が主） | 半日〜1 日＋実機検証 | 高（#2 と同じく実害の表示崩れ） |
 | 9 | ホバー／トレイ Hint に配布形態（Store）併記＋ラベル短縮 | ✅ 完了。`feature/3.1.2` へ squash merge（`b63f1a6`）。非 Store／`CDebugForceStorePackage=True` で実機確認済み（最終 MSIX 確認は他項目と一括） | 低（`uPackaging.EditionSuffix` 追加＋`HoverInfoText` の書式変更のみ） | 1〜2 時間 | 中（サポート時の切り分け用） |
-| 10 | Store 版スタートアップ状態管理の堅牢化（項目1のフォローアップ） | 未着手（プラン確定） | 中〜高（WinRT 非同期完了イベントのフック、または UI 側での再入防止が前提） | 1日程度＋実機 MSIX 検証 | 高（実害バグの再発） |
+| 10 | Store 版スタートアップ状態管理の堅牢化（項目1のフォローアップ） | ✅ 完了。`feature/3.1.2` へ squash merge（`c6dce01`）。UI側の再入防止（`EnablePending`）と読み取り失敗の可視化（`QueryState`の`AUnknown`）で対応。非Store版の実機確認済み。Store版固有の新状態はMSIX最終検証時に確認予定 | 中〜高（WinRT 非同期完了イベントのフック、または UI 側での再入防止が前提） | 1日程度＋実機 MSIX 検証 | 高（実害バグの再発） |
 
 ## 1. Store 版スタートアップ登録の修正（`windows.startupTask` 化）
 
