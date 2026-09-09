@@ -76,7 +76,7 @@ Issues / Discussions / Projects / Actions・Agents（GitHub Copilot coding agent
 
 - **リアルタイム同期はしない。** PLANNED docs 側の優先度並び替えや技術検証の追記のたびにIssueを更新する必要はない。スコープが変わる・項目が完了する・新しい版の PLANNED docs を作るなど、**節目でまとめて作成・更新・クローズする**
 - バージョンごとに Milestone（例 `3.1.2`、`3.2.0`）を切り、該当する Issue を紐づける
-- 項目の実装が完了したら対応する Issue をクローズする（PR 本文に `Closes #<番号>` と書けば merge 時に自動クローズできる）
+- **「完了」の定義はリリース到達**。`work/...` の実装が `feature/x.y.z` に squash merge された時点ではまだ完了とみなさない。その実装を含むバージョンが `master` へマージされリリースされ、利用者の手元に修正版が届く状態になった時点で初めて完了とし、対応する Issue をクローズする（PR 本文に `Closes #<番号>` と書いても、そのマージ先が `master` へのリリース PR でなければ自動クローズさせない）
 
 ### Projects — 使わない（無効化済み）
 
