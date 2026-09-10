@@ -4,6 +4,20 @@
 
 Newest first. User-facing summary only; implementation detail lives in `docs/DESIGN.md`.
 
+## 3.1.2
+
+**If you use the Microsoft Store version**: "Run at Windows startup" now works correctly. Previously, turning it on did not actually register the app. Please turn it off and back on once to pick up the fix.
+
+Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
+
+- **Fixed startup registration on the Microsoft Store build.** Turning on "Run at Windows startup" previously had no real effect, so the app never launched at logon. Switched to the `windows.startupTask` mechanism. If it has been disabled from outside the app (Windows Startup Apps settings or policy), Options now shows that state
+- **Added a new display mode, "Vintage."** An analog VU-meter style skin. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 8 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / SND). Disk and Net meters include an activity lamp
+- Fixed the dashboard window getting stuck off-screen after a monitor configuration change (e.g. removing a secondary monitor)
+- Fixed the View Trace Route window's text overlapping and columns overflowing at high DPI (150% and above)
+- The hover/tray tooltip now also shows the Microsoft Store edition (`(Store)`); shortened the I/O labels (Disk I/O → Disk, Net I/O → Net)
+- Unified the behavior when a `layout.cfg` or image asset is broken: instead of a possible startup crash or an app left running with a half-drawn display, it now shows a clear error and exits
+- Distribution: `DiskLED_Setup_3.1.2.exe` and `DiskLED-3.1.2-portable.zip`
+
 ## 3.1.1
 
 **If you use the Microsoft Store version**: Starting with 3.1.1, the Store build no longer checks GitHub for updates at startup — updates arrive automatically through the Store. Please do not additionally install the GitHub installer or zip on top of it; running both can cause duplicate instances and conflicting settings.

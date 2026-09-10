@@ -16,10 +16,10 @@ The author accepts no liability for any damage arising from use of this software
 - The list of real NICs is refreshed every few seconds. After a VPN connect/disconnect, LEDs may lag or linger briefly
 - The dashboard CPU subsection does **not** show package temperature. User-mode Windows APIs do not provide it reliably
 - The dashboard RAM bar’s Standby segment is an approximation (cache capped by available memory), not Task Manager’s exact standby list
-- Dashboard colors follow Windows app light/dark mode. The gadget display modes (Original / Crystal / Metalic / Info Bar) stay skin-based and do not follow OS light/dark. Light dashboard colors are provisional
+- Dashboard colors follow Windows app light/dark mode. The gadget display modes (Original / Crystal / Metalic / Info Bar / Vintage) stay skin-based and do not follow OS light/dark. Light dashboard colors are provisional
 - The app reads **L / R peaks** (0–1) of the mix sent to the playback device, locally, and also keeps a mono equivalent (max of all metering channels). It does not keep or send waveforms or recordings. Horizontal L / R bars (left to right) and the default playback device name (local display only) appear on the right card of the dashboard power subsection. Peaks are 0 when another app has exclusive mode. With no playback device, peaks are 0 and the name is —
 - **Task tray** (3.1.1): storing the icon in the notification area's "hidden icons" tray also hides the disk-activity LED blinking (a Windows limitation) — pin it somewhere always visible instead. Each display mode ships its own tray LED art; a mode without it falls back to the fixed app icon (no LED)
-- **Microsoft Store edition** (3.1.1): Does not check GitHub for updates at startup (updates arrive automatically via the Store). Do not also install the GitHub installer or portable zip — having both can cause duplicate running instances and conflicting `DiskLED.ini` settings. If switching from the GitHub edition to the Store edition, uninstall the GitHub edition first (or delete the portable folder) before installing the Store edition
+- **Microsoft Store edition** (3.1.1): Does not check GitHub for updates at startup (updates arrive automatically via the Store). Do not also install the GitHub installer or portable zip — having both can cause duplicate running instances and conflicting `DiskLED.ini` settings. If switching from the GitHub edition to the Store edition, uninstall the GitHub edition first (or delete the portable folder) before installing the Store edition. "Run at Windows startup" works correctly via Windows' startup task mechanism starting in 3.1.2 (in 3.1.1 and earlier, turning it on did not actually register the app). If it has been disabled from outside the app, Options shows that state
 
 ## Changes from DiskLED 2.x
 
@@ -27,7 +27,7 @@ The author accepts no liability for any damage arising from use of this software
 |-------|-----|-------------------|
 | Target OS | 95–XP era, etc. | Windows 10 / 11 |
 | Skins | User `.dla` packs, etc. | Bundled modes only (`layout.cfg`) |
-| History graphs | sam2 full, etc. | Full view on Original / Metalic (double-click). Crystal / Info Bar stay compact |
+| History graphs | sam2 full, etc. | Full view on Original / Metalic (double-click). Crystal / Info Bar stay compact-only; Vintage has a full view but no history graph |
 | Sound | Yes | Right card of the dashboard power subsection (horizontal L / R and output name). Gadget meters via `layout.cfg` `Audio` / `AudioL` / `AudioR` (bundled Info Bar uses L / R) |
 | Floating | Yes | **Not supported** |
 | SSTP | Yes | **Not supported** |

@@ -8,8 +8,8 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 - **開発環境**: Delphi Community Edition（個人開発・無料配布）／**VCL**・64-bit
 - **対象**: Windows 10 / 11
-- **外観**: ユーザー導入の旧スキン（`.dla`）は非対応。内部は **layout.cfg ベースの表示モード**（Original / Crystal / Metalic / Info Bar）。`assets/<id>/layout.cfg` を足せばモード追加可能
-- **スキンリソース**: 旧版から引き継いだ画像を `assets/original`・`assets/crystal`・`assets/metalic` に配置。`assets/infobar` は DiskLED 3 向け新規。座標は各 `layout.cfg`。`assets/` 以下は旧版開発者と同一の著作物
+- **外観**: ユーザー導入の旧スキン（`.dla`）は非対応。内部は **layout.cfg ベースの表示モード**（Original / Crystal / Metalic / Info Bar / Vintage）。`assets/<id>/layout.cfg` を足せばモード追加可能
+- **スキンリソース**: 旧版から引き継いだ画像を `assets/original`・`assets/crystal`・`assets/metalic` に配置。`assets/infobar`・`assets/vintage` は DiskLED 3 向け新規。座標は各 `layout.cfg`。`assets/` 以下は旧版開発者と同一の著作物
 - **更新頻度**: 最低 **10 fps**、デフォルト **15 fps**。見た目のコマが変わらないときは再描画しない
 - **プロセス**: **単一起動のみ**（2つ目以降は起動を抑制し、既存へフォーカス等）
 - **スケール**:
@@ -24,7 +24,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 
 「今アクセスしているか／どのくらい負荷か」が一目で分かる常駐デスクトップガジェット。
 
-- 表示モード切替（Original / Crystal / Metalic / Info Bar）
+- 表示モード切替（Original / Crystal / Metalic / Info Bar / Vintage。Vintage はアナログ VU メーター風、3.1.2〜）
 - 表示サイズ：コンパクト／フル／**タスクトレイ**（トレイアイコン自体がディスクアクセス LED）の排他 3 択（3.1.1〜）
 - CPU、MEM、SWAP（仮想メモリ）メーター
 - Disk R/W LED＋速度バー、Net 送受信 LED＋速度バー
@@ -36,7 +36,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、電源（再生音量）、Ping 履歴などを表示
 - 起動時の新しい版の通知（GitHub Latest を 1 回確認。Microsoft Store 版では無効、3.1.1〜）
 
-Crystal / Info Bar はコンパクトのみ。
+Crystal / Info Bar はコンパクトのみ。Vintage はフル表示ありだが推移グラフは無し。
 
 ## 今後の検討事項
 
@@ -92,8 +92,8 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
 
 - **Development environment**: Delphi Community Edition (personal development, free distribution) / **VCL** · 64-bit
 - **Target**: Windows 10 / 11
-- **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic / Info Bar). Modes can be added by placing `assets/<id>/layout.cfg`
-- **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic`. `assets/infobar` is new for DiskLED 3 (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
+- **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic / Info Bar / Vintage). Modes can be added by placing `assets/<id>/layout.cfg`
+- **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic`. `assets/infobar` and `assets/vintage` are new for DiskLED 3 (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
 - **Refresh rate**: Minimum **10 fps**, default **15 fps**. The window is not redrawn while sprite frames stay the same
 - **Process**: **Single instance only** (later launches are suppressed and focus is given to the existing instance, etc.)
 - **Scales**:
@@ -108,7 +108,7 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
 
 A resident desktop gadget that shows at a glance whether something is being accessed and how much load there is.
 
-- Display mode switching (Original / Crystal / Metalic / Info Bar)
+- Display mode switching (Original / Crystal / Metalic / Info Bar / Vintage; Vintage is an analog VU-meter style, since 3.1.2)
 - Display size: Compact / Full / **Task tray** (the tray icon itself becomes a disk-access LED), a mutually exclusive 3-way choice (since 3.1.1)
 - CPU, MEM, SWAP (virtual memory) meters
 - Disk R/W LED + speed bar, Net in/out LEDs + speed bar
@@ -120,7 +120,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), power (playback volume), Ping history, and more
 - New version notice at startup (checks GitHub Latest once; disabled on the Microsoft Store build, since 3.1.1)
 
-Crystal / Info Bar are compact-only.
+Crystal / Info Bar are compact-only. Vintage has a full view but no history graph.
 
 ## Future considerations
 

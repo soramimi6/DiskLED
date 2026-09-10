@@ -26,6 +26,7 @@ Release packages will credit original authors where possible. This file will be 
 | Mode | Origin |
 |------|--------|
 | Info Bar | Created for DiskLED 3 |
+| Vintage | Created for DiskLED 3 |
 
 ## Classic DiskLED 2.x
 

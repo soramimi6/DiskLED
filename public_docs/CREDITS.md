@@ -28,6 +28,7 @@
 | 表示モード | 由来 |
 | -------- | ---- |
 | Info Bar | DiskLED 3 向けに新規作成 |
+| Vintage | DiskLED 3 向けに新規作成 |
 
 ## 旧 DiskLED 2.x
 

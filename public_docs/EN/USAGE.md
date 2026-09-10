@@ -18,7 +18,7 @@
 |--------|--------|
 | Left-drag | Move the window |
 | Hover | Tooltip with version, CPU / MEM / SWP, Disk / Net I/O, and Ping (target and RTT). Updates about once per second |
-| Left double-click | Compact ⇄ full (Original / Metalic; no-op on Crystal / Info Bar) |
+| Left double-click | Compact ⇄ full (Original / Metalic / Vintage; no-op on Crystal / Info Bar) |
 | Right-click | Popup menu |
 
 The window is a tool window and usually does not appear on the taskbar (resident-gadget style).
@@ -27,7 +27,7 @@ The window is a tool window and usually does not appear on the taskbar (resident
 
 | Item | Effect |
 |------|--------|
-| Original / Crystal / Metalic / Info Bar | Switch display mode (exclusive) |
+| Original / Crystal / Metalic / Info Bar / Vintage | Switch display mode (exclusive) |
 | Compact / コンパクト | Compact view (always available) |
 | Full / フル | Full view (enabled only when the mode defines full layout) |
 | Task Tray / タスクトレイ | Switch display size to the task tray (exclusive with Compact/Full; available for every mode). See [Task Tray](#task-tray) |
@@ -104,7 +104,7 @@ Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply
 | Item | Effect |
 |------|--------|
 | Always on top | Gadget window only (on by default). Does not apply to the dashboard |
-| Run at Windows startup | Writes the Run key on Apply and on a normal exit |
+| Run at Windows startup | Starts at logon. The GitHub edition writes the Run key on Apply and on a normal exit. The Microsoft Store edition uses Windows' startup task mechanism (`windows.startupTask`); if it has been disabled from outside the app (Windows Startup Apps settings or policy), the checkbox becomes read-only and shows that state |
 | Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item. Not shown on the Microsoft Store build, which updates automatically via the Store. **Do not run the Store edition and the GitHub edition (installer/zip) side by side** |
 | Refresh rate (fps) | 10 / 15 (default) / 20. No redraw while sprite frames stay the same |
 | Graph update (Hz) | 0.5 / 1 (default) / 2 for Original / Metalic **full-view** history. Dashboard history is always 1 second |
