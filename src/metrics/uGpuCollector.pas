@@ -25,9 +25,12 @@ type
     FQuery: THandle;
     FCounter: THandle;
     FUsePdh: Boolean;
+    FInitTried: Boolean;
     FPrimed: Boolean;
     FBuf: array of Byte;
     FLast: Double;
+    FLastTick: Cardinal;
+    FHasTick: Boolean;
     function InitPdh: Boolean;
     procedure ClosePdh;
     function SamplePdh(out AValue: Double): Boolean;
@@ -50,6 +53,10 @@ const
   PDH_CSTATUS_VALID_DATA = $00000000;
   PDH_CSTATUS_NEW_DATA = $00000001;
   CGpuWildcardPath = '\GPU Engine(*)\Utilization Percentage';
+  { The value feeds a 1 Hz digit and a ballistic donut; formatting the churning
+    wildcard array every frame (10-20 Hz) on the UI thread is wasted work. Task
+    Manager itself samples GPU at 1 Hz. }
+  CSampleIntervalMs = 900;
 
 type
   TPdhFmtCounterValue = record
@@ -113,7 +120,8 @@ constructor TGpuCollector.Create;
 begin
   inherited Create;
   FLast := 0;
-  FUsePdh := InitPdh;
+  { InitPdh (wildcard add + priming collect) is 50-150 ms of PDH work; defer it
+    off the startup path to the first Sample. }
 end;
 
 destructor TGpuCollector.Destroy;
@@ -238,9 +246,20 @@ end;
 function TGpuCollector.Sample: Double;
 var
   V: Double;
+  NowTick: Cardinal;
 begin
+  if not FInitTried then
+  begin
+    FInitTried := True;
+    FUsePdh := InitPdh;
+  end;
   if not FUsePdh then
     Exit(0);
+  NowTick := GetTickCount;
+  if FHasTick and (NowTick - FLastTick < CSampleIntervalMs) then
+    Exit(FLast);
+  FLastTick := NowTick;
+  FHasTick := True;
   Result := FLast;
   try
     if SamplePdh(V) then

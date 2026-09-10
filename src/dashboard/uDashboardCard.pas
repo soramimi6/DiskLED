@@ -168,6 +168,13 @@ begin
     if Canvas.TextWidth(FLegend2) > Tw then
       Tw := Canvas.TextWidth(FLegend2);
     LegendW := Sw + Pad + Tw + MulDiv(8, Met.Margin, 12);
+    { Never carve so much (narrow pane + high DPI + long localized label) that
+      the meter rect collapses and the donut vanishes. }
+    Gap := (LeftR.Right - LeftR.Left) - MulDiv(72, Met.Margin, 12);
+    if LegendW > Gap then
+      LegendW := Gap;
+    if LegendW < 0 then
+      LegendW := 0;
   end;
 
   MeterTop := LeftR.Top + TitleH;
