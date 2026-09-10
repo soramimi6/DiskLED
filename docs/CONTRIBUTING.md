@@ -42,7 +42,7 @@ PR <バージョン> Planned#<項番>[,<項番>...] <元のタイトル（英語
 1. `docs/PLANNED-x.y.z.md` の全項目が完了し、`public_docs/` 側の更新（CHANGELOG/USAGE/NOTES/INSTALL の JA+EN）も終わったら、`feature/x.y.z → master` の PR を作る（省略して直接 fast-forward してもよい）
 2. マージは **squash しない**（Rebase and merge、または fast-forward）。項目ごとに squash 済みの履歴をそのまま `master` に残し、バージイン全体をまた 1 個のコミットに潰さない
 3. マージ後、リリースタグを打つ
-4. GitHub Release を作成する際、`Announcements` カテゴリで Discussion を同時作成する（`gh release create vX.Y.Z --discussion-category Announcements ...`、または Web UI の「Create a discussion for this release」）。本文の形式は下記「Release 本文の形式」に従う
+4. GitHub Release を作成する際、`Announcements` カテゴリで Discussion を同時作成する（`gh release create vX.Y.Z --discussion-category Announcements ...`、または Web UI の「Create a discussion for this release」）。本文の形式は下記「Release 本文の形式」に従う。本文は `dist/release-notes-X.Y.Z.md` に保存してから `--notes-file` で渡す（`dist/` は `.gitignore` 対象だが、配布物と同じ場所に版ごとの記録を残す）
 5. その版の Milestone（`docs/PLANNED-x.y.z.md` に対応するもの）に紐づく Issue が残っていれば、実装済みの項目をクローズする
 
 ### Release 本文の形式
