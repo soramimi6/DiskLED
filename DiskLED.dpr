@@ -53,7 +53,9 @@ begin
     Halt(0);
   end;
 
-  InitAppLanguage;
+  { Language must be resolved before any form is created. FSettings.Load runs
+    too late (inside Application.CreateForm), so read just the one key here. }
+  InitAppLanguage(TAppSettings.ReadLanguagePref);
   Application.Initialize;
   Application.MainFormOnTaskbar := False;
   Application.ShowMainForm := True;

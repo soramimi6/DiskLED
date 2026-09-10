@@ -20,6 +20,9 @@ type
     ChkStartup: TCheckBox;
     ChkUpdateCheck: TCheckBox;
     LblStartupBlocked: TLabel;
+    LblLanguage: TLabel;
+    CbLanguage: TComboBox;
+    LblLanguageHint: TLabel;
     CardFps: TPanel;
     LblSecFps: TLabel;
     RbFps10: TRadioButton;
@@ -168,6 +171,8 @@ procedure TOptionsForm.ApplyCaptions;
 begin
   Caption := S('opt.title');
   LblSecWindow.Caption := S('opt.group.window');
+  LblLanguage.Caption := S('opt.language');
+  LblLanguageHint.Caption := S('opt.language_restart_hint');
   ChkStayOnTop.Caption := S('opt.stay_on_top');
   ChkStartup.Caption := S('opt.startup');
   ChkUpdateCheck.Caption := S('opt.update_check');
@@ -240,6 +245,13 @@ begin
   if FSettings = nil then
     Exit;
   ChkStayOnTop.Checked := FSettings.StayOnTop;
+
+  if SameText(FSettings.Language, 'ja') then
+    CbLanguage.ItemIndex := 1
+  else if SameText(FSettings.Language, 'en') then
+    CbLanguage.ItemIndex := 2
+  else
+    CbLanguage.ItemIndex := 0;
 
   if TStartup.EnablePending then
   begin
@@ -411,6 +423,14 @@ begin
   end;
 
   FSettings.StayOnTop := ChkStayOnTop.Checked;
+  case CbLanguage.ItemIndex of
+    1:
+      FSettings.Language := 'ja';
+    2:
+      FSettings.Language := 'en';
+  else
+    FSettings.Language := 'auto';
+  end;
   if ChkStartup.Enabled then
     FSettings.Startup := ChkStartup.Checked;
   { When ChkStartup is disabled (Store build, blocked from outside) leave the

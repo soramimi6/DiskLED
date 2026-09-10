@@ -4,7 +4,7 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 466
+  ClientHeight = 498
   ClientWidth = 859
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
@@ -19,19 +19,17 @@ object OptionsForm: TOptionsForm
     Left = 0
     Top = 0
     Width = 859
-    Height = 410
+    Height = 442
     Align = alClient
     BevelOuter = bvNone
     Color = 15921906
     ParentBackground = False
     TabOrder = 0
-    ExplicitWidth = 440
-    ExplicitHeight = 746
     object CardWindow: TPanel
       Left = 20
       Top = 16
       Width = 400
-      Height = 126
+      Height = 158
       BevelOuter = bvNone
       Color = clWhite
       ParentBackground = False
@@ -48,6 +46,55 @@ object OptionsForm: TOptionsForm
         Font.Name = 'Segoe UI'
         Font.Style = [fsBold]
         ParentFont = False
+      end
+      object LblLanguage: TLabel
+        Left = 20
+        Top = 134
+        Width = 52
+        Height = 15
+        Caption = 'Language'
+      end
+      object LblLanguageHint: TLabel
+        Left = 234
+        Top = 134
+        Width = 146
+        Height = 15
+        AutoSize = False
+        Caption = 'Applied after restart'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clGrayText
+        Font.Height = -11
+        Font.Name = 'Segoe UI'
+        Font.Style = []
+        ParentFont = False
+      end
+      object LblStartupBlocked: TLabel
+        Left = 38
+        Top = 90
+        Width = 344
+        Height = 30
+        AutoSize = False
+        Caption = 'Enable this in Windows Startup Apps settings.'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clGrayText
+        Font.Height = -11
+        Font.Name = 'Segoe UI'
+        Font.Style = []
+        ParentFont = False
+        Visible = False
+        WordWrap = True
+      end
+      object CbLanguage: TComboBox
+        Left = 90
+        Top = 130
+        Width = 136
+        Height = 23
+        Style = csDropDownList
+        TabOrder = 3
+        Items.Strings = (
+          'Auto'
+          #26085#26412#35486
+          'English')
       end
       object ChkStayOnTop: TCheckBox
         Left = 20
@@ -73,26 +120,10 @@ object OptionsForm: TOptionsForm
         Caption = 'Check for a new version at startup'
         TabOrder = 2
       end
-      object LblStartupBlocked: TLabel
-        Left = 38
-        Top = 90
-        Width = 344
-        Height = 30
-        AutoSize = False
-        Caption = 'Enable this in Windows Startup Apps settings.'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clGrayText
-        Font.Height = -11
-        Font.Name = 'Segoe UI'
-        Font.Style = []
-        ParentFont = False
-        Visible = False
-        WordWrap = True
-      end
     end
     object CardFps: TPanel
       Left = 20
-      Top = 154
+      Top = 186
       Width = 400
       Height = 128
       BevelOuter = bvNone
@@ -190,7 +221,7 @@ object OptionsForm: TOptionsForm
     end
     object CardScale: TPanel
       Left = 20
-      Top = 294
+      Top = 326
       Width = 400
       Height = 96
       BevelOuter = bvNone
@@ -375,7 +406,7 @@ object OptionsForm: TOptionsForm
   end
   object PnlButtons: TPanel
     Left = 0
-    Top = 410
+    Top = 442
     Width = 859
     Height = 56
     Align = alBottom
@@ -383,8 +414,6 @@ object OptionsForm: TOptionsForm
     Color = clWhite
     ParentBackground = False
     TabOrder = 1
-    ExplicitTop = 746
-    ExplicitWidth = 440
     object ShpButtonTop: TShape
       Left = 0
       Top = 0

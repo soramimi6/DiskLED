@@ -18,6 +18,7 @@ type
     FWindowY: Integer;
     FStartup: Boolean;
     FScale: Integer;
+    FLanguage: string;
     FCompact: Boolean;
     FTraySize: Boolean;
     FGraphRateHz: Double;
@@ -41,6 +42,7 @@ type
     class function ExeIniPath: string; static;
     class function AppDataIniPath: string; static;
     class function CanWriteDir(const ADir: string): Boolean; static;
+    class function ExistingIniPath: string; static;
     procedure ResolvePath;
     procedure ApplyDefaults;
     procedure Normalize;
@@ -48,6 +50,11 @@ type
     constructor Create;
     procedure Load;
     procedure Save;
+    { Reads only [General] Language from whichever ini already exists, without
+      constructing the full object. DiskLED.dpr needs the UI language before
+      Application.CreateForm (which is what triggers a full Load). Returns
+      'auto' / 'ja' / 'en'. }
+    class function ReadLanguagePref: string; static;
     property FilePath: string read FFilePath;
     property Mode: string read FMode write FMode;
     property StayOnTop: Boolean read FStayOnTop write FStayOnTop;
@@ -58,6 +65,9 @@ type
     { Gadget display scale, integer percent. 0 = automatic (from monitor DPI);
       100/150/200 = user-pinned fixed scale. Dashboard is unaffected. }
     property Scale: Integer read FScale write FScale;
+    { UI language preference: 'auto' (follow OS), 'ja', or 'en'. Applied only
+      at startup (see uAppStrings.InitAppLanguage); a change needs a restart. }
+    property Language: string read FLanguage write FLanguage;
     { Last non-tray choice; kept updated even while TraySize is active so
       the tray double-click / next-launch restore has a target. }
     property Compact: Boolean read FCompact write FCompact;
@@ -93,6 +103,13 @@ uses
 
 const
   CIniName = 'DiskLED.ini';
+
+function NormalizeLang(const AValue: string): string;
+begin
+  Result := LowerCase(Trim(AValue));
+  if (Result <> 'ja') and (Result <> 'en') then
+    Result := 'auto';
+end;
 
 class function TAppSettings.ExeIniPath: string;
 begin
@@ -133,6 +150,33 @@ begin
   end;
 end;
 
+class function TAppSettings.ExistingIniPath: string;
+begin
+  if FileExists(ExeIniPath) then
+    Result := ExeIniPath
+  else if FileExists(AppDataIniPath) then
+    Result := AppDataIniPath
+  else
+    Result := '';
+end;
+
+class function TAppSettings.ReadLanguagePref: string;
+var
+  Path: string;
+  Ini: TMemIniFile;
+begin
+  Result := 'auto';
+  Path := ExistingIniPath;
+  if Path = '' then
+    Exit;
+  Ini := TMemIniFile.Create(Path);
+  try
+    Result := NormalizeLang(Ini.ReadString('General', 'Language', 'auto'));
+  finally
+    Ini.Free;
+  end;
+end;
+
 constructor TAppSettings.Create;
 begin
   inherited Create;
@@ -149,6 +193,7 @@ begin
   FWindowY := 100;
   FStartup := False;
   FScale := 0;
+  FLanguage := 'auto';
   FCompact := True;
   FTraySize := False;
   FGraphRateHz := 1.0;
@@ -200,6 +245,7 @@ begin
     FFps := 15;
   if not ((FScale = 0) or (FScale = 100) or (FScale = 150) or (FScale = 200)) then
     FScale := 0;
+  FLanguage := NormalizeLang(FLanguage);
   if Abs(FGraphRateHz - 2.0) < 0.01 then
     FGraphRateHz := 2.0
   else if Abs(FGraphRateHz - 0.5) < 0.01 then
@@ -254,6 +300,7 @@ begin
     FWindowY := Ini.ReadInteger('General', 'WindowY', FWindowY);
     FStartup := Ini.ReadBool('General', 'Startup', FStartup);
     FScale := Ini.ReadInteger('General', 'Scale', FScale);
+    FLanguage := Ini.ReadString('General', 'Language', FLanguage);
     FCompact := Ini.ReadBool('View', 'Compact', FCompact);
     { Size is the current key; Compact above is read first as the legacy
       fallback for files written by versions before the tray size existed. }
@@ -322,6 +369,7 @@ begin
     Ini.WriteInteger('General', 'WindowY', FWindowY);
     Ini.WriteBool('General', 'Startup', FStartup);
     Ini.WriteInteger('General', 'Scale', FScale);
+    Ini.WriteString('General', 'Language', FLanguage);
     Ini.WriteBool('View', 'Compact', FCompact);
     if FTraySize then
       Ini.WriteString('View', 'Size', 'tray')

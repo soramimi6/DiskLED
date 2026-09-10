@@ -1,14 +1,20 @@
 ﻿unit uAppStrings;
 
-{ UI / error strings. Default English; Japanese when the OS UI language is Japanese.
-  Manual override is out of scope for now (ini Language= later). }
+{ UI / error strings. The active language is picked once at startup: the ini
+  [General] Language preference ('ja' / 'en') wins, otherwise ('auto' / unset)
+  it follows the OS UI language. Future languages slot into TAppLang and fall
+  back to English for any string left untranslated. }
 
 interface
 
 type
+  { Order is the ini/display order for the manual picker; alEnglish is the
+    fallback tongue, so keep it valid for every entry. Future: alGerman,
+    alChineseTraditional. }
   TAppLang = (alJapanese, alEnglish);
 
-procedure InitAppLanguage;
+{ APref: 'ja' / 'en' force that language; 'auto' or '' follows the OS. }
+procedure InitAppLanguage(const APref: string = '');
 function AppLanguage: TAppLang;
 function S(const AId: string): string;
 function GetProductVersionText: string;
@@ -22,8 +28,7 @@ uses
 type
   TStrEntry = record
     Id: string;
-    Ja: string;
-    En: string;
+    Text: array[TAppLang] of string;
   end;
 
 var
@@ -39,8 +44,8 @@ begin
   n := Length(CStrings);
   SetLength(CStrings, n + 1);
   CStrings[n].Id := AId;
-  CStrings[n].Ja := AJa;
-  CStrings[n].En := AEn;
+  CStrings[n].Text[alJapanese] := AJa;
+  CStrings[n].Text[alEnglish] := AEn;
 end;
 
 procedure EnsureStrings;
@@ -82,6 +87,10 @@ begin
 
   AddStr('opt.title', 'DiskLED オプション', 'DiskLED Options');
   AddStr('opt.group.window', 'ウィンドウ', 'Window');
+  AddStr('opt.language', '表示言語', 'Language');
+  AddStr('opt.language_restart_hint',
+    '再起動後に反映されます',
+    'Applied after restart');
   AddStr('opt.group.ping', 'Ping', 'Ping');
   AddStr('opt.group.thresholds', 'Ping 判定しきい値', 'Ping level thresholds');
   AddStr('opt.stay_on_top', '常に手前に表示', 'Always on top');
@@ -228,10 +237,17 @@ begin
   Result := (Lang and $3FF) = LANG_JAPANESE;
 end;
 
-procedure InitAppLanguage;
+procedure InitAppLanguage(const APref: string);
+var
+  Pref: string;
 begin
   EnsureStrings;
-  if IsJapaneseUi then
+  Pref := LowerCase(Trim(APref));
+  if Pref = 'ja' then
+    GLang := alJapanese
+  else if Pref = 'en' then
+    GLang := alEnglish
+  else if IsJapaneseUi then
     GLang := alJapanese
   else
     GLang := alEnglish;
@@ -255,9 +271,12 @@ begin
   for i := 0 to High(CStrings) do
     if SameText(CStrings[i].Id, AId) then
     begin
-      if GLang = alJapanese then
-        Exit(CStrings[i].Ja);
-      Exit(CStrings[i].En);
+      Result := CStrings[i].Text[GLang];
+      { Untranslated entry in a future language: show English rather than a
+        blank. English itself is always populated. }
+      if (Result = '') and (GLang <> alEnglish) then
+        Result := CStrings[i].Text[alEnglish];
+      Exit;
     end;
   Result := AId;
 end;
