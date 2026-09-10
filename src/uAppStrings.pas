@@ -53,6 +53,8 @@ begin
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
   AddStr('menu.tray', 'タスクトレイ', 'Task Tray');
+  AddStr('menu.scale', '表示倍率', 'Display Scale');
+  AddStr('menu.scale_auto', '自動', 'Auto');
   AddStr('menu.exit', '終了', 'Exit');
   AddStr('menu.options', 'オプション', 'Options');
   AddStr('menu.reset_position', '位置をリセット', 'Reset Position');

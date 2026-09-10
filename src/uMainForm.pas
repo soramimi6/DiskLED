@@ -85,6 +85,7 @@ type
     FUpdateGen: Integer;
     FClosing: Boolean;
     FMiTray: TMenuItem;
+    FMiScale: TMenuItem;
     FTrayOffIcon: TIcon;
     FTrayOnIcon: TIcon;
     FTrayLedOn: Boolean;
@@ -96,6 +97,7 @@ type
     procedure ResetGraphPeak;
     procedure ResetDashboardPeak;
     procedure ApplyDpiScale;
+    function ResolveScale100: Integer;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
     procedure ShowTraceRouteForm;
@@ -104,11 +106,14 @@ type
     procedure Render;
     procedure SyncModeChecks;
     procedure SyncViewMenu;
+    procedure AddScaleMenuItem(const ACaption: string; APct: Integer);
+    procedure SyncScaleMenu;
     procedure TimerTick(Sender: TObject);
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
     procedure miFullClick(Sender: TObject);
     procedure miTrayClick(Sender: TObject);
+    procedure miScaleClick(Sender: TObject);
     procedure EnterTraySize;
     procedure LeaveTraySize;
     procedure ReloadTrayIcons;
@@ -606,6 +611,16 @@ begin
   FMiTray.OnClick := miTrayClick;
   FPopup.Items.Add(FMiTray);
 
+  FMiScale := TMenuItem.Create(FPopup);
+  FMiScale.Caption := S('menu.scale');
+  FPopup.Items.Add(FMiScale);
+  { Children only: SyncModeChecks walks FPopup.Items (top level) and would
+    fight a radio item placed there. GroupIndex 3 keeps them their own group. }
+  AddScaleMenuItem(S('menu.scale_auto'), 0);
+  AddScaleMenuItem('100%', 100);
+  AddScaleMenuItem('150%', 150);
+  AddScaleMenuItem('200%', 200);
+
   Sep := TMenuItem.Create(FPopup);
   Sep.Caption := '-';
   FPopup.Items.Add(Sep);
@@ -709,8 +724,18 @@ begin
     FMonitorDpi := MonitorDpiForWindow(Handle)
   else
     FMonitorDpi := MonitorDpiForWindow(0);
-  FScale100 := GadgetScale100(FMonitorDpi);
+  FScale100 := ResolveScale100;
   ApplyDpiClientSize;
+end;
+
+function TMainForm.ResolveScale100: Integer;
+begin
+  { Scale = 0 means "automatic" (derive from monitor DPI). A pinned 100/150/200
+    wins regardless of DPI, so a fixed gadget stays that size across monitors. }
+  if (FSettings <> nil) and (FSettings.Scale >= 100) then
+    Result := FSettings.Scale
+  else
+    Result := GadgetScale100(FMonitorDpi);
 end;
 
 procedure TMainForm.ApplyDpiClientSize;
@@ -849,6 +874,36 @@ begin
   FMiFull.Checked := InFull;
   if FMiTray <> nil then
     FMiTray.Checked := InTray;
+  SyncScaleMenu;
+end;
+
+procedure TMainForm.AddScaleMenuItem(const ACaption: string; APct: Integer);
+var
+  mi: TMenuItem;
+begin
+  mi := TMenuItem.Create(FMiScale);
+  mi.Caption := ACaption;
+  mi.RadioItem := True;
+  mi.GroupIndex := 3;
+  mi.Tag := APct;
+  mi.OnClick := miScaleClick;
+  FMiScale.Add(mi);
+end;
+
+procedure TMainForm.SyncScaleMenu;
+var
+  i, Cur: Integer;
+begin
+  if FMiScale = nil then
+    Exit;
+  if FSettings <> nil then
+    Cur := FSettings.Scale
+  else
+    Cur := 0;
+  if not ((Cur = 100) or (Cur = 150) or (Cur = 200)) then
+    Cur := 0;
+  for i := 0 to FMiScale.Count - 1 do
+    FMiScale[i].Checked := (FMiScale[i].Tag = Cur);
 end;
 
 procedure TMainForm.Render;
@@ -998,6 +1053,30 @@ end;
 procedure TMainForm.miTrayClick(Sender: TObject);
 begin
   EnterTraySize;
+end;
+
+procedure TMainForm.miScaleClick(Sender: TObject);
+var
+  KeepLeft, KeepTop: Integer;
+begin
+  if FSettings = nil then
+    Exit;
+  if FSettings.Scale = TMenuItem(Sender).Tag then
+  begin
+    SyncScaleMenu;
+    Exit;
+  end;
+  KeepLeft := Left;
+  KeepTop := Top;
+  FSettings.Scale := TMenuItem(Sender).Tag;
+  ApplyDpiScale;
+  SetBounds(KeepLeft, KeepTop, Width, Height);
+  ApplyWindowBounds;
+  SyncScaleMenu;
+  FHasFp := False;
+  Render;
+  Invalidate;
+  PersistSettings;
 end;
 
 function TMainForm.TrayIconPath(const AAssetDir, AFileName: string): string;
@@ -1390,7 +1469,9 @@ begin
   FMonitorDpi := LoWord(Message.WParam);
   if FMonitorDpi < 1 then
     FMonitorDpi := MonitorDpiForWindow(Handle);
-  FScale100 := GadgetScale100(FMonitorDpi);
+  { Fixed scale ignores the DPI change for sizing; the suggested-rect move
+    below still runs so the gadget follows the cursor to the new monitor. }
+  FScale100 := ResolveScale100;
   ApplyDpiClientSize;
   RefreshTrayIconForState;
   if Message.LParam <> 0 then
