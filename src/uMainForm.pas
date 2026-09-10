@@ -1020,6 +1020,7 @@ begin
   if FDashboardHistory <> nil then
   begin
     DashSample.Cpu := FPipeline.Normalized.Cpu;
+    DashSample.Gpu := FPipeline.Normalized.Gpu;
     DashSample.Mem := FPipeline.Normalized.Mem;
     DashSample.Swap := FPipeline.Normalized.Swap;
     DashSample.DiskRead := FPipeline.Normalized.DiskRead;

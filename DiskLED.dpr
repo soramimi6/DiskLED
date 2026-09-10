@@ -14,6 +14,7 @@ uses
   uGraphRenderer in 'src\view\uGraphRenderer.pas',
   uMetricsTypes in 'src\metrics\uMetricsTypes.pas',
   uCpuCollector in 'src\metrics\uCpuCollector.pas',
+  uGpuCollector in 'src\metrics\uGpuCollector.pas',
   uMemCollector in 'src\metrics\uMemCollector.pas',
   uDiskCollector in 'src\metrics\uDiskCollector.pas',
   uNetCollector in 'src\metrics\uNetCollector.pas',

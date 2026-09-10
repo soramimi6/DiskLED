@@ -140,6 +140,9 @@ end;
 function BuildMeterBallistics(const ALayout: TViewLayout): TMeterBallistics;
 begin
   Result.Cpu := ToParams(ALayout.Cpu);
+  { GPU has no gadget meter part -- dashboard donut only. Give it a sane
+    default so FBallistics.Gpu is never left uninitialized. }
+  Result.Gpu := DefaultBallisticParams;
   Result.Mem := ToParams(ALayout.Mem);
   Result.Swap := ToParams(ALayout.Swap);
   Result.DiskRead := ToParams(ALayout.DiskReadMeter);

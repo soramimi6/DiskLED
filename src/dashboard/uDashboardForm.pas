@@ -140,9 +140,16 @@ begin
     FCards[i].AxisNow := S('dash.axis_now');
     FCards[i].Axis5m := S('dash.axis_5m');
   end;
-  FCards[0].Title := S('dash.cpu');
+  FCards[0].Title := S('dash.cpu_gpu');
+  FCards[0].Dual := True;
   FCards[0].Lane := dlCpu;
+  FCards[0].Lane2 := dlGpu;
   FCards[0].Accent := Pal.Cpu;
+  FCards[0].Accent2 := Pal.Gpu;
+  FCards[0].LineStyle := lsSolid;
+  FCards[0].LineStyle2 := lsSolid;
+  FCards[0].Legend1 := S('dash.cpu');
+  FCards[0].Legend2 := S('dash.gpu');
   FCards[1].Title := S('dash.mem');
   FCards[1].Lane := dlMem;
   FCards[1].Accent := Pal.Mem;
@@ -369,6 +376,7 @@ begin
   if FCards[0] = nil then
     Exit;
   FCards[0].Accent := Pal.Cpu;
+  FCards[0].Accent2 := Pal.Gpu;
   FCards[1].Accent := Pal.Mem;
   FCards[2].Accent := Pal.Swap;
   FCards[3].Accent := Pal.Disk;
@@ -474,6 +482,7 @@ begin
     Exit;
   { Ballistic meter values (gadget follow), not the 1 Hz digit snapshot. }
   FCards[0].Level := Clamp01(FPipeline.State.Cpu);
+  FCards[0].Level2 := Clamp01(FPipeline.State.Gpu);
   FCards[1].Level := Clamp01(FPipeline.State.Mem);
   FCards[2].Level := Clamp01(FPipeline.State.Swap);
   FCards[3].Level := Clamp01(FPipeline.State.DiskRead);
@@ -491,6 +500,7 @@ begin
     Exit;
   Snap := FPipeline.LastSnap;
   FCards[0].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.CpuDigit) * 100)]);
+  FCards[0].Value2 := Format('%d%%', [Round(Clamp01(FPipeline.State.GpuDigit) * 100)]);
   FCards[1].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.MemDigit) * 100)]);
   FCards[2].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
   FCards[3].Value := FormatRateBps(Snap.DiskReadBps);

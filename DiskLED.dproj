@@ -129,6 +129,7 @@
         <DCCReference Include="src\view\uGraphRenderer.pas"/>
         <DCCReference Include="src\metrics\uMetricsTypes.pas"/>
         <DCCReference Include="src\metrics\uCpuCollector.pas"/>
+        <DCCReference Include="src\metrics\uGpuCollector.pas"/>
         <DCCReference Include="src\metrics\uMemCollector.pas"/>
         <DCCReference Include="src\metrics\uDiskCollector.pas"/>
         <DCCReference Include="src\metrics\uNetCollector.pas"/>

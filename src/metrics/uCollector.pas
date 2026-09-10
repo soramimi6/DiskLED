@@ -5,6 +5,7 @@ interface
 uses
   uMetricsTypes,
   uCpuCollector,
+  uGpuCollector,
   uMemCollector,
   uDiskCollector,
   uNetCollector,
@@ -15,6 +16,7 @@ type
   TMetricsCollector = class
   private
     FCpu: TCpuCollector;
+    FGpu: TGpuCollector;
     FMem: TMemCollector;
     FDisk: TDiskCollector;
     FNet: TNetCollector;
@@ -43,6 +45,7 @@ constructor TMetricsCollector.Create;
 begin
   inherited Create;
   FCpu := TCpuCollector.Create;
+  FGpu := TGpuCollector.Create;
   FMem := TMemCollector.Create;
   FDisk := TDiskCollector.Create;
   FNet := TNetCollector.Create;
@@ -57,6 +60,7 @@ begin
   FNet.Free;
   FDisk.Free;
   FMem.Free;
+  FGpu.Free;
   FCpu.Free;
   inherited;
 end;
@@ -81,6 +85,11 @@ begin
     Result.CpuUsage := 0;
     Result.CpuUserPct := 0;
     Result.CpuKernelPct := 0;
+  end;
+  try
+    Result.GpuUsage := FGpu.Sample;
+  except
+    Result.GpuUsage := 0;
   end;
   try
     FMem.Sample(Result.MemUsage, Result.SwapUsage,

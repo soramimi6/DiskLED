@@ -170,6 +170,8 @@ begin
 
   AddStr('dash.title', 'DiskLED ダッシュボード', 'DiskLED Dashboard');
   AddStr('dash.cpu', 'CPU', 'CPU');
+  AddStr('dash.gpu', 'GPU', 'GPU');
+  AddStr('dash.cpu_gpu', 'CPU / GPU', 'CPU / GPU');
   AddStr('dash.cpu_user', 'User', 'User');
   AddStr('dash.cpu_kernel', 'Kernel', 'Kernel');
   AddStr('dash.cpu_name', '名前', 'Name');

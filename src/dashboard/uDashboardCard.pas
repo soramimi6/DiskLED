@@ -111,7 +111,7 @@ var
   Pal: THudPalette;
   Met: THudMetrics;
   CardR, LeftR, MeterR, GraphR, ClipR: TRect;
-  TitleH, MeterTop, Tw, Th, Gap, Sw, Pad, OutlinePx: Integer;
+  TitleH, LegendW, LegendLineH, MeterTop, Tw, Th, Gap, Sw, Pad, OutlinePx: Integer;
   ValueX, ValueY: Integer;
   DrawGraph: Boolean;
   SavedDc: Integer;
@@ -140,8 +140,6 @@ begin
     LeftR.Right := LeftR.Left + MulDiv(48, Met.Margin, 12);
 
   TitleH := Met.HeadingSize + MulDiv(8, Met.Margin, 12);
-  if FDual and ((FLegend1 <> '') or (FLegend2 <> '')) then
-    TitleH := TitleH + Met.BodySize + MulDiv(4, Met.Margin, 12);
   Canvas.Font.Name := 'Segoe UI';
   Canvas.Font.Style := [fsBold];
   Canvas.Font.Size := Met.HeadingSize;
@@ -149,37 +147,31 @@ begin
   Canvas.Brush.Style := bsClear;
   SetBkMode(Canvas.Handle, TRANSPARENT);
   Canvas.TextOut(LeftR.Left, LeftR.Top, UpperCase(FTitle));
+
+  { Dual-card legend is stacked in the bottom-left of the meter pane; carve a
+    column out of the meter rect's left edge so the donut never sits under it.
+    The donut is height-constrained here, so a modest carve does not shrink it. }
+  Sw := MulDiv(8, Met.Margin, 12);
+  if Sw < 4 then
+    Sw := 4;
+  Pad := MulDiv(2, Met.Margin, 12);
+  if Pad < 1 then
+    Pad := 1;
+  LegendW := 0;
+  LegendLineH := 0;
   if FDual and ((FLegend1 <> '') or (FLegend2 <> '')) then
   begin
     Canvas.Font.Style := [];
     Canvas.Font.Size := Met.AxisSize + 1;
-    Tw := LeftR.Left;
-    Th := LeftR.Top + Met.HeadingSize + MulDiv(6, Met.Margin, 12);
-    Sw := MulDiv(8, Met.Margin, 12);
-    if Sw < 4 then
-      Sw := 4;
-    Pad := MulDiv(2, Met.Margin, 12);
-    if Pad < 1 then
-      Pad := 1;
-    Canvas.Brush.Color := FAccent;
-    Canvas.Pen.Color := FAccent;
-    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
-    Canvas.Brush.Style := bsClear;
-    SetBkMode(Canvas.Handle, TRANSPARENT);
-    Canvas.Font.Color := Pal.TextMuted;
-    Canvas.TextOut(Tw + Sw + Pad, Th, FLegend1);
-    Tw := Tw + Sw + Pad + Canvas.TextWidth(FLegend1) + MulDiv(10, Met.Margin, 12);
-    Canvas.Brush.Color := FAccent2;
-    Canvas.Pen.Color := FAccent2;
-    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
-    Canvas.Brush.Style := bsClear;
-    SetBkMode(Canvas.Handle, TRANSPARENT);
-    Canvas.Font.Color := Pal.TextMuted;
-    Canvas.TextOut(Tw + Sw + Pad, Th, FLegend2);
+    LegendLineH := Canvas.TextHeight('Ag') + MulDiv(3, Met.Margin, 12);
+    Tw := Canvas.TextWidth(FLegend1);
+    if Canvas.TextWidth(FLegend2) > Tw then
+      Tw := Canvas.TextWidth(FLegend2);
+    LegendW := Sw + Pad + Tw + MulDiv(8, Met.Margin, 12);
   end;
 
   MeterTop := LeftR.Top + TitleH;
-  MeterR := Rect(LeftR.Left, MeterTop, LeftR.Right, LeftR.Bottom);
+  MeterR := Rect(LeftR.Left + LegendW, MeterTop, LeftR.Right, LeftR.Bottom);
   if MeterR.Bottom < MeterR.Top + MulDiv(24, Met.Margin, 12) then
     MeterR.Bottom := MeterR.Top + MulDiv(24, Met.Margin, 12);
 
@@ -225,6 +217,34 @@ begin
     ValueY := MeterR.Top + ((MeterR.Bottom - MeterR.Top) - Th) div 2;
     TextOutOutlined(Canvas, ValueX, ValueY, FValue, Pal.TextPrimary, clBlack,
       OutlinePx);
+  end;
+
+  if LegendW > 0 then
+  begin
+    Canvas.Font.Name := 'Segoe UI';
+    Canvas.Font.PixelsPerInch := 96;
+    Canvas.Font.Style := [];
+    Canvas.Font.Size := Met.AxisSize + 1;
+    Canvas.Brush.Style := bsClear;
+    SetBkMode(Canvas.Handle, TRANSPARENT);
+    Tw := LeftR.Left;
+    { Two stacked rows, bottom-aligned to the meter pane. }
+    Th := LeftR.Bottom - LegendLineH * 2 + MulDiv(1, Met.Margin, 12);
+    Canvas.Brush.Color := FAccent;
+    Canvas.Pen.Color := FAccent;
+    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
+    Canvas.Brush.Style := bsClear;
+    SetBkMode(Canvas.Handle, TRANSPARENT);
+    Canvas.Font.Color := Pal.TextMuted;
+    Canvas.TextOut(Tw + Sw + Pad, Th, FLegend1);
+    Th := Th + LegendLineH;
+    Canvas.Brush.Color := FAccent2;
+    Canvas.Pen.Color := FAccent2;
+    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
+    Canvas.Brush.Style := bsClear;
+    SetBkMode(Canvas.Handle, TRANSPARENT);
+    Canvas.Font.Color := Pal.TextMuted;
+    Canvas.TextOut(Tw + Sw + Pad, Th, FLegend2);
   end;
 
   GraphR := Rect(Met.MeterPaneWidth, Met.CardPad + MulDiv(4, Met.Margin, 12),

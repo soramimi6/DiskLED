@@ -16,6 +16,7 @@ type
     AccentStart: TColor;
     AccentEnd: TColor;
     Cpu: TColor;
+    Gpu: TColor;
     Mem: TColor;
     Swap: TColor;
     Disk: TColor;
@@ -137,6 +138,9 @@ begin
   Result.AccentStart := RGB($D4, $00, $00);
   Result.AccentEnd := RGB($5C, $7B, $00);
   Result.Cpu := RGB($9F, $3B, $00);
+  { Inner donut over the CPU orange; a bright teal reads clearly against it and
+    stays distinct from Disk's blue and Mem's yellow-green. }
+  Result.Gpu := RGB($2E, $C6, $B0);
   Result.Mem := RGB($87, $DB, $3D);
   Result.Swap := RGB($FF, $CB, $6B);
   Result.Disk := RGB($42, $8C, $FF);
@@ -171,6 +175,7 @@ begin
   Result.AccentStart := RGB($D4, $00, $00);
   Result.AccentEnd := RGB($5C, $7B, $00);
   Result.Cpu := RGB($B3, $42, $00);
+  Result.Gpu := RGB($0F, $7A, $6E);
   Result.Mem := RGB($3F, $8C, $14);
   Result.Swap := RGB($C4, $88, $12);
   Result.Disk := RGB($16, $3C, $B8);

@@ -16,6 +16,7 @@ type
     FRange: TRangeEngine;
     FBallistics: TMeterBallistics;
     FDirCpu: TMeterFollowDir;
+    FDirGpu: TMeterFollowDir;
     FDirMem: TMeterFollowDir;
     FDirSwap: TMeterFollowDir;
     FDirDiskRead: TMeterFollowDir;
@@ -98,6 +99,7 @@ procedure TDisplayPipeline.ApplyBallistics(const ABallistics: TMeterBallistics);
 begin
   FBallistics := ABallistics;
   FBallistics.Cpu.Strength := ClampStrength(FBallistics.Cpu.Strength);
+  FBallistics.Gpu.Strength := ClampStrength(FBallistics.Gpu.Strength);
   FBallistics.Mem.Strength := ClampStrength(FBallistics.Mem.Strength);
   FBallistics.Swap.Strength := ClampStrength(FBallistics.Swap.Strength);
   FBallistics.DiskRead.Strength := ClampStrength(FBallistics.DiskRead.Strength);
@@ -223,6 +225,7 @@ begin
     Exit;
 
   FState.CpuDigit := FState.Cpu;
+  FState.GpuDigit := FState.Gpu;
   FState.MemDigit := FState.Mem;
   FState.SwapDigit := FState.Swap;
   FDigitTick := NowTick;
@@ -231,7 +234,7 @@ end;
 
 procedure TDisplayPipeline.Update(const ASnap: TMetricsSnapshot);
 var
-  CpuT, MemT, SwapT: Double;
+  CpuT, GpuT, MemT, SwapT: Double;
   DiskRT, DiskWT, DiskIoT, NetIT, NetOT, NetIoT, AudioT, AudioLT, AudioRT: Double;
   Progress: Double;
   NowTick: Cardinal;
@@ -241,6 +244,9 @@ begin
   FLastSnap := ASnap;
 
   CpuT := Clamp01(ASnap.CpuUsage / 100.0);
+  { GPU utilization is already 0..100 -- straight through the pipeline
+    (normalize + ballistic), no RangeEngine auto-ceiling like disk/net. }
+  GpuT := Clamp01(ASnap.GpuUsage / 100.0);
   MemT := Clamp01(ASnap.MemUsage / 100.0);
   SwapT := Clamp01(ASnap.SwapUsage / 100.0);
   DiskRT := FRange.DiskReadNorm(ASnap);
@@ -257,6 +263,7 @@ begin
   AudioRT := Clamp01(ASnap.AudioPeakR);
 
   FNormalized.Cpu := CpuT;
+  FNormalized.Gpu := GpuT;
   FNormalized.Mem := MemT;
   FNormalized.Swap := SwapT;
   FNormalized.DiskRead := DiskRT;
@@ -298,6 +305,7 @@ begin
   begin
     Progress := StartupProgress;
     FState.Cpu := Clamp01(CpuT * Progress);
+    FState.Gpu := Clamp01(GpuT * Progress);
     FState.Mem := Clamp01(MemT * Progress);
     FState.Swap := Clamp01(SwapT * Progress);
     FState.DiskRead := Clamp01(DiskRT * Progress);
@@ -314,6 +322,7 @@ begin
   end;
 
   FState.Cpu := Follow(FState.Cpu, CpuT, FBallistics.Cpu, FDirCpu, DtSec);
+  FState.Gpu := Follow(FState.Gpu, GpuT, FBallistics.Gpu, FDirGpu, DtSec);
   FState.Mem := Follow(FState.Mem, MemT, FBallistics.Mem, FDirMem, DtSec);
   FState.Swap := Follow(FState.Swap, SwapT, FBallistics.Swap, FDirSwap, DtSec);
   FState.DiskRead := Follow(FState.DiskRead, DiskRT, FBallistics.DiskRead, FDirDiskRead, DtSec);

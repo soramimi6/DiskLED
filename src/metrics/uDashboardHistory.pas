@@ -5,11 +5,12 @@ unit uDashboardHistory;
 interface
 
 type
-  TDashboardLane = (dlCpu, dlMem, dlSwap, dlDiskRead, dlDiskWrite, dlNetIn, dlNetOut);
+  TDashboardLane = (dlCpu, dlGpu, dlMem, dlSwap, dlDiskRead, dlDiskWrite,
+    dlNetIn, dlNetOut);
   TDashboardLaneSet = set of TDashboardLane;
 
   TDashboardSample = record
-    Cpu, Mem, Swap: Single;
+    Cpu, Gpu, Mem, Swap: Single;
     DiskRead, DiskWrite: Single;
     NetIn, NetOut: Single;
   end;
@@ -47,6 +48,8 @@ procedure AccrueDashboardPeak(var APeak: TDashboardSample; const S: TDashboardSa
 begin
   if S.Cpu > APeak.Cpu then
     APeak.Cpu := S.Cpu;
+  if S.Gpu > APeak.Gpu then
+    APeak.Gpu := S.Gpu;
   if S.Mem > APeak.Mem then
     APeak.Mem := S.Mem;
   if S.Swap > APeak.Swap then
@@ -81,6 +84,7 @@ var
 begin
   Idx := FHead;
   FLanes[dlCpu][Idx] := Clamp01(S.Cpu);
+  FLanes[dlGpu][Idx] := Clamp01(S.Gpu);
   FLanes[dlMem][Idx] := Clamp01(S.Mem);
   FLanes[dlSwap][Idx] := Clamp01(S.Swap);
   FLanes[dlDiskRead][Idx] := Clamp01(S.DiskRead);

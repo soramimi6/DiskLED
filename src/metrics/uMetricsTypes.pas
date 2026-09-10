@@ -17,6 +17,7 @@ type
     CpuMaxMhz: Integer;
     MemUsage: Double;
     SwapUsage: Double;
+    GpuUsage: Double; { 0..100; 0 when no GPU Engine perf counters (old Windows/RDP) }
     DiskReadBps: Double;
     DiskWriteBps: Double;
     NetInBps: Double;
@@ -61,6 +62,7 @@ type
 
   TMeterBallistics = record
     Cpu: TBallisticParams;
+    Gpu: TBallisticParams;
     Mem: TBallisticParams;
     Swap: TBallisticParams;
     DiskRead: TBallisticParams;
@@ -80,6 +82,7 @@ type
   { Range-normalized 0..1, before ballistic follow. Graph history uses this. }
   TNormalizedMetrics = record
     Cpu: Double;
+    Gpu: Double;
     Mem: Double;
     Swap: Double;
     DiskRead: Double;
@@ -95,10 +98,12 @@ type
 
   TDisplayState = record
     Cpu: Double;
+    Gpu: Double;
     Mem: Double;
     Swap: Double;
     { Digit readout (held; slower than meter bars). }
     CpuDigit: Double;
+    GpuDigit: Double;
     MemDigit: Double;
     SwapDigit: Double;
     DiskRead: Double;
@@ -288,6 +293,7 @@ var
 begin
   P := DefaultBallisticParams;
   Result.Cpu := P;
+  Result.Gpu := P;
   Result.Mem := P;
   Result.Swap := P;
   Result.DiskRead := P;
