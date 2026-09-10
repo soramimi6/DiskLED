@@ -4,7 +4,7 @@
 
 事前検証（現行コード `src/` を確認済み）の結果は各項目に残してある。
 
-3.2.0 の対象は **1・3・4・5・6**（項目 2 は着手順から外した保留枠）。着手順は `1 → 3 → 4 → 5 → 6`。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 6（asset-editor）は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去後に確定するため 5 の後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
+3.2.0 の対象は **1・3・4・5・6・7**（項目 2 は着手順から外した保留枠）。着手順は `7 → 1 → 3 → 4 → 5 → 6`。項目 7 は不具合修正のため最優先で着手する。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 6（asset-editor）は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去後に確定するため 5 の後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
 
 | # | 機能 | 実現可能性 | 難易度 | 工数目安 | 優先度 |
 |---|---|---|---|---|---|
@@ -14,8 +14,50 @@
 | 4 | GPU 使用率（PDH。CPU カードへ同居、使用率のみ） | 中〜高 | 中（ワイルドカード PDH の動的カウンタ管理が山） | 3〜5日 | 中 |
 | 5 | タスクトレイの独立化・LED ソース拡張（5a+5b+ネット LED。ドライブ別・多段階色は別枠） | 高（設定モデルは既に分離済み・LED ソースも既存） | 中（メニュー再構成／`[Tray]` 撤去／トレイ素材 12 icon） | 3〜5日 | 中 |
 | 6 | asset-editor（ブラウザ版スキン編集ツール、3.2.0 で完成版） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジン移植＋テキスト/GUI 両編集の同期＋バリデーション。Delphi と JS の 2 重実装が恒久コスト） | 未検証・最大（2週間超見込み） | 中〜低（工数は大、必須度は中〜低） |
+| 7 | ダッシュボードの最小ウィンドウサイズをDPIスケール・画面サイズに追従させる（不具合修正） | 高（原因箇所を特定済み） | 低〜中（最小サイズ算出ロジックの変更＋ワークエリアクランプの配線） | 半日〜1日 | 最優先（不具合修正） |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
+
+## 7. ダッシュボードの最小ウィンドウサイズをDPIスケール・画面サイズに追従させる（不具合修正）
+
+Windows 表示スケールを 200% 等の高倍率に設定した環境で、ダッシュボードウィンドウの最小サイズ制限が対象モニターのワークエリア（作業領域）より大きくなり、画面に収まるサイズまでウィンドウを縮小できなくなる不具合を修正する。100% 表示の環境では発生しない。
+
+### スコープ確定事項
+
+- 対象は **ダッシュボード（`TDashboardForm`）のみ**。ガジェット本体（`TMainForm`）・オプション画面は対象外（`Constraints` 自体を持たず、この不具合と無関係。直近のガジェット表示倍率コミット `ebc9c09`/`bae544f` もダッシュボードを一切変更していないことを確認済み）。
+- 修正は最小サイズの算出ロジックと、それを適用する箇所（起動時／DPI変更時／ディスプレイ構成変更時／ini復元時）に限定する。`LayoutContent` の列折りたたみによる縮退ロジック（[uDashboardForm.pas:412-463](../src/dashboard/uDashboardForm.pas#L412-L463)）は変更不要（既存の機構をそのまま活かす）。
+
+### 事前検証（現行コード `src/dashboard/uDashboardForm.pas` / `src/uWindowPlacement.pas` / `src/uSettings.pas` を確認済み）
+
+- 本アプリは `AppDPIAwarenessMode=PerMonitorV2`（[DiskLED.dproj:99,102,111,115](../DiskLED.dproj#L99)）で、OS による自動スケーリングは行われない。ダッシュボードは `Scaled=False` ＋手動 DIP→px 変換（`ScalePx(AValue, ADpi) = MulDiv(AValue, ADpi, 96)`、[uDpiScale.pas:68-75](../src/uDpiScale.pas#L68-L75)）という方式（[uThemedHudForm.pas:8-10](../src/uThemedHudForm.pas#L8-L10)）。
+- 最小サイズは `ApplyDpiChrome`（[uDashboardForm.pas:243-254](../src/dashboard/uDashboardForm.pas#L243-L254)）の `Constraints.MinWidth := ScalePx(1000, Dpi); Constraints.MinHeight := ScalePx(900, Dpi);` のみで決まる。**1000×900 DIP の固定値**に DPI 比を掛けるだけで、対象モニターの実際のワークエリアサイズを一切考慮していない。200%（Dpi=192）では物理 2000×1800px まで膨らみ、モニターによっては画面に収まらない。
+- `ApplyDpiChrome` は `FormCreate`（[uDashboardForm.pas:126](../src/dashboard/uDashboardForm.pas#L126)）と `WMDpiChanged`（[uDashboardForm.pas:340-358](../src/dashboard/uDashboardForm.pas#L340-L358)）の 2 箇所から呼ばれる。`ApplySavedDipBounds`（[uDashboardForm.pas:256-269](../src/dashboard/uDashboardForm.pas#L256-L269)）は ini に保存された DIP サイズを同じ `ScalePx` で物理化して `SetBounds` する。
+- `ClampIntoView`（[uDashboardForm.pas:271-300](../src/dashboard/uDashboardForm.pas#L271-L300)）は、ウィンドウが全モニターから完全に外れた場合のみを救済する処理で、コメント（283-289行目）に「ワークエリアより大きい/縦長のウィンドウは意図的に扱わない」と明記されている。`WMDisplayChange`（[uDashboardForm.pas:360-366](../src/dashboard/uDashboardForm.pas#L360-L366)）もこの `ClampIntoView` を呼ぶだけ。
+- ワークエリア取得用の `WorkAreaForWindow(AWnd: HWND): TRect`（[uWindowPlacement.pas:54](../src/uWindowPlacement.pas#L54)）は既に存在するが `implementation` セクション内にあり、他ユニットから呼べない。
+- 副次的な不整合: `uSettings.Normalize` の ini クランプ（[uSettings.pas:271-278](../src/uSettings.pas#L271-L278)）は 800×600〜3840×2400 DIP を許容するが、`ApplyDpiChrome` が実行時に強制する最小値は 1000×900 DIP で、両者が食い違っている。DFM の設計時 `Constraints`（[uDashboardForm.dfm:8-9](../src/dashboard/uDashboardForm.dfm#L8-L9)）も 800×600 だが `Scaled=False` により起動時に `ApplyDpiChrome` で即座に上書きされ、実質死んでいる。
+
+### 実装プラン（方針）
+
+1. `uWindowPlacement.pas`: `WorkAreaForWindow` のシグネチャを `interface` セクション（[uWindowPlacement.pas:25-26](../src/uWindowPlacement.pas#L25-L26) 付近）へ追加し、外部から呼べるようにする（ロジック変更なし）。
+2. `uDashboardForm.pas` に private ヘルパーを追加:
+   - `EffectiveMinSize(ADpi, AWork, out AMinW, AMinH)`: ①理想値 1000×900 DIP を DPI 換算 → ②対象モニターのワークエリア幅/高さを超える場合はワークエリアまで縮小 → ③絶対下限 800×600 DIP（`uSettings.pas`/DFM と同じ値）を DPI 換算した値を下回らせない、の優先順位で各軸独立に算出する。
+   - `ClampSizeToWorkArea(var AWidth, AHeight, AWork)`: 既に決まった幅/高さをワークエリア内に収める単純なクランプ。
+3. `ApplyDpiChrome`: `WorkAreaForWindow(Handle)`（`HandleAllocated` が false なら `WorkAreaForWindow(0)` にフォールバック、`WindowDpi` 関数[uDashboardForm.pas:226-236](../src/dashboard/uDashboardForm.pas#L226-L236)と同じパターン）でワークエリアを取得し、`EffectiveMinSize` の結果を `Constraints.MinWidth/MinHeight` に代入する。
+4. `ApplySavedDipBounds`: 既存の `SetBounds` の後、現在のワークエリアに対して `ClampSizeToWorkArea` を適用し、変化があれば `SetBounds` をもう一度呼ぶ（保存済みサイズが現在のモニターでは大きすぎるケースに対応）。
+5. `WMDpiChanged`: Windows が提案する `Suggested` 矩形（350-352行目）は DIP サイズを維持するだけで新モニターの物理サイズを考慮しないため、`SetBounds` 前に `ClampSizeToWorkArea` をかける。
+6. `WMDisplayChange`: 既存の `ClampIntoView` 呼び出しの前に `ApplyDpiChrome`（ワークエリア変化に応じて `Constraints` を再度締め直す）を追加し、`HandleAllocated and (WindowState = wsNormal)` の場合のみ現在サイズをワークエリアにクランプする。
+7. `uSettings.pas` / DFM の数値は変更不要（既存の 800×600 DIP がそのまま新しい絶対下限として実行時にも一貫して使われるようになる）。
+
+### 実装後に実機で見ること
+
+- 表示スケール 200% の環境で、ダッシュボードを最小サイズまで縮小しても画面内に収まること。
+- ダッシュボードを 100% スケールの大きいモニターから 200% の小さいモニターへドラッグ移動し、`WMDpiChanged` 経由で画面内に収まるサイズへ追従すること。
+- 大きいモニター/低スケールで保存した ini のウィンドウサイズを、小さい/高スケールのモニターで起動して確認する。
+- 最小サイズ（800×600 DIP相当）付近までウィンドウを縮小し、`LayoutContent` のカード折りたたみでクリッピングが発生しないこと（発生する場合は絶対下限 DIP 値の見直しを検討）。
+
+### 見積り
+
+半日〜1日（最小サイズ算出ロジックの変更＋ワークエリアクランプの配線。対象はダッシュボードのみで波及範囲が狭い）。
 
 ## 1. メインウィンドウの表示倍率をユーザー選択制にする
 
