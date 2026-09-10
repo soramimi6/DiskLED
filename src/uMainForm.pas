@@ -74,6 +74,10 @@ type
     FHasHoverText: Boolean;
     FMonitorDpi: Integer;
     FScale100: Integer;
+    { Countdown of frame ticks over which the window is re-clamped into the
+      work area after a DPI change: the taskbar resizes with the new scale and
+      its work-area rect can still be stale on the tick the change is seen. }
+    FDpiSettleTicks: Integer;
     FDashboardHistory: TDashboardHistory;
     FDashboardPeak: TDashboardSample;
     FDashboardLastPushTick: Cardinal;
@@ -97,6 +101,7 @@ type
     procedure ResetGraphPeak;
     procedure ResetDashboardPeak;
     procedure ApplyDpiScale;
+    procedure PollMonitorDpiChange;
     function ResolveScale100: Integer;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
@@ -343,6 +348,7 @@ begin
   FHasDashboardPushTick := False;
   FMonitorDpi := 96;
   FScale100 := 100;
+  FDpiSettleTicks := 0;
   ResetGraphPeak;
   ResetDashboardPeak;
   FTimer := TTimer.Create(Self);
@@ -728,6 +734,38 @@ begin
   ApplyDpiClientSize;
 end;
 
+procedure TMainForm.PollMonitorDpiChange;
+var
+  Dpi: Integer;
+begin
+  { WM_DPICHANGED is not reliably delivered to this owned tool window when the
+    scale of the monitor it already sits on is changed in Settings (a move to
+    another monitor does deliver it). Poll from the frame timer so a stationary
+    gadget still resizes promptly, like an ordinary window. }
+  if FDragging or FClosing or (not HandleAllocated) then
+    Exit;
+  Dpi := MonitorEffectiveDpiForWindow(Handle);
+  if (Dpi >= 1) and (Dpi <> FMonitorDpi) then
+  begin
+    FMonitorDpi := Dpi;
+    FScale100 := ResolveScale100;
+    ApplyDpiClientSize;
+    ApplyWindowBounds;
+    RefreshTrayIconForState;
+    FHasFp := False;
+    Render;
+    Invalidate;
+    { Keep re-clamping for ~2 s: the work area the clamp above used can still
+      hold the pre-scale taskbar height on this first tick. }
+    FDpiSettleTicks := 30;
+  end
+  else if FDpiSettleTicks > 0 then
+  begin
+    Dec(FDpiSettleTicks);
+    ApplyWindowBounds;
+  end;
+end;
+
 function TMainForm.ResolveScale100: Integer;
 begin
   { Scale = 0 means "automatic" (derive from monitor DPI). A pinned 100/150/200
@@ -949,6 +987,7 @@ var
 begin
   if (FCollector = nil) or (FPipeline = nil) then
     Exit;
+  PollMonitorDpiChange;
   FCollector.TickPing;
   FPipeline.Update(FCollector.Collect);
 
@@ -1479,6 +1518,9 @@ begin
     Suggested := PRect(Message.LParam)^;
     SetBounds(Suggested.Left, Suggested.Top, Width, Height);
   end;
+  { Same taskbar-settle re-clamp as the polled path (see PollMonitorDpiChange):
+    covers configs where a same-monitor scale change does deliver this. }
+  FDpiSettleTicks := 30;
   Invalidate;
   Message.Result := 0;
 end;

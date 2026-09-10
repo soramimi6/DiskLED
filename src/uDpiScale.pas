@@ -9,6 +9,7 @@ uses
   Winapi.Windows;
 
 function GadgetScale100(ADpi: Integer): Integer;
+function MonitorEffectiveDpiForWindow(AWnd: HWND): Integer;
 function DashboardScale(ADpi: Integer): Double;
 function ScalePx(AValue, ADpi: Integer): Integer;
 function DipFromPx(APx, ADpi: Integer): Integer;
@@ -18,6 +19,10 @@ procedure LayoutClientSize(ALayoutW, ALayoutH, AScale100: Integer;
 function MonitorDpiForWindow(AWnd: HWND): Integer;
 
 implementation
+
+uses
+  Winapi.MultiMon,
+  Winapi.ShellScaling;
 
 function GadgetScale100(ADpi: Integer): Integer;
 var
@@ -31,6 +36,26 @@ begin
   if HalfSteps < 2 then
     HalfSteps := 2;
   Result := HalfSteps * 50;
+end;
+
+function MonitorEffectiveDpiForWindow(AWnd: HWND): Integer;
+var
+  Mon: HMONITOR;
+  DpiX, DpiY: UINT;
+begin
+  { The monitor's live effective DPI, independent of any per-window DPI
+    context. A poll needs this because a stationary window's own DPI context
+    can lag a Settings scale change until it is notified. }
+  Result := 0;
+  if AWnd <> 0 then
+  begin
+    Mon := MonitorFromWindow(AWnd, MONITOR_DEFAULTTONEAREST);
+    if (Mon <> 0) and
+      (GetDpiForMonitor(Mon, MDT_EFFECTIVE_DPI, DpiX, DpiY) = S_OK) then
+      Result := Integer(DpiX);
+  end;
+  if Result < 1 then
+    Result := MonitorDpiForWindow(AWnd);
 end;
 
 function DashboardScale(ADpi: Integer): Double;
