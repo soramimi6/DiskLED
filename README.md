@@ -17,6 +17,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
   - ディスク／ネット速度 … デバイス上限 → だめなら実測オートセンス（手動レンジは二期）
   - Ping … 応答時間を 4 段階（正常／やや遅い／遅い／タイムアウト）で表示
 - **非採用**: ユーザー向けスキン配布（`.dla`）、SSTP、**サウンド全般**、フローティング、複数起動
+- **非採用（権限・API 方針上）**: アクセス中のファイル一覧（ETW カーネルプロバイダ＝管理者権限が必要）、メモリ内訳 Standby/Modified・GPU VRAM 内訳（いずれも非公開 API 依存。一般権限・公式 API 優先の方針に反する。GPU 使用率は PDH で公式に取れるため対象）
 - **Phase5（実装済み）**: コンパクト／フル切替（ダブルクリック）と CPU／MEM／SWAP 推移グラフ（Original / Metalic）
 - **Phase6（実装済み）**: ユーザー権限インストーラー（Inno Setup）＋ポータブル zip（`tools/make-*.ps1`）
 
@@ -101,6 +102,7 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
   - Disk / network speed … device maximum → if that fails, measured auto-sense (manual range is a later phase)
   - Ping … response time shown in 4 levels (OK / somewhat slow / slow / timeout)
 - **Not adopted**: User-facing skin distribution (`.dla`), SSTP, **sound in general**, floating, multiple instances
+- **Not adopted (privilege / API policy)**: List of files currently being accessed (ETW kernel provider = requires administrator rights), memory Standby/Modified breakdown and GPU VRAM breakdown (both depend on undocumented APIs, against the "prefer non-elevated, official APIs" policy; GPU utilization is in scope since PDH exposes it officially)
 - **Phase5 (implemented)**: Compact/full toggle (double-click) and CPU / MEM / SWAP history graphs (Original / Metalic)
 - **Phase6 (implemented)**: Per-user installer (Inno Setup) + portable zip (`tools/make-*.ps1`)
 

@@ -1,117 +1,191 @@
 # 3.2.0 以降 検討中（未確定）
 
-`docs/PLANNED-3.1.1.md` の「将来機能アイデア」から移動。3.1.1 では見送り、3.2.0 以降で改めて優先度を検討する。実装するか・どう組み込むかは着手時に詳細を詰める。技術的な前提はここに残すが、設計・公開文には書かない。
+3.1.1〜3.1.2 で見送った機能アイデア。3.2.0 以降で改めて優先度を検討する。実装するか・どう組み込むかは着手時に詳細を詰める。技術的な前提はここに残すが、設計・公開文には書かない。
 
-事前検証（現行コード `src/metrics/*` / `src/dashboard/*` を確認済み）の結果は各項目に残してある。
+事前検証（現行コード `src/` を確認済み）の結果は各項目に残してある。
 
-一覧は優先度（高い順）、同順位内は工数目安（小さい順）で並べている。
+3.2.0 の対象は **1・3・4・5・6**（項目 2 は着手順から外した保留枠）。着手順は `1 → 3 → 4 → 5 → 6`。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 6（asset-editor）は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去後に確定するため 5 の後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
 
 | # | 機能 | 実現可能性 | 難易度 | 工数目安 | 優先度 |
 |---|---|---|---|---|---|
-| 1 | UI表示言語の手動選択＋追加言語（独語・繁体字中国語） | 高 | 中（文字列基盤の作り直しが要る） | 基盤: 2〜3日／言語ごとに翻訳作業別途 | 中 |
-| 2 | GPU セクション（使用率のみ） | 中〜高 | 中（動的カウンタの管理が山） | 3〜5日 | 中 |
-| 2 | GPU VRAM 内訳 | 低〜中（非公式 API） | 高 | 使用率実装後に別枠 | 低 |
-| 3 | タスクトレイの独立化・LED拡張・多段階色 | 高（設定モデルは既に分離済み） | 中（メニュー／アセット体系の変更） | 3〜5日 | 中 |
-| 4 | リソース別 TOP5 プロセス | 中（ネットは精度に難） | 高（新規一覧 UI パラダイム） | 1〜2週間 | 中 |
-| 5 | ダッシュボード CRT/キャラクターベース表示タイプ | 高 | 中〜高（新規描画一式） | 1〜2週間 | 中〜低 |
-| 6 | assets エディタ（ブラウザ版スキン編集ツール） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジンの丸ごと移植＋UI＋バリデーション） | 未検証（項目内で最大規模、段階的見積りが要る） | 中〜低 |
-| 7 | メモリ詳細・内訳（Standby/Modified） | 中（非公開 API 依存） | 中（実装は易、互換性リスクが本体） | 1〜2日＋実機検証 | 低〜中 |
-| 8 | アクセスされているファイル | 低（管理者権限必須で方針と矛盾） | 最高 | 別製品規模 | 最低 |
-| 9 | メインウィンドウの表示倍率をユーザー選択制にする | 高（拡大は既に `FScale100` 1 変数に集約済み） | 低〜中（ini キー＋メニュー＋`FScale100` の導出変更） | 半日〜1 日 | 中 |
-| 10 | Vintage スキンの素材ブラッシュアップ | 未検証 | 中〜高（質感作り直し。AI 生成画像を使う場合は著作権・利用条件の確認が別途要る） | 未検証 | 低 |
+| 1 | メインウィンドウの表示倍率をユーザー選択制にする | 高（拡大は `FScale100` 1 変数に集約済み） | 低〜中（ini キー＋メニュー＋`FScale100` の導出変更） | 半日〜1 日 | 高 |
+| 2 | Vintage スキンの素材ブラッシュアップ | 未検証 | 中〜高（質感作り直し） | 未検証 | 保留（着手順外。機能ギャップ無し・現行デザインに満足。使い込んでから判断） |
+| 3 | UI表示言語の手動選択（Auto/JA/EN、基盤のみ。独語・繁体字は将来版） | 高 | 中（文字列基盤の `array[TAppLang]` 化＋`.dpr` 初期化順） | 2〜3日 | 中 |
+| 4 | GPU 使用率（PDH。CPU カードへ同居、使用率のみ） | 中〜高 | 中（ワイルドカード PDH の動的カウンタ管理が山） | 3〜5日 | 中 |
+| 5 | タスクトレイの独立化・LED ソース拡張（5a+5b+ネット LED。ドライブ別・多段階色は別枠） | 高（設定モデルは既に分離済み・LED ソースも既存） | 中（メニュー再構成／`[Tray]` 撤去／トレイ素材 12 icon） | 3〜5日 | 中 |
+| 6 | asset-editor（ブラウザ版スキン編集ツール、3.2.0 で完成版） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジン移植＋テキスト/GUI 両編集の同期＋バリデーション。Delphi と JS の 2 重実装が恒久コスト） | 未検証・最大（2週間超見込み） | 中〜低（工数は大、必須度は中〜低） |
 
-## 1. UI表示言語の手動選択＋追加言語
+3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
-日本語 OS 上でも英語表示で使えるよう、オプション画面に表示言語設定（**Auto / 日本語 / English**）を追加する。初回起動時・Auto 選択時は現行どおり OS 言語との突き合わせで自動判定する。あわせて日英以外の追加言語も検討する。**優先度: ドイツ語・繁体字中国語（台湾）を上げる。簡体字中国語（大陸）は対象外**（脱 Windows の動向を踏まえた方針判断）。
+## 1. メインウィンドウの表示倍率をユーザー選択制にする
 
-**対象は「アプリ UI 文字列」のみ。`public_docs/` と Microsoft Store の説明文は日本語＋英語のみを継続する方針で、この項目のスコープには含まない**（それ以外の言語のユーザーには英語版を案内する前提）。ユーザー数の増加が見えてから、追加言語での文章掲示を改めて検討する。
+**ガジェット本体（スキン）の拡大率を、画面 DPI からの自動決定に加えて、ユーザーが右クリックメニューから選べるようにする。** 既定は従来どおり自動（DPI 連動）で、**自動の結果に満足できないユーザーが明示的に固定倍率へ変更するための機能**という位置づけ。右クリックに「表示倍率」サブメニューを追加し、**`自動` / `100%` / `150%` / `200%`** を排他選択で並べる（刻みは実機テストで調整）。**この倍率はダッシュボードには適用しない**（ダッシュボードは従来どおり実 DPI）。
 
-### 技術的な裏付け（`src/uAppStrings.pas` / `src/uSettings.pas` / `src/uOptionsForm.pas` / `public_docs/` を確認済み）
+### スコープ確定事項
 
-1. **文字列基盤は2言語決め打ち**: `TAppLang = (alJapanese, alEnglish)`（[uAppStrings.pas:9](../src/uAppStrings.pas#L9)）、文字列本体は `TStrEntry{Id, Ja, En}` の固定2フィールド構造で `AddStr` により約 100 件登録されている（[uAppStrings.pas:22-44](../src/uAppStrings.pas#L22-L44)）。`S()` は `GLang = alJapanese` の分岐で `.Ja`/`.En` を返すだけ（[uAppStrings.pas:225-240](../src/uAppStrings.pas#L225-L240)）。**Auto/JA/EN の 3 択どまりなら現行構造のままでも対応できるが、3 言語目（独語・繁体字中国語）を足すには `TStrEntry` を言語コード可変のマップ（または言語コード順の配列）に置き換え、`S()` のロジックも列挙型の二分岐からルックアップへ変更する必要がある**。約 100 件の文字列を洗い替える構造変更が翻訳作業とは別に先行タスクになる
-2. **手動上書きは最初から想定だけされていた**: ユニット冒頭のコメントに「Manual override is out of scope for now (ini `Language=` later)」とあり（[uAppStrings.pas:3-4](../src/uAppStrings.pas#L3-L4)）、3.2.0 のこの項目はその「later」に当たる
-3. **Auto 判定の実装**: `IsJapaneseUi` は `GetUserDefaultUILanguage` の戻り値を `(Lang and $3FF) = LANG_JAPANESE` で判定している（[uAppStrings.pas:200-206](../src/uAppStrings.pas#L200-L206)）。この `and $3FF` はプライマリ言語 ID のみを取り出すマスクで、ドイツ語（`LANG_GERMAN`）はこの方式でそのまま判定できるが、**中国語は要注意**: Win32 の LANGID は繁体字（台湾）が `MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_TRADITIONAL)` = `0x0404`、簡体字（中国本土）が `MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED)` = `0x0804` で、どちらも `LANG_CHINESE`（プライマリID `0x04`）は共通。**プライマリ言語IDだけを見る現行方式では簡体字と繁体字を区別できない**ため、繁体字（台湾）のみ Auto 判定対象にするにはサブ言語 ID を含めた完全一致判定（`0x0404` および香港 `0x0C04`・マカオ `0x1404` 等の繁体字圏サブIDを含めるかは要検討）に変更する必要がある。簡体字（`0x0804` 等）は方針どおり対象外として弾く
-4. **設定の永続化**: `uSettings.pas` に `Language=auto|ja|en|de|zh-Hant` 相当の ini キーを新設する必要がある（現状 Language キーは存在しない）。3.1.1 の `[View] Size` 追加時と同じパターン（新キー追加＋起動時読込）を踏襲できる
-5. **Options 画面**: `uOptionsForm.pas` に選択 UI（コンボボックス等）を追加する必要がある。既存の `opt.*` 文字列群と同じ構造で足せる
-6. **`public_docs/` は対象外（方針で確定）**: 現状は JA（ルート直下）＋ `EN/` の2言語構成で、`README/USAGE/FEATURES/NOTES/INSTALL/CHANGELOG/CREDITS` の7ファイルを両言語で維持している（[public_docs/](../public_docs/) 配下を確認）。Microsoft Store の説明文も含め、この2言語構成を継続する。**`DE/`・`TW/` の追加はこの項目のスコープに含まない**（ユーザー数の増加を見てから改めて判断）。UI文字列（短い技術用語、約 100 件、機械翻訳との相性が良い）だけが今回の対象で、public_docs の説明文（長文、より高い翻訳精度が要求される）とは切り分けて考えるという整理
+- **既定は `自動`**（DPI 連動）。手動選択は自動に不満なユーザー向けのオプトイン。
+- **縮小倍率（100% 未満）は用意しない。** スキンの多くは既に小さく作り込まれており、縮小表示は開発者として非推奨。将来明確な要望が出たら再検討する。→ **拡大のみ**（`100/150/200`、自動）。
+- **右クリックメニューのみで完結。** オプション画面（`uOptionsForm`）には置かない。スキン切替や配置モニターに応じてその場で手軽に変えられることを重視する。
+- スキン別の推奨倍率ヒント（`layout.cfg` 側）は**不要**。
+
+### 現状の確認結果（`src/uMainForm.pas` / `src/uDpiScale.pas` / `src/uSettings.pas` を確認）
+
+- ガジェットの拡大は `TMainForm.FScale100`（整数パーセント）1 変数に集約されている。設定箇所は 2 つだけ:
+  - `ApplyDpiScale`（[uMainForm.pas:706-714](../src/uMainForm.pas#L706-L714)）: `FScale100 := GadgetScale100(FMonitorDpi)`
+  - `WMDpiChanged`（[uMainForm.pas:1386-1403](../src/uMainForm.pas#L1386-L1403)）: 同上（モニター間移動時）
+- 使用箇所も 2 つ: `ApplyDpiClientSize` → `LayoutClientSize(FLayout.Width, FLayout.Height, FScale100, ...)`（[uMainForm.pas:716-725](../src/uMainForm.pas#L716-L725)）、`FormPaint` の `StretchBlt`（`DestW := MulDiv(FLayout.Width, FScale100, 100)`、[uMainForm.pas:967-980](../src/uMainForm.pas#L967-L980)）。
+- `GadgetScale100(dpi)`（[uDpiScale.pas:22-34](../src/uDpiScale.pas#L22-L34)）は 0.5 刻み（100/150/200…、125%→150、下限 100）で DPI から倍率を出す。ユーザー選択制にするなら `FScale100` の導出をここではなく設定値から行う。
+- `LayoutClientSize`（[uDpiScale.pas:64-71](../src/uDpiScale.pas#L64-L71)）は `AScale100 < 100` を 100 にクランプする。**拡大のみ方針なのでこのクランプは現状のままでよい**（縮小を許す場合のみ緩和が必要）。
+- `WMDpiChanged` は既に「提案矩形へ `SetBounds`」を実行済み（[uMainForm.pas:1396-1400](../src/uMainForm.pas#L1396-L1400)）。**固定倍率時は `FScale100` の再代入だけスキップすれば「モニターが変わっても固定倍率のまま・提案矩形へ移動」がそのまま得られる。**
+- ダッシュボードは `TDashboardForm` で完全に別系統（`FWindowDpi` / `HudMetrics`、`DashboardScale = Dpi/96.0`）。メインの `FScale100` には一切依存しないので、**倍率をダッシュボードに波及させない条件は自動的に満たされる**（追加のガードは不要）。
+- `uSettings.TAppSettings` に倍率キーは無い（`[General]` は `Mode`/`StayOnTop`/`Fps`/`WindowX/Y`/`Startup`、[uSettings.pas:243-248](../src/uSettings.pas#L243-L248)）。`Normalize` の許容値バリデーション（[uSettings.pas:192-226](../src/uSettings.pas#L192-L226)、`FFps` を 10/15/20 以外なら 15 に戻す等）が倍率キーの手本になる。
+- メニュー構造: 表示モード項目は `GroupIndex=1`、compact/full/tray は `GroupIndex=2`（`BuildPopup`、[uMainForm.pas:558-647](../src/uMainForm.pas#L558-L647)）。`SyncModeChecks`（[uMainForm.pas:820-833](../src/uMainForm.pas#L820-L833)）がトップレベルの `GroupIndex=1` 項目を舐めて `Checked` を触るため、**倍率項目はサブメニュー（子）に閉じ込める必要がある**（トップレベル直下に置くと干渉する）。チェック同期は `SyncViewMenu`（[uMainForm.pas:836-852](../src/uMainForm.pas#L836-L852)）と同じ流儀で書ける。
+
+### 実装プラン（方針）
+
+1. `uSettings` に `[General] Scale`（int パーセント、既定 `0` ＝「自動」）を追加。`0`＝自動（`GadgetScale100(dpi)`）、`100`/`150`/`200` ＝固定。`Normalize` で許容値（0/100/150/200）以外は `0` に（`FFps` のパターンを踏襲）。
+2. `TMainForm` に倍率導出を 1 箇所へ集約するヘルパー（例 `function ResolveScale100: Integer`）: `FSettings.Scale = 0` なら `GadgetScale100(FMonitorDpi)`、それ以外は設定値。`ApplyDpiScale` と `WMDpiChanged` の両方をこれ経由に。
+   - `WMDpiChanged` は固定倍率時 `FScale100` の再代入をスキップし、提案矩形への `SetBounds`（既存）はそのまま通す。
+3. 右クリックメニュー（`BuildPopup`）に「表示倍率」サブメニュー（`TMenuItem` の子）を追加。子項目は `RadioItem := True` ＋独自 `GroupIndex`（例 `3`）。`OnClick` で `FSettings.Scale` を更新 → `ApplyDpiScale` → `PersistSettings`。文字列 ID は `menu.scale` ＋ `menu.scale_auto` / `menu.scale_100` / `menu.scale_150` / `menu.scale_200`。
+4. `SyncViewMenu` 相当のチェック同期を倍率サブメニューにも（現在の `FSettings.Scale` に一致する子を `Checked`）。
+5. 公開ドキュメント（`USAGE.md` / `FEATURES.md` の JA+EN）に「表示倍率」の説明を追記（実装後）。
+
+### 実装後に実機で見ること
+
+- 自動/100/150/200 の 4 択で足りるか（例えば 125% や 175% が要るか）を実機で確認し、刻みを調整。
+- 固定倍率でモニター間を移動 → 倍率が変わらず提案位置へ移動すること。
+- 固定倍率時のホバーチップ位置・ドラッグ矩形（`FMonitorDpi` ベースのまま、倍率と独立）が破綻しないこと。
+- トレイアイコンは DPI ベースのまま（`LoadIconMetric`）で倍率の影響を受けないこと。
+
+見積り: 半日〜1 日（`FScale100` の導出変更＋メニュー＋ini キー。ダッシュボード非波及は構造上自動）。
+
+## 2. Vintage スキンの素材ブラッシュアップ
+
+**保留枠（着手順に含めない）。** 3.1.2 で追加した Vintage スキン（アナログ VU メーター）の素材は Pillow による機械生成を正式版として採用済み。現行デザインに満足しており、着手はもう少し使い込んでから判断する。文字盤・ベゼル等の質感を作り直す場合はここで検討する。機能上のギャップは無い（差し替えは `assets/vintage/` の画像をファイル単位で置き換えるだけで、コード・layout.cfg は変わらない）。
+
+### 事前調査で分かったこと（`assets/vintage/` を確認）
+
+- **生成スクリプトがリポジトリに無い**: リポジトリにあるのは [tools/upsample_meters.ps1](../tools/upsample_meters.ps1)（既存 16 コマ→64 コマの針スイープ補間）だけ。ベース絵を作った Pillow スクリプトはローカルのみで未コミット。1 メーターだけ調整したくても全部作り直しになる再現性ギャップがある。
+  - **やること（項目 2 着手時、または独立の小タスクとして先に）**: 生成スクリプトをリポジトリへ収録する。置き場所は要検討（`tools/` 配下が候補。再生成・調整用であり **リリース配布物には含めない** 前提 — `tools/stage-dist.ps1` のコピー対象外）。あわせて `docs/internal/14-assets.md` の「リポジトリ未収録のローカルスクリプト」記述を更新する。
+- **エンジン側の制約（新素材もこれを守る）**: 各 `vintage_<meter>.png` は **44×32px × 64 コマ**の縦ストリップで、文字盤・目盛り・ラベル・針を毎フレーム焼き込み、外周のみ `#FF00FF` 色キー（全 64 コマで外形不変）。[assets/vintage/layout.cfg:20-25](../assets/vintage/layout.cfg#L20-L25)。活動ランプは別スプライト `vintage_lamp.png`（2 コマ）、ランプ無しのメーター（CPU/MEM/SWP/SND）は軸位置にネジを焼き込み。
+- **44×32px は極小** — 「クロムベゼル」等の細かな質感は視認限界。実際に効くのは針の質・文字盤コントラスト・バックライトの暖かみ・目盛りの可読性。ブラッシュアップの焦点はそちらに置く。
+- **placeholder コメントの是正は完了**: [assets/vintage/layout.cfg:4-5](../assets/vintage/layout.cfg#L4-L5) が「Placeholder art / not checked in」のままだったのを、機械生成・配布物対象外の記述に修正済み。
+
+## 3. UI表示言語の手動選択（基盤）
+
+日本語 OS 上でも英語表示で使えるよう、オプション画面に表示言語設定（**Auto / 日本語 / English**）を追加する。初回起動時・Auto 選択時は現行どおり OS 言語との突き合わせで自動判定する。将来の追加言語（独語・繁体字中国語（台湾）。簡体字は対象外）に備えて文字列基盤を多言語対応構造へ作り直すが、翻訳投入そのものは将来版。
+
+### スコープ確定事項
+
+- **3.2.0 の対象は「基盤のみ」**: 多言語対応構造への作り直し ＋ `Auto / 日本語 / English` の手動選択 UI。**独語・繁体字中国語（台湾）の翻訳投入は将来版**（構造だけ先に用意し、後から言語データを足すだけで済む状態にする）。簡体字中国語（大陸）は対象外。
+- **反映は再起動後**: 言語切替の即時反映（`BuildPopup` 再生成・全キャプション再適用・ダッシュボード/トレイ Hint 更新）はしない。Options で選択・保存 → 次回起動の言語判定で使用。Options 画面に「再起動後に反映」の旨を表示する。
+- **対象は「アプリ UI 文字列」のみ。** `public_docs/` と Microsoft Store の説明文は日本語＋英語のみを継続（それ以外の言語のユーザーには英語版を案内する前提）。
+
+### 技術的な裏付け（`src/uAppStrings.pas` / `src/uSettings.pas` / `src/uOptionsForm.pas` / `DiskLED.dpr` を確認済み）
+
+1. **文字列基盤は2言語決め打ち**: `TAppLang = (alJapanese, alEnglish)`（[uAppStrings.pas:9](../src/uAppStrings.pas#L9)）、文字列本体は `TStrEntry{Id, Ja, En}` の固定2フィールド構造で `AddStr` により **133 件**登録（`S()` 呼び出しは 116 種）（[uAppStrings.pas:22-44](../src/uAppStrings.pas#L22-L44)）。`S()` は `GLang = alJapanese` の分岐で `.Ja`/`.En` を返すだけ（[uAppStrings.pas:246-261](../src/uAppStrings.pas#L246-L261)）。
+2. **`AppLanguage()`（enum ゲッター）はユニット外から一度も呼ばれていない** — ローカライズは全て `S()` 経由で、言語による分岐レイアウト・挙動差は存在しない。**純粋な文字列差し替えで、`TAppLang` の拡張・`S()` のルックアップ化は安全**（`grep` で確認済み）。
+3. **構造変更の方針**: `TStrEntry` を `Id: string; Text: array[TAppLang] of string;` に置き換え、`S()` を「`Text[GLang]` を返す。空なら（かつ `GLang <> alEnglish` なら）`Text[alEnglish]` へフォールバック」に変更する。この英語フォールバックにより、独語・繁体字は後から一部だけ訳した状態でも出荷できる。`AddStr(Id, Ja, En)` は当面そのまま（`Text[alJapanese]`/`Text[alEnglish]` を埋める）、追加言語は別途オーバーレイ登録で足す。書式指定子（`%s`/`%d`）を持つのは 6 件（`menu.update` / `tray.update` / `err.image_not_found` / `err.assets_dir_missing` / `err.mode_id_duplicate` / `err.unknown_mode`）＋ `uSkinLoader.pas` の `CreateFmt` 数件のみ。
+4. **`.dpr` の順序問題（重要）**: `InitAppLanguage` は [DiskLED.dpr:56](../DiskLED.dpr#L56) で、`FSettings.Load`（[uMainForm.pas:296](../src/uMainForm.pas#L296)、`Application.CreateForm` 経由）**より前**に走る。`[View] Size` は `FSettings.Load` 内で読むので「同じパターン」は使えない。**手動言語は `InitAppLanguage` より前に ini を読む必要がある。** 対策: `TAppSettings` に `class function ReadLanguagePref: string`（`ResolvePath` 相当のパス解決 ＋ `[General] Language` だけを読む軽量メソッド）を追加し、`.dpr` で `InitAppLanguage` の前に呼んで結果を渡す。`InitAppLanguage(APref: string)` に引数を足し、`APref` が `auto`/空なら現行の OS 判定、`ja`/`en` なら固定。
+5. **Auto 判定の実装**: `IsJapaneseUi` は `GetUserDefaultUILanguage` を `(Lang and $3FF) = LANG_JAPANESE` で判定（[uAppStrings.pas:221-227](../src/uAppStrings.pas#L221-L227)）。3.2.0 の基盤スコープでは `Auto` は現行どおり「日本語 OS なら日本語、それ以外は英語」のままでよい。将来 独語（`LANG_GERMAN` はプライマリID判定でOK）・繁体字（`0x0404` 台湾／`0x0C04` 香港／`0x1404` マカオ等のサブ言語ID完全一致。簡体字 `0x0804` は弾く）を足すときに `DetectUiLang: TAppLang` へ一般化する。
+6. **ini キー**: `uSettings` に `[General] Language`（`auto`（既定）/ `ja` / `en`。将来 `de` / `zh-Hant` を追加）を新設。`Normalize` で許容値以外は `auto` に（`FFps` パターン）。`TAppSettings` としても property を足し、Options が読み書きする。
+7. **Options 画面**: `uOptionsForm` は `.dfm` 設計（`ChkStayOnTop` 等の名前付きコントロール、[uOptionsForm.dfm](../src/uOptionsForm.dfm)）。言語コンボボックスの追加は `.dfm` 編集を伴う。「再起動後に反映」ラベルの文字列 ID（例 `opt.language` / `opt.language_restart_hint`）を追加。`ApplyCaptions`（[uOptionsForm.pas:167](../src/uOptionsForm.pas#L167)）で自 form のキャプションは再適用できるが、再起動方針なので不要。
+
+### 実装後に実機で見ること
+
+- 日本語 OS で `English` 固定 → 再起動 → 右クリックメニュー・オプション・ダッシュボード・トレイ Hint が全部英語。`Auto` に戻して再起動 → 日本語へ復帰。
+- 英語 OS で `日本語` 固定が効くこと（フォントリンクで日本語グリフが出ること。ダッシュボード／Options は `Font.Name='Segoe UI'` 直書き ＋ Windows フォントフォールバック。[uDashboardPainter.pas:130](../src/dashboard/uDashboardPainter.pas#L130)）。
+- 未訳の追加言語を選んだ場合に英語フォールバックで表示が崩れないこと（将来言語を足したとき）。
 
 ### 見積り
 
-- 文字列基盤の多言語対応（構造変更）＋ Auto/JA/EN 選択 UI: 2〜3日
-- ドイツ語・繁体字中国語の UI 文字列（約 100 件）翻訳: 言語ごとに別途（機械翻訳＋要点レビューが現実的）
-- `public_docs/`・Store 説明文の追加言語対応: **対象外**（方針で確定。将来ユーザー数増加時に別途検討）
+- 文字列基盤の多言語対応（`array[TAppLang]` 化 ＋ `S()` フォールバック ＋ `.dpr` の早期読込 ＋ ini キー ＋ Options コンボ ＋ 再起動ヒント）: 2〜3 日。翻訳作業は 3.2.0 スコープ外。
+- リスクは低め（言語による分岐が存在しない純粋な文字列プラミングで、`grep` で確認済み）。`.dpr` の初期化順序変更だけ実機起動で要確認。
 
-## 2. GPU セクション
+## 4. GPU セクション（使用率のみ）
 
-GPU 使用率・VRAM 使用量をセクションとして追加する。
+GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` カウンターで使用率のみ**を取る。VRAM・温度・クロック・エンジン種別内訳は取らない（VRAM は非公開 API 依存で非採用、他は今回スコープ外）。
 
-- PDH の `GPU Engine` カウンター（Windows 10 以降）で使用率が一般権限で取得可。ベンダー非依存
-- VRAM 使用量は D3DKMT 経由で取得可能だが、ドキュメントが薄い
-- NVIDIA NVAPI / AMD ADL は詳細（温度・クロック）が取れるが実装コストが高くベンダー依存のため、まず PDH のみで実装する方針が堅実
-- 左カラムのドーナツ＋履歴グラフのセクションとして自然に追加できる
+### スコープ確定事項
 
-**検証結果:**
+- **表示は CPU カードへ同居**（新規セクション行は作らない）。`TDashboardCard` の既存 Dual モード（[uDashboardCard.pas:29](../src/dashboard/uDashboardCard.pas#L29)、ディスク Read/Write・ネット In/Out と同じ仕組み）で CPU カードを `Lane=dlCpu` / `Lane2=dlGpu` にし、同心ドーナツ（外=CPU、内=GPU）＋履歴グラフ 2 本線＋凡例「CPU」「GPU」で見せる。右カラムの CPU サブセクション（名前・コア・クロック）は CPU 専用のまま変更しない。**ダッシュボードのレイアウト（5 行構成）は一切変えない。**
+- **マルチ GPU は「最もビジーな GPU」**（アダプタ間 max）。各アダプタの使用率 = そのアダプタのエンジン群の最大値（プロセス横断で合算 → エンジン種別間で max。タスクマネージャの各 GPU カードの数字と同じ計算）。アダプタ間はさらに max。単一 GPU 機では合算でも max でも同じ。
+- **ガジェット本体（スキン）へのメーター追加はしない。** ただしコレクタ・パイプライン・スナップショットは将来スキンで使えるよう整備する（下記）。ガジェットの layout.cfg パーツ枠（`[Gpu*]` セクション読取）は、3.1.2 の「セクションが無ければそのパーツは存在しない」設計により後付けが非破壊なので、実際にスキンが要求するまで見送る（`uSkinLoader`/`uLayoutTypes`/`uMeterRenderer` には触れない）。
+- GPU 使用率は 0..100% の素の値なので `RangeEngine` は通さず、CPU/メモリと同じくパイプライン経由（正規化＋バリスティック）で扱う。
 
-- データ構造面の相性は良い: `TDashboardLane` は `array[TDashboardLane]` で自動拡張される列挙型（`src/metrics/uDashboardHistory.pas`）、`FCards` は `array[0..4]` の固定配列（`uDashboardForm.pas`）なので、`dlGpu` を足して 6 枚目のカードを増やすのは CPU〜ネットまでの既存 5 セクションと同じ手順で機械的にできる。GPU 使用率は 0..100% の単純な値なので `RangeEngine` を通さず CPU/メモリと同じ扱いでよい
-- 難所は PDH の `GPU Engine` カウンターがディスクと違い**動的インスタンス**であること。インスタンス名は LUID・PID・エンジン種別（3D / Copy / VideoDecode 等）ごとに生成され、GPU コンテキストの開閉に応じて増減するため、`PhysicalDisk(_Total)` のような固定パスの 1 カウンタ追加では済まず、ワイルドカードパスでの列挙・集計と定期的なカウンタリストの再構築が要る
-- VRAM は D3DKMT（`D3DKMTQueryStatistics` など）経由になるが非公開 API でドキュメントが薄く、使用率実装より別枠でリスクが高い。まず使用率のみで着手し VRAM は後回しにする案は妥当
-- 見積り: 使用率のみで 3〜5 日（動的カウンタ管理・複数 GPU/エンジン種別の集計・実機検証込み）。VRAM を足すとさらに増える
+### 技術的な裏付け（`src/metrics/*` / `src/dashboard/*` を確認済み）
 
-## 3. タスクトレイの独立化・LED拡張・多段階色
+1. **難所は PDH `GPU Engine` カウンターが動的インスタンス**であること。インスタンス名は LUID・PID・エンジン種別（3D / Copy / VideoDecode 等）ごとに生成され、GPU コンテキストの開閉で増減する。現行 PDH 実装（[uDiskCollector.pas](../src/metrics/uDiskCollector.pas)）は `\PhysicalDisk(_Total)\...` の**固定インスタンス**を `PdhAddEnglishCounterW`＋`PdhGetFormattedCounterValue` で読むだけで、ワイルドカード対応（`PdhExpandWildCardPathW` / `PdhGetFormattedCounterArray`）は未宣言＝新規実装。パス `\GPU Engine(*)\Utilization Percentage` を定期的に再展開・集計する。
+2. **パイプライン配線（機械的だが横断的、6〜7 ファイル）**: ドーナツは `FPipeline.State.Cpu`（バリスティック値、[uDashboardForm.pas:476](../src/dashboard/uDashboardForm.pas#L476) `ApplyDonutLevels`）を使うため、`Gpu` フィールドを `TMetricsSnapshot`（`uMetricsTypes.pas`）／`TNormalizedMetrics`／`TDisplayState`／`TMeterBallistics`／`uDisplayPipeline`／`uCollector`（`FGpu` 生成・`Collect` で `Result.GpuUsage` セット・`except` フォールバック）へ足す。新規ユニット `src/metrics/uGpuCollector.pas` を `DiskLED.dpr` に追加。
+3. **履歴レーン**: `uDashboardHistory.pas` に `dlGpu` を `TDashboardLane` へ追加（`array[TDashboardLane]` は自動拡張）。`TDashboardSample.Gpu`／`Push`／`AccrueDashboardPeak` に Gpu を足す。`uMainForm.TimerTick`（[uMainForm.pas:928](../src/uMainForm.pas#L928)）の `DashSample.Gpu := FPipeline.Normalized.Gpu`。ユニット冒頭コメント「8 lanes」は現状すでに 7 で古い → 8 に是正。
+4. **CPU カードの Dual 化**: `uDashboardForm.pas` の `FCards[0]` セットアップ（[uDashboardForm.pas:143-145](../src/dashboard/uDashboardForm.pas#L143-L145)）に `Dual := True` / `Lane2 := dlGpu` / `Accent2 := Pal.Gpu` / `Legend1 := S('dash.cpu')` / `Legend2 := S('dash.gpu')` / `LineStyle2`。`ApplyDonutLevels` に `FCards[0].Level2 := Clamp01(FPipeline.State.Gpu)`。`ApplyPalette` の `FCards[0].Accent2`。
+5. **テーマ色**: `uDashboardTheme.pas` に `Pal.Gpu`（アクセント色）を追加。
+6. **文字列**: `uAppStrings.pas` に `dash.gpu`（JA「GPU」/ EN「GPU」）。
 
-3.1.1 で「表示サイズ＝コンパクト／フル／タスクトレイ」の排他 3 択としてタスクトレイ LED（ディスク Read/Write 統合 ON/OFF）を実装済み。3.2.0 では以下を検討する。
+### 実装後に実機で見ること
 
-- **ウィンドウ表示とトレイ LED の分離**: 現状は「ウィンドウを隠す＝トレイ LED 化」の 1 本道。**メインウィンドウのみ／メインウィンドウ＋トレイ／トレイのみ**の 3 択に組み替え、ウィンドウを出したままトレイもLED化できるようにする
-- **トレイのデザインをスキンから独立化**: 現状トレイの Off/On アイコンはガジェットのスキン（Original / Crystal / Metalic / Info Bar）に 1 対 1 で紐づく。スキンとは別軸の「トレイアイコンタイプ」をサブメニューで選べるようにする
-- **LED ソースの拡張**: ディスク（全体・ドライブ別）に加えてネット、将来的にはユーザーが表示するソースを選べるようにする
-- **多段階色化**: ON/OFF の 2 値ではなく、ディスクレイテンシや CPU/メモリ/SWAP の負荷を色（緑→黄→赤等）で示す
+- 単一 GPU 機（iGPU のみ / dGPU のみ）で、タスクマネージャの GPU 使用率とドーナツ・グラフが概ね一致。
+- ノート（iGPU＋dGPU）で、負荷が iGPU→dGPU に移ったとき値が追従（「最もビジーな GPU」）。
+- GPU 使用の激しい/idle な状態でカウンタ再展開時に値が飛ばない・PDH ハンドルリークが無い。
+- GPU カウンタが存在しない環境（古い Windows、RDP セッション等）でフォールバック（内ドーナツ 0・グラフ 0）が破綻しない。
 
-**技術的な裏付け（`src/uSettings.pas` / `src/uMainForm.pas` / `src/view/uDisplayModes.pas` / `src/view/uSkinLoader.pas` / `src/metrics/uDiskCollector.pas` を確認済み）:**
+### 見積り
 
-- 設定モデルは**既に分離済み**: `FCompact` と `FTraySize` は `uSettings.pas` 上で独立した bool フィールド（[uSettings.pas:20-21](../src/uSettings.pas#L20-L21)）。排他 3 択にしているのは UI 側のロジックで、`SetCompactView`（[uMainForm.pas:748-775](../src/uMainForm.pas#L748-L775)）が compact/full 選択時に `FSettings.TraySize := False` を強制しているだけ。設定モデル自体の作り直しは不要
-- ウィンドウ非表示は `EnterTraySize` の `Visible := False` 一箇所（[uMainForm.pas:1064-1076](../src/uMainForm.pas#L1064-L1076)）に集約されている。ここを「トレイ LED 有効時でも Visible を触らない」条件に変えるだけで「ウィンドウ＋トレイ LED」の組み合わせが作れる
-- ini 永続化は現状 `[View] Size=compact|full|tray` の排他 3 値形式（読込: [uSettings.pas:249-262](../src/uSettings.pas#L249-L262)、書込: [uSettings.pas:316-322](../src/uSettings.pas#L316-L322)）。2 軸（ウィンドウ表示／トレイ LED 有効）に分けるには読み書きの拡張とマイグレーションが要る。旧 `tray` → 新「ウィンドウ非表示・トレイ LED 有効」、旧 `compact`/`full` → 新「ウィンドウ表示・トレイ LED 無効」への読み替えは、3.1.1 で `Compact` キーを legacy フォールバックとして残した手法（[uSettings.pas:249-252](../src/uSettings.pas#L249-L252)のコメント）と同じ方式を踏襲できる
-- トレイの Off/On アイコンはスキンの `TDisplayModeDef.TrayOffFile` / `TrayOnFile`（[uDisplayModes.pas:28-29](../src/view/uDisplayModes.pas#L28-L29)）経由で取得し、元は各スキンの `layout.cfg` の `[Tray]` セクション（[uSkinLoader.pas:317-318](../src/view/uSkinLoader.pas#L317-L318)）。ロード自体は `TrayIconPath(Def.AssetDir, Def.TrayOffFile)`（[uMainForm.pas:995-996](../src/uMainForm.pas#L995-L996)）でスキンの `AssetDir` を経由するため、トレイデザインをスキンから独立させるには、トレイ専用アセットを `assets/<skin>/` ではなく `assets/tray/<type>/` のような独立ディレクトリに切り出し、ロード元をスキンの `AssetDir` ではなく選択中のトレイタイプのディレクトリに差し替える改修が要る
-- LED 点灯判定は現状 `FPipeline.State.DiskRWOn` 固定（`RefreshTrayIconForState` 内、[uMainForm.pas:1051-1062](../src/uMainForm.pas#L1051-L1062)）。ネット LED 化やドライブ別 LED 化、ユーザー選択式にするには、この参照先を選択中のソースに応じて差し替える抽象化が必要
-- ドライブ別 LED の前提: 現行 `uDiskCollector.pas` は `PhysicalDisk(_Total)` 固定パスのみを PDH で読んでいる（[uDiskCollector.pas:142](../src/metrics/uDiskCollector.pas#L142)）。論理ドライブ別には `LogicalDisk(<ドライブ文字>)` カウンタの動的列挙が必要で、USB 抜き差し等によるカウンタ再構築という、本ドキュメント項目 2（GPU 動的カウンタ）と同種の課題を抱える
-- 多段階色化は、トレイデザインをスキンから独立させれば素材が「トレイタイプ 1 種 × 段階数」で済み、スキン 4 種との掛け算を避けられる（独立化しない場合はスキン数分の重複が発生する）。ただし段階数分の ico ファイルをトレイタイプごとに用意する素材コスト自体は残る
-- 見積り: 設定・UI 側の分離とマイグレーションで 1〜2 日、トレイデザイン独立化（アセット切り出し・ロード先変更・サブメニュー追加）で 1〜2 日、ネット LED 追加は小規模、ドライブ別 LED は動的カウンタ管理を含め別枠で 2〜3 日、多段階色は段階数分の素材制作が別途必要
+3〜5 日（ワイルドカード PDH の新規実装＋アダプタ/エンジン集計＋パイプライン横断配線＋実機検証。CPU カード同居のためレイアウト改修は無し）。
 
-## 4. リソース別 TOP5 プロセス
+## 5. タスクトレイの独立化・LED ソース拡張
 
-各リソース（CPU / メモリ / ディスク IO / ネット）ごとに、そのとき最も使っているプロセス上位 5 を表示する。
+3.1.1 で「表示サイズ＝コンパクト／フル／タスクトレイ」の排他 3 択としてタスクトレイ LED（ディスク Read/Write 統合 ON/OFF）を実装済み。3.2.0 では **5a（ウィンドウ/トレイ分離）＋ 5b（トレイデザインのスキン非依存化）＋ 5c のうちネット LED まで**を対象とする。**ドライブ別 LED（5c 残り）と多段階色化（5d）は別枠（将来版）。**
 
-- CPU / メモリ: `EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime`。一般権限で取得可
-- ディスク IO: `GetProcessIoCounters`。プロセス別の Read/Write バイト累積で取得可
-- ネット: プロセス別の帯域は IPヘルパーAPI では難しい。簡易的な差分計測にとどまる可能性あり
-- ダッシュボードの各セクションをクリックして展開する形が自然（常時 HUD に出すと行数が増えすぎる）
+### スコープ確定事項
 
-**検証結果:**
+- **5a. ウィンドウ表示とトレイ LED の分離**: 右クリックの表示メニューを **「ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ」の排他 3 択**に組み替える（B(i)）。「ウィンドウ＋トレイ LED」でウィンドウを出したままトレイも LED 化できる。ウィンドウサイズ（コンパクト/フル）は従来どおり別軸。
+- **5b. `[Tray]` を廃止し、固定の「トレイ LED タイプ」を内蔵**:
+  - スキンの `layout.cfg` `[Tray]` セクションと `TDisplayModeDef.TrayOffFile`/`TrayOnFile` を撤去。
+  - `assets/tray/<type>/` に **緑・青・赤** の Off/On アイコンを用意（緑＝Info Bar 素材流用、青＝Metalic 素材流用、赤＝緑/青から加工生成）。ユーザー向け名称は色のみ（由来は出さない）。
+  - `assets/tray/` は `uDisplayModes.LoadDisplayModes` の `assets/` 直下スキャンから**明示除外**（1 行）。3.1.2 の assets 厳格化と整合。
+  - 配置はファイルのまま（`.res` 埋め込みにしない）。現行 `LoadTrayIcon` の `LoadIconMetric(0, PChar(APath), LIM_SMALL, ...)` 経路をそのまま使い、ディレクトリだけ差し替える。
+  - 「トレイ LED タイプ」サブメニュー（スキン選択とは独立）。
+  - 赤は警告色に読まれやすいので Off 状態を「かなり暗い赤（消灯）」にして誤読を防ぐ。中立色（グレー/アンバー）は将来追加候補。
+- **5c（3.2.0 分）. ネット LED**: ソースは既存（`TDisplayState.NetActivityOn`）。トレイ LED ソースを **ディスク／ネット**から選べるサブメニュー。
+  - **ディスクとネットは「ソース別グリフ形状」で区別**（b 案）: ディスク＝シリンダー/横バー系、ネット＝上下矢印系。色は「タイプ」で固定なので形で差別化。素材は 色3 × ソース2 × Off/On = 12。16px では形差がギリギリなので **32×32 を主サイズ**に、16 はフォールバック。
+- **5d（別枠）. 多段階色化**: Off/On の 2 値でなくレイテンシ or 負荷で色段階。5b 完了が前提（段階数 × トレイタイプの素材）。駆動元の選択も要る。3.2.0 では扱わない。
 
-- 実現可能性・難易度: 中〜高。CPU/メモリ/ディスク IO はプロセス別 API（`EnumProcesses` + `GetProcessMemoryInfo` / `QueryProcessCycleTime` / `GetProcessIoCounters`）で一般権限のまま取得できるため技術的な壁はない。ネットは案どおり困難（プロセス別帯域の一般権限 API が無く、簡易差分推定に留まる）ため、最初はネットを除いた 3 リソースに絞るのが現実的
-- 工数の主因は UI: 現行の `TDashboardCard`（`src/dashboard/uDashboardCard.pas`）は固定サイズの GDI カスタム描画で、展開／折りたたみや行リストの仕組みが存在しない。TOP5 一覧を出すには、新規の一覧描画（プロセス名・アイコン・値）とカード高さの動的変更、ダッシュボードのレイアウト計算（`uDashboardForm` の `Heights[]`／`SetBounds` 群）への手当てが必要
-- 全プロセスの毎ティック列挙はコストが高いため、既存の履歴 push（1 Hz、`docs/DESIGN.md` 8.6）と同程度の低頻度サンプリングにする設計が妥当
-- 見積り: 収集ロジック 2〜3 日、UI（展開リスト・レイアウト対応）4〜6 日、調整・検証を含め 1〜2 週間程度
+### 技術的な裏付け（`src/uSettings.pas` / `src/uMainForm.pas` / `src/view/uDisplayModes.pas` / `src/view/uSkinLoader.pas` / `src/metrics/uMetricsTypes.pas` を確認済み）
 
-## 5. ダッシュボード CRT/キャラクターベース表示タイプ
+- 設定モデルは**既に分離済み**: `FCompact` と `FTraySize` は独立 bool（[uSettings.pas:20-21](../src/uSettings.pas#L20-L21)、write [316-322](../src/uSettings.pas#L316-L322)）。排他にしているのは UI 側で、`SetCompactView`（[uMainForm.pas:771-808](../src/uMainForm.pas#L771-L808)）が compact/full 選択時に `FSettings.TraySize := False` を強制しているだけ。
+- ウィンドウ非表示は `EnterTraySize` の `Visible := False` 一箇所（[uMainForm.pas:1105-1117](../src/uMainForm.pas#L1105-L1117)）。ここを「トレイ LED 有効でも『トレイのみ』以外は Visible を触らない」条件に変えれば「ウィンドウ＋トレイ LED」が作れる。
+- ini 永続化は現状 `[View] Size=compact|full|tray` の排他 3 値（読 [uSettings.pas:249-264](../src/uSettings.pas#L249-L264)、書 [316-322](../src/uSettings.pas#L316-L322)）。3 択の意味を「ウィンドウのみ／ウィンドウ＋トレイ／トレイのみ」に再定義（キー名は流用可、値を `window|window+tray|tray` 等へ）。旧 `compact`/`full`/`tray` の読み替えは、3.1.1 の `Compact` legacy フォールバック（[uSettings.pas:250-251](../src/uSettings.pas#L250-L251)コメント）と同方式。トレイ LED タイプ・ソースの新キー（例 `[Tray] Type=green|blue|red` / `Source=disk|net`）を追加。
+- トレイ Off/On は `[Tray]` セクション（任意、[uSkinLoader.pas:326-331](../src/view/uSkinLoader.pas#L326-L331)）→ `TDisplayModeDef.TrayOffFile`/`OnFile` → `TrayIconPath(Def.AssetDir, ...)`（[uMainForm.pas:1003-1037](../src/uMainForm.pas#L1003-L1037)）でスキンの `AssetDir` 経由。5b でこの経路を「選択中のトレイタイプ＋ソースの `assets/tray/<type>/` ディレクトリ」に付け替え、`[Tray]` リーダーと `TrayOffFile`/`OnFile` フィールドを撤去。既存 5 スキンの `TrayOff.ico`/`TrayOn.ico`（計 10 ファイル）を削除、`assets/LAYOUT.md` の `[Tray]` 節を削除。
+- **LED ソースは既に揃っている**: `TDisplayState` に `DiskRWOn` / `DiskReadOn` / `DiskWriteOn` / `NetActivityOn`（[uMetricsTypes.pas:113-118](../src/metrics/uMetricsTypes.pas#L113-L118)）。ネット LED は `RefreshTrayIconForState`（[uMainForm.pas:1092-1103](../src/uMainForm.pas#L1092-L1103)）と `TimerTick`（[uMainForm.pas:947-948](../src/uMainForm.pas#L947-L948)）の `FPipeline.State.DiskRWOn` 参照を「選択中ソース」に差し替えるだけ。新規コレクタ不要。
+- `LoadTrayIcon` は `LoadIconMetric`（正しい DPI 縮小）。`[Tray]` 欠落/失敗時のフォールバックは `ResetTrayToAppIcon`（アプリアイコン固定・LED なし）。
 
-ダッシュボードに、MS-DOS 時代のキャラクターベース CRT 表示のような見た目の表示タイプを追加する。**現行ダッシュボードの見た目を再現するのではなく**、表示する情報（CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、ディスクレイテンシ、電源、Ping 履歴など。`README.md` の「主な機能」参照）は同じまま、表現を CRT キャラクター表示のスタイルで新規に組み立てる。
+### 5c ドライブ別 LED（別枠・将来版の設計メモ）
 
-- 等幅ビットマップフォントでのセル描画、疑似スキャンライン、燐光グロー、`█▓▒░` 等のブロック文字によるバー／メーター表現、点滅カーソルブロックといった要素で構成する
-- 既存のガジェットスキン機構（`layout.cfg` ベースの Original / Crystal / Metalic / Info Bar）とは別系統。ダッシュボードは `TDashboardCard`（`TCustomControl` を継承、[uDashboardCard.pas:16](../src/dashboard/uDashboardCard.pas#L16)）が `Paint` オーバーライド（[uDashboardCard.pas:109](../src/dashboard/uDashboardCard.pas#L109)）で GDI カスタム描画しており、新しい表示タイプもここに描画ロジックを追加する形になる
-- ダッシュボードは `Scaled=False` で実 DPI 描画する設計（`docs/DESIGN.md` 15 節）なので、フォントサイズ・文字グリッドの DPI 比率計算は既存の仕組み（`Dpi/96`）をそのまま流用できる
-- 新規に「ダッシュボード表示タイプ」という概念をどこに持たせるか（ini 設定キー、切替 UI）は要設計。既存の `[General] Mode=`（ガジェットの表示モード、[uSettings.pas:243](../src/uSettings.pas#L243)）とは別軸にする
-- 見積り: 未検証。描画エンジン（フォント・スキャンライン・グロー・ブロック文字メーター）一式の新規実装が主で、既存セクション相当の情報量をキャラクター表現に落とし込む調整を含めると 1〜2 週間程度と見込むが、実機での見た目調整（フォント選定・色調・グロー強度）次第で変動する
+- `uDiskCollector.pas` は `\PhysicalDisk(_Total)` 固定（[uDiskCollector.pas:142](../src/metrics/uDiskCollector.pas#L142)）。論理ドライブ別は `\LogicalDisk(<ドライブ文字>)` の**動的列挙**（USB 抜き差しでカウンタ再構築）＝本ドキュメント項目 4（GPU）と同じ課題クラス。項目 4 の PDH ワイルドカード基盤を流用できる。
+- ドライブラベル（C/D…）の表示: **OFF アイコンにのみレターを描く**（ON は点灯のみ）。レターは**実行時合成**（ベース OFF LED に GDI テキストを重ねて `HICON` 化。任意の文字・`_Total` 無印も同経路）。**要求サイズ 24px 以上のときだけレターを描く**（`LoadIconMetric(LIM_SMALL)` = 16@100% / 20@125% / 24@150% / 32@200%）。16px はレター無し＋Hint でドライブ識別。閾値は実装時に実描画で調整。
 
-## 6. assets エディタ（ブラウザ版スキン編集ツール）
+### 見積り（3.2.0 分 = 5a + 5b + 5c ネット LED）
 
-ブラウザ上で動く JavaScript ベースの簡易エディタを、`assets/` とは別の新規トップレベルフォルダ `skin-editor/` に同梱する（配置場所の判断は下記参照）。layout.cfg のテキスト編集、同階層の画像取り込み、DiskLED.exe と同じ表示エンジンでの組み立てシミュレーション、CPU/ディスク/ネット等の値を画面上で指定して表示の変化を確認できるプレビュー、記述ミスのアラート表示、PC ローカルの cfg・画像の読み書きを持つ。あわせてエンドユーザー向けの assets リファレンスと自作 assets マニュアルも同梱する。
+- 5a: ini 3 値の意味再定義＋マイグレーション＋メニュー再構成＋`Visible` 条件化で 1〜2 日
+- 5b: `[Tray]` 撤去＋`assets/tray/{green,blue,red}/` 素材作成（ディスク/ネットのグリフ差 込みで 12 icon）＋ロード経路付け替え＋タイプ/ソースのサブメニュー＋ini キーで 2〜3 日
+- 合計 3〜5 日＋実機検証（Win10/11 × 100/125/150/200%、隠れアイコン、explorer 再起動での載せ直し）
 
-**スコープ確定事項**:
-- **バリスティック（針の追従アニメーション）は対象外**。値→コマ番号の直接反映のみで、上昇・下降のイージングは再現しない
-- **タスクトレイ用アイコン（`[Tray]` の Off/On ico）のプレビューは対象外**
-- **配布はローカル同梱のみ**。
-- **配置場所は専用の新規トップレベルフォルダ `skin-editor/`**
+## 6. asset-editor（ブラウザ版スキン編集ツール）
+
+ブラウザ上で動く JavaScript ベースのスキン編集エディタを、`assets/` とは別の新規トップレベルフォルダ `asset-editor/` に同梱する。layout.cfg のテキスト編集と GUI 編集（両者リアルタイム同期）、同階層の画像取り込み、DiskLED.exe と同じ表示エンジンでの組み立てシミュレーション、CPU/ディスク/ネット等の値を画面上で指定して表示の変化を確認できるプレビュー、記述ミスのアラート表示、PC ローカルの cfg・画像の読み書きを持つ。あわせてエンドユーザー向けの assets リファレンス／自作マニュアルも同梱する。
+
+**3.2.0 で完成版を出す（項目内で最大規模。開発に時間をかけてよい）。** リリース前に開発者自身がこのエディタで既存スキンの追加・修正を行う予定＝ドッグフーディングが品質ゲート。
+
+### スコープ確定事項
+
+- **3.2.0 = 完成版**: テキスト編集 ＋ GUI 編集（リアルタイム同期。片方先行はしない）／コンパクト・フルの**両モードをトグルで切替えて両方チェック**（compact/full は同じ layout.cfg 内の独立セクション集合で、扱う設定量に差が少ないため片方だけの MVP にしない）／プレビュー（メーター・LED・数値readout・推移グラフ・Ping）／バリデーション（記述ミスのアラート）／ローカル cfg・画像の読み書き。
+- **エディタ画面の UI 言語は英語のみ**（アプリ本体の多言語対応＝項目3 とは別。エディタは英語で統一）。
+- **同梱ドキュメント（`public_docs/` に `SKIN_GUIDE.md` の JA+EN 新規ペア）はエディタ本体と同時に 3.2.0 で出す**。`docs/MAINTAINING-PUBLIC-DOCS.md` の文書表も更新。
+- **2 重実装の扱い**: Delphi 側（`uSkinLoader.pas`）変更時に asset-editor の JS パーサ／バリデータを追従改修する運用を受容。`docs/CONTRIBUTING.md` に明記し、あわせて layout.cfg fixture ＋ 期待バリデーション結果の**人力チェックリスト**を用意する（CI は無いので機械照合はしない）。
+- **バリスティック（針の追従アニメーション）は対象外**。値→コマ番号の直接反映のみ。イージングは再現しない（`uDisplayPipeline.pas` の移植不要）。
+- **トレイは対象外**: 項目 5 で `[Tray]` を廃止するため、実装時点の layout.cfg に `[Tray]` は無い。`assets/tray/` の LED タイプは asset-editor では扱わない。
+- **配布はローカル同梱のみ**。`asset-editor/` を `assets/`・`styles/`・`public_docs/` と並ぶ配布対象トップレベルフォルダとして新設。
 
 ### 技術的な裏付け
 
@@ -119,6 +193,7 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - スプライトコマ選択は `TMeterRenderer.StripFrame`（[uMeterRenderer.pas:54-63](../src/view/uMeterRenderer.pas#L54-L63)）の `Round(Clamp01(value) * (frames-1))` という単純な算術で、JS へそのまま移植できる
 - 色キー透過（`TransparentBlt`相当）は Canvas の `getImageData`/`putImageData` でマスク色のピクセルを alpha=0 に置換すれば再現できる
 - 数値ビットマップフォント描画（`uDigitRenderer.pas`）、推移グラフの line/bar 描画（`uGraphRenderer.pas:28-40`、`THistoryBuffer` を単純なローリングバッファとして模擬すればよい）も同様に単純な Canvas 描画で再現可能
+- layout.cfg は 3.1.2 でコンパクト/フル/トレイが完全独立セクション（パーツ間・モード間の継承なし）の形式に再設計済み（[assets/LAYOUT.md](../assets/LAYOUT.md)）。パーサーは素直な INI 読みでよく、モード間の継承解決ロジックは実装不要
 - PNG/BMP はブラウザの `<img>`/`createImageBitmap` がネイティブ対応済みで自前デコーダ不要。ICO（トレイ用途、今回対象外）のみブラウザ間の対応が不安定
 - バリスティックを対象外にしたことで、`uDisplayPipeline.pas` の時間ベースイージング（指数上昇・定速下降）を移植する必要が無くなり、実装量が大きく減る
 
@@ -126,93 +201,29 @@ GPU 使用率・VRAM 使用量をセクションとして追加する。
 - Chromium 系ブラウザの File System Access API（`showOpenFilePicker`/`showDirectoryPicker`）でフォルダの直接読み書きが可能
 - ただし Chromium は `file://` から開かれたページに対してこの API を明示的にブロックする（Secure Context 判定とは別の file:// 固有の制限）。**この制約は影響範囲が限定的で回避コストも低い**: 読み込みは `<input type="file" webkitdirectory>` やドラッグ&ドロップで代替でき、これらは `file://` でも制限なく動作する。保存側も `<a download>` の Blob ダウンロードにフォールバックすれば機能は完全に維持できる（配置場所を手動で `assets/<skin>/` に戻す一手間が増えるだけ）。実装は「File System Access API が使えるときは使い、使えなければ input/drag&drop＋ダウンロードにフォールバック」という定型パターンで数十行程度
 
-**配置場所（`assets/` でも `tools/` でもなく新規 `skin-editor/`）**:
-- `uDisplayModes.LoadDisplayModes`（[uDisplayModes.pas:75-135](../src/view/uDisplayModes.pas#L75-L135)）は `assets/` 直下の**サブフォルダ全部**を表示モード候補として走査し、`layout.cfg` が無ければ `Continue` で黙ってスキップする。現状のこの緩い実装では `assets/tools/` を置いても実害は無いが、`docs/PLANNED-3.1.2.md` 項目2（assets 読み込みの堅牢化）で**まさに同じ読み込み経路の事前検証を厳格化する**ため、将来「layout.cfg の無いサブフォルダをどう扱うか」の判断が変わる余地がある。エディタを `assets/` の外に出せば、この結合を構造的に無くせる
+**配置場所（`assets/` でも `tools/` でもなく新規 `asset-editor/`）**:
+- `uDisplayModes.LoadDisplayModes`（[uDisplayModes.pas:75-135](../src/view/uDisplayModes.pas#L75-L135)）は `assets/` 直下の**サブフォルダ全部**を表示モード候補として走査し、`layout.cfg` が無ければ `Continue` で黙ってスキップする。`docs/PLANNED-3.1.2.md` 項目3（assets 読み込みの堅牢化、3.1.2 で実装済み）が**まさに同じ読み込み経路の事前検証を厳格化した**ため、「layout.cfg の無いサブフォルダをどう扱うか」の判断が今後変わる余地がある。エディタを `assets/` の外に出せば、この結合を構造的に無くせる
 - `tools/`（`build.ps1`/`stage-dist.ps1`/`make-installer.ps1`/`refresh-internal-design.ps1` 等）は現状**開発者専用でエンドユーザーの配布物には一切含まれない**（[tools/stage-dist.ps1:36-65](../tools/stage-dist.ps1#L36-L65) がコピーするのは `DiskLED.exe`/`assets/`/`LICENSE.txt`/`public_docs/`/`styles/` のみ、`make-portable.ps1` も `dist/DiskLED/` を ZIP 化するだけでリポジトリの `tools/` 自体は見ない）。ここへエディタ（エンドユーザー向け配布物）を置くと、「開発者専用スクリプト置き場」と「エンドユーザー向け配布物」という異なる性質が1フォルダに混在する
-- **`skin-editor/` を `assets/`・`styles/`・`public_docs/` と並ぶ配布対象フォルダとして新設**し、役割を「スキン内容（`assets/`）」「開発者専用ビルドスクリプト（`tools/`、配布物に含まれない）」「エンドユーザー向け配布物（`skin-editor/`、新規）」の3つにフォルダ名で分ける
-- **`stage-dist.ps1` への影響**:`stage-dist.ps1` に `Copy-Item -LiteralPath (Join-Path $Root 'skin-editor') -Destination (Join-Path $Stage 'skin-editor') -Recurse -Force` 相当の1行を追加する必要がある（[tools/stage-dist.ps1:36-37](../tools/stage-dist.ps1#L36-L37) の既存パターンを踏襲）。MSIX 側のレイアウト（`docs/internal/リリース作業手順書.md`）にも `skin-editor\` を追記する
+- **`asset-editor/` を `assets/`・`styles/`・`public_docs/` と並ぶ配布対象フォルダとして新設**し、役割を「スキン内容（`assets/`）」「開発者専用ビルドスクリプト（`tools/`、配布物に含まれない）」「エンドユーザー向け配布物（`asset-editor/`、新規）」の3つにフォルダ名で分ける
+- **`stage-dist.ps1` への影響**:`stage-dist.ps1` に `Copy-Item -LiteralPath (Join-Path $Root 'asset-editor') -Destination (Join-Path $Stage 'asset-editor') -Recurse -Force` 相当の1行を追加する必要がある（[tools/stage-dist.ps1:36-37](../tools/stage-dist.ps1#L36-L37) の既存パターンを踏襲）。MSIX 側のレイアウト（`docs/internal/リリース作業手順書.md`）にも `asset-editor\` を追記する
 
 **バリデーション（記述ミスのアラート）**:
-- `docs/PLANNED-3.1.2.md` 項目2（assets 読み込みの堅牢化）で設計する Delphi 側の厳格バリデーションルール（必須項目・数値範囲・色形式・enum・Graph 座標形式）を、そのまま JS 側にも同じルールで移植する
+- `docs/PLANNED-3.1.2.md` 項目3（assets 読み込みの堅牢化、3.1.2 で実装済み）の Delphi 側厳格バリデーションルール（必須項目・数値範囲・色形式・enum・Graph 座標形式）は `src/view/uSkinLoader.pas` の `Read*` ヘルパー群に実装済み。JS 側はこれと同じルールセットを移植する
 - **継続的なリスク**: 表示エンジンと同様、このバリデーションも Delphi 側（`uSkinLoader.pas`）と JS 側の**2重実装**になる。`uSkinLoader.pas` に変更が入るたびに、このエディタ側のパーサー・バリデーターも追従改修しないと「エディタでは通るのに実機では弾かれる」という信頼性の欠陥が生まれる。実装難易度そのものより、この**継続メンテナンスの負債**が最大のコスト
-- 3.1.2 でルールセットが確定してから着手する方が手戻りが少ない（3.1.2 → 3.2.0 の順で自然に依存関係がある）
 
 ### ドキュメント同梱について
 
-現状 `docs/MAINTAINING-PUBLIC-DOCS.md` の文書表には、layout.cfg 書式の説明は開発者向けの `assets/LAYOUT.md` しか無い。「assets リファレンス」「自作 assets マニュアル」はエンドユーザー向けで性質が異なるため、`public_docs/` に JA+EN 新規ペア（例 `SKIN_GUIDE.md`）として追加し、`docs/MAINTAINING-PUBLIC-DOCS.md` の文書表もあわせて更新するのが妥当。ツール本体（`skin-editor/`）とマニュアル（`public_docs/`）で置き場所の役割を分ける。
+現状 `docs/MAINTAINING-PUBLIC-DOCS.md` の文書表には、layout.cfg 書式の説明は開発者向けの `assets/LAYOUT.md` しか無い。「assets リファレンス」「自作 assets マニュアル」はエンドユーザー向けで性質が異なるため、`public_docs/` に JA+EN 新規ペア（例 `SKIN_GUIDE.md`）として追加し、`docs/MAINTAINING-PUBLIC-DOCS.md` の文書表もあわせて更新するのが妥当。ツール本体（`asset-editor/`）とマニュアル（`public_docs/`）で置き場所の役割を分ける。
 
 ### 見積り
 
-未検証。3.2.0 の他項目と比べても最大規模になる見込み。段階的な見積りの目安:
-- 表示エンジン移植（コンパクト表示のみ、Graph 無し）: 数日
-- フル表示・推移グラフのプレビュー追加: さらに数日
-- ファイル入出力（File System Access API＋フォールバック）: 1〜2日
-- `skin-editor/` の新設と `stage-dist.ps1`／MSIX レイアウトへのコピー手順追加: 小規模（1時間程度）
-- バリデーション移植: 3.1.2 側のルール確定後に別枠
-- エンドユーザー向けドキュメント（`public_docs/` JA+EN）: 別枠
-- 着手前に、コンパクト表示のみの最小版でまず技術検証（スパイク）を行い、実際の工数感を掴んでから全体計画を確定するのが安全
-
-## 7. メモリ詳細・内訳
-
-メモリサブセクションに Working Set・スタンバイ・コミット内訳などを追加する。
-
-- `GlobalMemoryStatusEx` で取れる情報は現状実装済み
-- `NtQuerySystemInformation`（`SystemMemoryListInformation`）で Modified / Standby / Free の内訳が取れる
-- ただし非公式 API（Undocumented）のため将来の互換性リスクあり。採用するか要検討
-
-**検証結果:**
-
-- `src/metrics/uMemCollector.pas` 側は `GlobalMemoryStatusEx` と `GetPerformanceInfo` による現状値（使用率・空き・キャッシュ・コミット）のみで、Standby/Modified の区別は持っていない。実装自体は `NtQuerySystemInformation(SystemMemoryListInformation)` の呼び出しと `TMetricsSnapshot` へのフィールド追加程度で小さい
-- リスクの本体は実装コストではなく「非公開 API への依存」。`docs/DESIGN.md` は他の項目（CPU パッケージ温度）を「一般権限 API では安定して取れないため出さない」として意図的に見送っており、本プロジェクトは一般権限・公式 API 優先の方針が明確。この方針との整合を優先するなら、Standby/Modified 内訳は見送るのが筋が良い
-- 採用する場合でも、将来の Windows 更新で `SystemMemoryListInformation` の構造体レイアウトが変わるリスクを踏まえ、失敗時は既存フィールドのみ表示するフォールバックが必須
-- 採用するかどうかは非公開 API 使用の可否について方針判断が要る
-
-## 8. アクセスされているファイル（リソースモニタ相当）
-
-どのプロセスがどのファイルにアクセスしているかを表示する。
-
-- リソースモニタは ETW（Event Tracing for Windows）のカーネルプロバイダー（`Microsoft-Windows-Kernel-File`）を使用
-- カーネルプロバイダーの有効化に**管理者権限が必要**なため、現状の一般権限前提とは相性が悪い
-- ミニフィルタードライバーを使えば権限問題は解決できるが、ドライバー署名・インストールが必要になり配布コストが大幅に増加
-- 3.x の配布方針（インストーラー / ポータブル / Store）とは合わない可能性が高い。将来の上位版として位置づけ
-
-**検証結果:**
-
-- `docs/DESIGN.md` 1 節の目的に「管理者権限なし・単一起動」が明記され、5 節「計測（Collectors）」も「いずれも管理者不要の API を優先」が原則。ETW カーネルプロバイダーの有効化（管理者権限必須）はこの中核方針と正面から矛盾する
-- ミニフィルタードライバー案は権限要件こそ解決するが、ドライバー署名（EV 証明書等）・カーネルモード実装・インストール／アンインストール手順が新たに必要になり、現行の「インストーラー（ユーザー権限）／ポータブル／Store」という配布形態全体の見直しを伴う。実装規模はこれまでの機能追加とは桁が異なる
-- 現行 3 配布形態のいずれとも相性が悪いため、通常版のロードマップには乗せず、ドキュメントの記載どおり「将来の上位版」（別製品・別配布ラインの検討事項）として塩漬けにするのが妥当
-
-## 9. メインウィンドウの表示倍率をユーザー選択制にする
-
-**ガジェット本体（スキン）の拡大率を、画面 DPI から自動決定する現行方式に代えて、ユーザーがメニューから選ぶ方式にする。** 右クリックに「表示倍率」項目を追加し、サブメニューに `100%` / `150%` / `200%`（＋必要なら `125%` / `自動（画面に合わせる）`）を排他選択で並べ、選んだ倍率をメインウィンドウの表示に反映する。**この倍率はダッシュボードには適用しない**（ダッシュボードは従来どおり実 DPI）。
-
-### 現状の確認結果（`src/uMainForm.pas` / `src/uDpiScale.pas` を確認）
-
-- ガジェットの拡大は `TMainForm.FScale100`（整数パーセント）1 変数に集約されている。設定箇所は 2 つだけ:
-  - `ApplyDpiScale`（[uMainForm.pas:692](../src/uMainForm.pas#L692)）: `FScale100 := GadgetScale100(FMonitorDpi)`
-  - `WMDpiChanged`（[uMainForm.pas:1361](../src/uMainForm.pas#L1361)）: 同上（モニター間移動時）
-- 使用箇所も 2 つ: `ApplyDpiClientSize` → `LayoutClientSize(FLayout.Width, FLayout.Height, FScale100, ...)`（[uMainForm.pas:702-708](../src/uMainForm.pas#L702-L708)）、`FormPaint` の `StretchBlt`（`DestW := MulDiv(FLayout.Width, FScale100, 100)`、[uMainForm.pas:935-946](../src/uMainForm.pas#L935-L946)）。
-- `GadgetScale100(dpi)`（[uDpiScale.pas:22-34](../src/uDpiScale.pas#L22-L34)）は 0.5 刻み（100/150/200…、125%→150）で DPI から倍率を出す。ユーザー選択制にするなら `FScale100` の導出をここではなく設定値から行う。
-- ダッシュボードは `TDashboardForm` で完全に別系統（`FWindowDpi` / `HudMetrics`）。メインの `FScale100` には一切依存しないので、**倍率をダッシュボードに波及させない条件は自動的に満たされる**（追加のガードは不要）。
-- `uSettings.TAppSettings` に倍率キーは無い（[11-settings-ini.md] 参照。`[General]` は `Mode`/`StayOnTop`/`Fps`/`WindowX/Y`/`Startup`）。
-
-### 実装プラン（方針）
-
-1. `uSettings` に `[General] Scale`（int パーセント、既定 `0` ＝「自動」）を追加。`0`＝自動（現行の `GadgetScale100(dpi)`）、`100`/`125`/`150`/`200` ＝固定。`Normalize` で許容値以外は `0` に。
-2. `TMainForm` に倍率導出を 1 箇所へ集約するヘルパー（例 `function ResolveScale100: Integer`）: `FSettings.Scale = 0` なら `GadgetScale100(FMonitorDpi)`、それ以外は設定値。`ApplyDpiScale` と `WMDpiChanged` の両方をこれ経由に。
-   - 固定倍率時に `WM_DPICHANGED` を無視するか、無視せず「モニターが変わっても固定倍率のまま・提案矩形へ移動だけする」かは実装時に決める（後者が素直）。
-3. 右クリックメニュー（`BuildPopup`、[uMainForm.pas:535](../src/uMainForm.pas#L535)）に「表示倍率」サブメニュー（`TMenuItem` の子）を追加。`RadioItem := True` の項目を並べ、`OnClick` で `FSettings.Scale` を更新 → `ApplyDpiScale` → `PersistSettings`。文字列 ID は `menu.scale` ＋各倍率（`menu.scale_auto` / `menu.scale_100` …、または `%d%%` を `Format`）。
-4. `SyncViewMenu` 相当のチェック同期を倍率サブメニューにも。
-5. 公開ドキュメント（`USAGE.md` / `FEATURES.md` の JA+EN）に「表示倍率」の説明を追記（実装後）。
-
-### 設計上の論点（実装前に詰める）
-
-- **「自動」を残すか**: 完全にユーザー選択制にすると、高 DPI モニターで既定 `100%` はガジェットが極端に小さくなる。既定を `0`（自動）にして「固定したい人だけ選ぶ」形が無難。ユーザー要望が「常に手動」なら既定を `100` にする。
-- **倍率の刻み**: 現行エンジンは任意倍率で `StretchBlt` できる（0.5 刻み制約は `GadgetScale100` 側の都合）。`100/125/150/175/200/250/300` まで許容してよい。
-- **ホバーチップ／トレイアイコン**: ホバーチップ位置は `FMonitorDpi` ベースのまま（倍率と独立でよい）。トレイアイコンは DPI ベースのまま（`LoadIconMetric`）。
-
-見積り: 半日〜1 日（`FScale100` の導出変更＋メニュー＋ini キー。ダッシュボード非波及は構造上自動）。
-
-## 10. Vintage スキンの素材ブラッシュアップ
-
-3.1.2 で追加した Vintage スキン（アナログ VU メーター）の素材は Python/Pillow による機械生成を正式版として採用済み。文字盤・ベゼル等の質感を本番向けに作り直す場合はここで検討する。AI 画像生成サービスを使う場合は著作権・利用条件の確認が別途必要。
+**未検証・項目内で最大規模（2 週間超見込み）。** 3.2.0 の主要成果物として時間をかけて作る。段階の目安:
+- 表示エンジン移植（メーター・LED・数値readout・色キー透過）＋コンパクト/フル両モードのプレビュー: 数日
+- 推移グラフのプレビュー（`uGraphRenderer` 相当＋ローリングバッファ mock。`[GraphFull]` は full のみ）: 数日
+- テキスト↔GUI 両編集のリアルタイム同期: 未検証（最大の不確実要素）
+- バリデーション移植（`uSkinLoader.pas` の `Read*` ルールを写す）＋人力チェックリスト作成
+- ファイル入出力（File System Access API＋`<input webkitdirectory>`／ドラッグ&ドロップ／`<a download>` フォールバック）: 1〜2 日
+- `asset-editor/` 新設＋`stage-dist.ps1` 1 行＋MSIX レイアウト追記: 小規模
+- `public_docs/SKIN_GUIDE.md` JA+EN ＋ `docs/MAINTAINING-PUBLIC-DOCS.md` 更新
+- `docs/CONTRIBUTING.md` に「`uSkinLoader.pas` 変更時は asset-editor の JS を追従」を追記
+- 仕上げ: 開発者が実スキン作業でドッグフーディングし、出た不足を潰す

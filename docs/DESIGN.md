@@ -119,6 +119,8 @@ DiskLED/
 
 いずれも **管理者不要**の API を優先。失敗時は 0 または前回値維持。
 
+一般権限・公式 API で安定して取れない指標は出さない: CPU パッケージ温度、メモリ内訳 Standby/Modified（`NtQuerySystemInformation` 依存）、GPU VRAM 内訳（D3DKMT 依存）、プロセス別のファイルアクセス一覧（ETW カーネルプロバイダ＝管理者権限必須）。GPU 使用率は PDH `GPU Engine` カウンターで一般権限・公式に取得できるため対象内（`docs/PLANNED-3.2.0.md` 項目 4）。
+
 ### 5.1 CPU — `uCpuCollector`
 
 - 全体使用率: **GetSystemTimes**（全コア平均 %）
