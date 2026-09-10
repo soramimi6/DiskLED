@@ -46,7 +46,7 @@
 1. `uSettings` に `[General] Scale`（int パーセント、既定 `0` ＝「自動」）を追加。`0`＝自動（`GadgetScale100(dpi)`）、`100`/`150`/`200` ＝固定。`Normalize` で許容値（0/100/150/200）以外は `0` に（`FFps` のパターンを踏襲）。
 2. `TMainForm` に倍率導出を 1 箇所へ集約するヘルパー（例 `function ResolveScale100: Integer`）: `FSettings.Scale = 0` なら `GadgetScale100(FMonitorDpi)`、それ以外は設定値。`ApplyDpiScale` と `WMDpiChanged` の両方をこれ経由に。
    - `WMDpiChanged` は固定倍率時 `FScale100` の再代入をスキップし、提案矩形への `SetBounds`（既存）はそのまま通す。
-3. 右クリックメニュー（`BuildPopup`）に「表示倍率」サブメニュー（`TMenuItem` の子）を追加。子項目は `RadioItem := True` ＋独自 `GroupIndex`（例 `3`）。`OnClick` で `FSettings.Scale` を更新 → `ApplyDpiScale` → `PersistSettings`。文字列 ID は `menu.scale` ＋ `menu.scale_auto` / `menu.scale_100` / `menu.scale_150` / `menu.scale_200`。
+3. 右クリックメニュー（`BuildPopup`）に「表示倍率」サブメニュー（`TMenuItem` の子）を追加。子項目は `RadioItem := True` ＋独自 `GroupIndex`（例 `3`）。`OnClick` で `FSettings.Scale` を更新 → `ApplyDpiScale` → `PersistSettings`。文字列 ID は `menu.scale`（親）＋ `menu.scale_auto`（自動）のみ。数値項目のキャプションは `Format('%d%%', [Pct])` で生成し固定 ID（`menu.scale_100` 等）は作らない（段階を増やしても文字列追加不要）。
 4. `SyncViewMenu` 相当のチェック同期を倍率サブメニューにも（現在の `FSettings.Scale` に一致する子を `Checked`）。
 5. 公開ドキュメント（`USAGE.md` / `FEATURES.md` の JA+EN）に「表示倍率」の説明を追記（実装後）。
 
@@ -80,6 +80,7 @@
 - **3.2.0 の対象は「基盤のみ」**: 多言語対応構造への作り直し ＋ `Auto / 日本語 / English` の手動選択 UI。**独語・繁体字中国語（台湾）の翻訳投入は将来版**（構造だけ先に用意し、後から言語データを足すだけで済む状態にする）。簡体字中国語（大陸）は対象外。
 - **反映は再起動後**: 言語切替の即時反映（`BuildPopup` 再生成・全キャプション再適用・ダッシュボード/トレイ Hint 更新）はしない。Options で選択・保存 → 次回起動の言語判定で使用。Options 画面に「再起動後に反映」の旨を表示する。
 - **対象は「アプリ UI 文字列」のみ。** `public_docs/` と Microsoft Store の説明文は日本語＋英語のみを継続（それ以外の言語のユーザーには英語版を案内する前提）。
+- **Options 画面のコンボ配置（確定）**: `CardWindow` パネル内に置く。縦位置は `ChkStayOnTop`（"Always on top"）と同じ行、カードに対して右寄せ。選択肢の表記は各言語の自称表記（`Auto` / `日本語` / `English`）。
 
 ### 技術的な裏付け（`src/uAppStrings.pas` / `src/uSettings.pas` / `src/uOptionsForm.pas` / `DiskLED.dpr` を確認済み）
 
@@ -89,7 +90,7 @@
 4. **`.dpr` の順序問題（重要）**: `InitAppLanguage` は [DiskLED.dpr:56](../DiskLED.dpr#L56) で、`FSettings.Load`（[uMainForm.pas:296](../src/uMainForm.pas#L296)、`Application.CreateForm` 経由）**より前**に走る。`[View] Size` は `FSettings.Load` 内で読むので「同じパターン」は使えない。**手動言語は `InitAppLanguage` より前に ini を読む必要がある。** 対策: `TAppSettings` に `class function ReadLanguagePref: string`（`ResolvePath` 相当のパス解決 ＋ `[General] Language` だけを読む軽量メソッド）を追加し、`.dpr` で `InitAppLanguage` の前に呼んで結果を渡す。`InitAppLanguage(APref: string)` に引数を足し、`APref` が `auto`/空なら現行の OS 判定、`ja`/`en` なら固定。
 5. **Auto 判定の実装**: `IsJapaneseUi` は `GetUserDefaultUILanguage` を `(Lang and $3FF) = LANG_JAPANESE` で判定（[uAppStrings.pas:221-227](../src/uAppStrings.pas#L221-L227)）。3.2.0 の基盤スコープでは `Auto` は現行どおり「日本語 OS なら日本語、それ以外は英語」のままでよい。将来 独語（`LANG_GERMAN` はプライマリID判定でOK）・繁体字（`0x0404` 台湾／`0x0C04` 香港／`0x1404` マカオ等のサブ言語ID完全一致。簡体字 `0x0804` は弾く）を足すときに `DetectUiLang: TAppLang` へ一般化する。
 6. **ini キー**: `uSettings` に `[General] Language`（`auto`（既定）/ `ja` / `en`。将来 `de` / `zh-Hant` を追加）を新設。`Normalize` で許容値以外は `auto` に（`FFps` パターン）。`TAppSettings` としても property を足し、Options が読み書きする。
-7. **Options 画面**: `uOptionsForm` は `.dfm` 設計（`ChkStayOnTop` 等の名前付きコントロール、[uOptionsForm.dfm](../src/uOptionsForm.dfm)）。言語コンボボックスの追加は `.dfm` 編集を伴う。「再起動後に反映」ラベルの文字列 ID（例 `opt.language` / `opt.language_restart_hint`）を追加。`ApplyCaptions`（[uOptionsForm.pas:167](../src/uOptionsForm.pas#L167)）で自 form のキャプションは再適用できるが、再起動方針なので不要。
+7. **Options 画面**: `uOptionsForm` は `.dfm` 設計（`ChkStayOnTop` 等の名前付きコントロール、[uOptionsForm.dfm](../src/uOptionsForm.dfm)）。`CardWindow` パネルに `TLabel` + `TComboBox`（`csDropDownList`、項目 `Auto`/`日本語`/`English`）を **`ChkStayOnTop` と同じ行・右寄せ**で追加（`.dfm` 編集を伴う）。値は property の `auto|ja|en` と対応。「再起動後に反映」ラベルの文字列 ID（例 `opt.language` / `opt.language_restart_hint`）を追加。`ApplyCaptions`（[uOptionsForm.pas:167](../src/uOptionsForm.pas#L167)）で自 form のキャプションは再適用できるが、再起動方針なので不要。
 
 ### 実装後に実機で見ること
 
@@ -109,7 +110,8 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 ### スコープ確定事項
 
 - **表示は CPU カードへ同居**（新規セクション行は作らない）。`TDashboardCard` の既存 Dual モード（[uDashboardCard.pas:29](../src/dashboard/uDashboardCard.pas#L29)、ディスク Read/Write・ネット In/Out と同じ仕組み）で CPU カードを `Lane=dlCpu` / `Lane2=dlGpu` にし、同心ドーナツ（外=CPU、内=GPU）＋履歴グラフ 2 本線＋凡例「CPU」「GPU」で見せる。右カラムの CPU サブセクション（名前・コア・クロック）は CPU 専用のまま変更しない。**ダッシュボードのレイアウト（5 行構成）は一切変えない。**
-- **マルチ GPU は「最もビジーな GPU」**（アダプタ間 max）。各アダプタの使用率 = そのアダプタのエンジン群の最大値（プロセス横断で合算 → エンジン種別間で max。タスクマネージャの各 GPU カードの数字と同じ計算）。アダプタ間はさらに max。単一 GPU 機では合算でも max でも同じ。
+- **マルチ GPU は「最もビジーな GPU」**（アダプタ間 max）。各アダプタの使用率 = そのアダプタのエンジン群の最大値（プロセス横断で合算 → エンジン種別間で max。タスクマネージャの各 GPU カードの数字と同じ計算）。アダプタ間はさらに max。単一 GPU 機では合算でも max でも同じ。集計単位は `PdhExpandWildCardPathW` の instance 文字列から取れる `luid` と `engtype`（[tools/probe-gpu-counters.ps1](../tools/probe-gpu-counters.ps1) で検証済み）。
+- **仮想ディスプレイアダプタ（Meta Virtual Monitor 等）は 3.2.0 では除外しない**（全アダプタ間 max に含める）。LUID→物理/仮想の判定にクリーンな API が無く、仮想アダプタが持続的な 3D/compute 負荷を持つことも稀。実負荷時に問題が観測されたらフィルタを追加する。
 - **ガジェット本体（スキン）へのメーター追加はしない。** ただしコレクタ・パイプライン・スナップショットは将来スキンで使えるよう整備する（下記）。ガジェットの layout.cfg パーツ枠（`[Gpu*]` セクション読取）は、3.1.2 の「セクションが無ければそのパーツは存在しない」設計により後付けが非破壊なので、実際にスキンが要求するまで見送る（`uSkinLoader`/`uLayoutTypes`/`uMeterRenderer` には触れない）。
 - GPU 使用率は 0..100% の素の値なので `RangeEngine` は通さず、CPU/メモリと同じくパイプライン経由（正規化＋バリスティック）で扱う。
 
@@ -140,6 +142,17 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 ### スコープ確定事項
 
 - **5a. ウィンドウ表示とトレイ LED の分離**: 右クリックの表示メニューを **「ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ」の排他 3 択**に組み替える（B(i)）。「ウィンドウ＋トレイ LED」でウィンドウを出したままトレイも LED 化できる。ウィンドウサイズ（コンパクト/フル）は従来どおり別軸。
+  - **ini スキーマ（確定・直交キー）**:
+    ```ini
+    [View]
+    Compact=1          ; 従来どおり。ウィンドウサイズ／「トレイのみ」からの復帰先
+    WindowHidden=0     ; 「トレイのみ」= 1
+    [Tray]
+    Led=1             ; トレイアイコンを LED 化（0 = アプリアイコン固定）
+    LedType=green     ; green | blue | red
+    LedSource=disk    ; disk | net
+    ```
+    メニュー3択は `WindowHidden` × `Led` の2ビット。無効な組み合わせ（`WindowHidden=1` かつ `Led=0`）は `Normalize` で `Led=1` に矯正。マイグレーション: 旧 `[View] Size=tray` → `WindowHidden=1, Led=1` ／ 旧 `compact`/`full` → `WindowHidden=0, Led=0`（3.1.1 の `Compact` legacy フォールバックと同方式）。
 - **5b. `[Tray]` を廃止し、固定の「トレイ LED タイプ」を内蔵**:
   - スキンの `layout.cfg` `[Tray]` セクションと `TDisplayModeDef.TrayOffFile`/`TrayOnFile` を撤去。
   - `assets/tray/<type>/` に **緑・青・赤** の Off/On アイコンを用意（緑＝Info Bar 素材流用、青＝Metalic 素材流用、赤＝緑/青から加工生成）。ユーザー向け名称は色のみ（由来は出さない）。
@@ -155,7 +168,7 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 
 - 設定モデルは**既に分離済み**: `FCompact` と `FTraySize` は独立 bool（[uSettings.pas:20-21](../src/uSettings.pas#L20-L21)、write [316-322](../src/uSettings.pas#L316-L322)）。排他にしているのは UI 側で、`SetCompactView`（[uMainForm.pas:771-808](../src/uMainForm.pas#L771-L808)）が compact/full 選択時に `FSettings.TraySize := False` を強制しているだけ。
 - ウィンドウ非表示は `EnterTraySize` の `Visible := False` 一箇所（[uMainForm.pas:1105-1117](../src/uMainForm.pas#L1105-L1117)）。ここを「トレイ LED 有効でも『トレイのみ』以外は Visible を触らない」条件に変えれば「ウィンドウ＋トレイ LED」が作れる。
-- ini 永続化は現状 `[View] Size=compact|full|tray` の排他 3 値（読 [uSettings.pas:249-264](../src/uSettings.pas#L249-L264)、書 [316-322](../src/uSettings.pas#L316-L322)）。3 択の意味を「ウィンドウのみ／ウィンドウ＋トレイ／トレイのみ」に再定義（キー名は流用可、値を `window|window+tray|tray` 等へ）。旧 `compact`/`full`/`tray` の読み替えは、3.1.1 の `Compact` legacy フォールバック（[uSettings.pas:250-251](../src/uSettings.pas#L250-L251)コメント）と同方式。トレイ LED タイプ・ソースの新キー（例 `[Tray] Type=green|blue|red` / `Source=disk|net`）を追加。
+- ini 永続化は現状 `[View] Size=compact|full|tray` の排他 3 値（読 [uSettings.pas:249-264](../src/uSettings.pas#L249-L264)、書 [316-322](../src/uSettings.pas#L316-L322)）。新スキーマ（上記 5a の直交キー）へ移行。`FTraySize` 相当は `FWindowHidden` に置き換わり、`[Tray]` の 3 キー（`Led`/`LedType`/`LedSource`）が加わる。`SetCompactView` の `FSettings.TraySize := False` 強制は「compact/full 選択時は `WindowHidden := False`、`Led` はそのまま」に変える。
 - トレイ Off/On は `[Tray]` セクション（任意、[uSkinLoader.pas:326-331](../src/view/uSkinLoader.pas#L326-L331)）→ `TDisplayModeDef.TrayOffFile`/`OnFile` → `TrayIconPath(Def.AssetDir, ...)`（[uMainForm.pas:1003-1037](../src/uMainForm.pas#L1003-L1037)）でスキンの `AssetDir` 経由。5b でこの経路を「選択中のトレイタイプ＋ソースの `assets/tray/<type>/` ディレクトリ」に付け替え、`[Tray]` リーダーと `TrayOffFile`/`OnFile` フィールドを撤去。既存 5 スキンの `TrayOff.ico`/`TrayOn.ico`（計 10 ファイル）を削除、`assets/LAYOUT.md` の `[Tray]` 節を削除。
 - **LED ソースは既に揃っている**: `TDisplayState` に `DiskRWOn` / `DiskReadOn` / `DiskWriteOn` / `NetActivityOn`（[uMetricsTypes.pas:113-118](../src/metrics/uMetricsTypes.pas#L113-L118)）。ネット LED は `RefreshTrayIconForState`（[uMainForm.pas:1092-1103](../src/uMainForm.pas#L1092-L1103)）と `TimerTick`（[uMainForm.pas:947-948](../src/uMainForm.pas#L947-L948)）の `FPipeline.State.DiskRWOn` 参照を「選択中ソース」に差し替えるだけ。新規コレクタ不要。
 - `LoadTrayIcon` は `LoadIconMetric`（正しい DPI 縮小）。`[Tray]` 欠落/失敗時のフォールバックは `ResetTrayToAppIcon`（アプリアイコン固定・LED なし）。
@@ -186,6 +199,11 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 - **バリスティック（針の追従アニメーション）は対象外**。値→コマ番号の直接反映のみ。イージングは再現しない（`uDisplayPipeline.pas` の移植不要）。
 - **トレイは対象外**: 項目 5 で `[Tray]` を廃止するため、実装時点の layout.cfg に `[Tray]` は無い。`assets/tray/` の LED タイプは asset-editor では扱わない。
 - **配布はローカル同梱のみ**。`asset-editor/` を `assets/`・`styles/`・`public_docs/` と並ぶ配布対象トップレベルフォルダとして新設。
+- **テキスト↔GUI 同期はフォーマット保持（確定）**: cfg を「行の配列 ＋ セクション/キー→行番号インデックス」でパースする。
+  - GUI → テキスト: 変更キーの行だけ書き換え（先頭空白・行末コメント保持）。キーが無ければそのセクション末尾に挿入。セクションごと無ければ **ファイル末尾に空行 1 つ空けて追加**（作者がテキストペインで移動）。コメント・順序・空行・他キーは不変。
+  - テキスト → GUI: debounce して全体再パース → バリデーション。正常なら GUI 更新、不正ならエラー表示（ファイル/セクション/キー/生値）＋ **テキストが通るまで GUI 編集を無効化**（半壊テキストを上書きさせない）。
+  - 細部: セクション内のキー重複＝エラー表示（自動削除しない）／GUI が知らないキーは行を保持し「不明なキー」警告／挿入行の空白スタイルは `Key=Value` 固定／`File=` 変更時は取り込み済み画像名と照合し無ければ「画像未取り込み」警告（プレビュー時までハードエラーにしない）。
+  - 行モデルのパーサ/ライタで JS 約 150〜250 行。スパイクは 5 スキンの実 cfg で「GUI 1 値変更 → テキスト差分 1 行」のラウンドトリップを最初に証明する。
 
 ### 技術的な裏付け
 
