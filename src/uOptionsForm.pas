@@ -149,11 +149,6 @@ begin
   Result := '';
 end;
 
-var
-  { Set by LoadStyleFileName so ApplyModernStyle's temporary diagnostic can
-    report exactly what happened -- see the TODO(remove) note there. }
-  GLastStyleLoadDiag: string;
-
 { Loads AFileName and returns the style name it registered, without having
   to guess/hardcode that name: .vsf resource files carry their own internal
   name (set in the VCL Style Designer when the file was authored), which is
@@ -169,23 +164,14 @@ begin
   Result := '';
   Path := LocateStyleFile(AFileName);
   if Path = '' then
-  begin
-    GLastStyleLoadDiag := Format('%s: file not found by LocateStyleFile', [AFileName]);
     Exit;
-  end;
   Before := TStyleManager.StyleNames;
   try
     { Return value intentionally unused -- success/failure is determined
-      below by whether a new name actually shows up in StyleNames, matching
-      how the previous version of this code called LoadFromFile too. }
+      below by whether a new name actually shows up in StyleNames. }
     TStyleManager.LoadFromFile(Path);
   except
-    on E: Exception do
-    begin
-      GLastStyleLoadDiag := Format('%s: LoadFromFile("%s") raised %s: %s',
-        [AFileName, Path, E.ClassName, E.Message]);
-      Exit;
-    end;
+    Exit;
   end;
   for N in TStyleManager.StyleNames do
   begin
@@ -197,14 +183,8 @@ begin
         Break;
       end;
     if not WasThere then
-    begin
-      GLastStyleLoadDiag := Format('%s: loaded from "%s", registered as "%s"',
-        [AFileName, Path, N]);
       Exit(N);
-    end;
   end;
-  GLastStyleLoadDiag := Format('%s: LoadFromFile("%s") did not throw, but no new style name appeared',
-    [AFileName, Path]);
 end;
 
 procedure TOptionsForm.FormCreate(Sender: TObject);
@@ -260,19 +240,6 @@ begin
     style since it only darkens the frame when SystemUsesLightTheme is
     False. Accessing Handle here forces the window handle to exist. }
   ApplyHudTitleBar(Handle);
-
-  { TODO(remove): temporary diagnostic to find out why the dark style
-    never visibly applies -- delete this block once that's understood. }
-  MessageBox(Handle, PChar(
-    'SystemUsesLightTheme = ' + BoolToStr(SystemUsesLightTheme, True) + sLineBreak +
-    'TargetFile = ' + TargetFile + sLineBreak +
-    'TargetStyle (final) = ' + TargetStyle + sLineBreak +
-    'GLightStyleName = ' + GLightStyleName + sLineBreak +
-    'GDarkStyleName = ' + GDarkStyleName + sLineBreak +
-    'Last load attempt: ' + GLastStyleLoadDiag + sLineBreak +
-    'Applied StyleName = ' + StyleName + sLineBreak +
-    'All StyleNames = ' + string.Join(', ', TStyleManager.StyleNames)),
-    'Options style diagnostic', MB_OK);
 end;
 
 procedure TOptionsForm.BindSettings(ASettings: TAppSettings);

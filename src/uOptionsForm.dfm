@@ -32,7 +32,7 @@ object OptionsForm: TOptionsForm
         Height = 158
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = False
+        ParentBackground = True
         TabOrder = 0
         object LblSecWindow: TLabel
           Left = 20
@@ -131,7 +131,7 @@ object OptionsForm: TOptionsForm
         Height = 128
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = False
+        ParentBackground = True
         TabOrder = 1
         object LblSecFps: TLabel
           Left = 20
@@ -192,7 +192,7 @@ object OptionsForm: TOptionsForm
           Height = 32
           BevelOuter = bvNone
           Color = clWhite
-          ParentBackground = False
+          ParentBackground = True
           TabOrder = 3
           object RbGraph2: TRadioButton
             Left = 8
@@ -229,7 +229,7 @@ object OptionsForm: TOptionsForm
         Height = 96
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = False
+        ParentBackground = True
         TabOrder = 0
         object LblSecScale: TLabel
           Left = 20
@@ -273,7 +273,7 @@ object OptionsForm: TOptionsForm
         Height = 128
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = False
+        ParentBackground = True
         TabOrder = 0
         object LblSecTrayLedColor: TLabel
           Left = 20
@@ -358,7 +358,7 @@ object OptionsForm: TOptionsForm
         Height = 328
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = False
+        ParentBackground = True
         TabOrder = 0
         object LblSecPing: TLabel
           Left = 20
@@ -426,7 +426,7 @@ object OptionsForm: TOptionsForm
           Height = 121
           BevelOuter = bvNone
           Color = 15921906
-          ParentBackground = False
+          ParentBackground = True
           TabOrder = 4
           object LblSecThresholds: TLabel
             Left = 12
@@ -504,7 +504,7 @@ object OptionsForm: TOptionsForm
     Align = alBottom
     BevelOuter = bvNone
     Color = clWhite
-    ParentBackground = False
+    ParentBackground = True
     TabOrder = 1
     object ShpButtonTop: TShape
       Left = 0
