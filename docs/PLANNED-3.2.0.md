@@ -6,7 +6,7 @@
 
 3.2.0 の対象は **1・3・4・5・6・7**（項目 2 は着手順から外した保留枠）。着手順は `7 → 1 → 3 → 4 → 5 → 6`。項目 7 は不具合修正のため最優先で着手する。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 6（asset-editor）は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去後に確定するため 5 の後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
 
-進捗（2026-09-11 時点、すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・3・4・7** は実装＋IDE ビルド検証済み（項目 7 は完了。項目 4 は Disk/Net カードの DPI 確認のみ残る、表の「ステータス」列参照）。項目 **5 は 5a のみ完了**（5b・5c は素材作成が必要でこれから）。項目 6 は設計判断を確定（コミット `fa4a1c9`）済みで実装未着手。項目 2 は保留。
+進捗（2026-09-11 時点、すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・3・4・5・7 が完了**（項目 4 は Disk/Net カードの DPI 確認のみ残る、表の「ステータス」列参照）。残るは項目 6（asset-editor、設計判断を確定済み・実装未着手）のみ。項目 2 は保留。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -14,7 +14,7 @@
 | 2 | Vintage スキンの素材ブラッシュアップ | 未検証 | 中〜高（質感作り直し） | **保留**（着手順外。機能ギャップ無し・現行デザインに満足。使い込んでから判断） | 保留 |
 | 3 | UI表示言語の手動選択（Auto/JA/EN、基盤のみ。独語・繁体字は将来版） | 高 | 中（文字列基盤の `array[TAppLang]` 化＋`.dpr` 初期化順） | **実装済**（`feature/3.2.0`、IDE ビルド検証済。`array[TAppLang]` 基盤＋英語フォールバック＋Options コンボ。翻訳投入はスコープ外。公開ドキュメント追記が残タスク） | 中 |
 | 4 | GPU 使用率（PDH。CPU カードへ同居、使用率のみ） | 中〜高 | 中（ワイルドカード PDH の動的カウンタ管理が山） | **実装済・検証中**（`feature/3.2.0`、IDE ビルド検証済。`uGpuCollector.pas` ＋ CPU カード Dual 化。実負荷での Task Manager 突き合わせ・マルチ GPU 追従・Disk/Net カードの 125/150/200% DPI 確認が未実施） | 中 |
-| 5 | タスクトレイの独立化・LED ソース拡張（5a+5b+ネット LED。ドライブ別・多段階色は別枠） | 高（設定モデルは既に分離済み・LED ソースも既存） | 中（メニュー再構成／`[Tray]` 撤去／トレイ素材 12 icon） | **5a 完了**（`feature/3.2.0`、IDE ビルド・実機確認済み）**／5b・5c 未着手**（トレイ素材 12 icon の作成が必要） | 中 |
+| 5 | タスクトレイの独立化・LED 情報拡張（5a+5b+ディスク/ネット同時表示。ドライブ別・多段階色は別枠） | 高（設定モデルは既に分離済み・LED ソースも既存） | 中（メニュー再構成／`[Tray]` 撤去／トレイ素材 12 icon） | **完了**（`feature/3.2.0`、IDE ビルド・実機確認済み。5a/5b/5c すべて実装済み） | 中 |
 | 6 | asset-editor（ブラウザ版スキン編集ツール、3.2.0 で完成版） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジン移植＋テキスト/GUI 両編集の同期＋バリデーション。Delphi と JS の 2 重実装が恒久コスト） | **設計済・未着手**（スコープ確定。項目 5 の `[Tray]` 撤去後に layout.cfg 形式が固まる前提） | 中〜低（工数は大、必須度は中〜低） |
 | 7 | ダッシュボードの最小ウィンドウサイズをDPIスケール・画面サイズに追従させる（不具合修正） | 高（原因箇所を特定済み） | 低〜中（最小サイズ算出ロジックの変更＋ワークエリアクランプの配線） | **完了**（`feature/3.2.0`、IDE ビルド検証済。200%/150% での縮小・モニター間移動・ini 復元・1000×800 DIP 緩和後のクリッピング無しを実機確認済み。電源カードの縦間隔詰めも同ブランチで実施・確認済み） | 最優先（不具合修正） |
 
@@ -185,53 +185,21 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 
 3〜5 日（ワイルドカード PDH の新規実装＋アダプタ/エンジン集計＋パイプライン横断配線＋実機検証。CPU カード同居のためレイアウト改修は無し）。
 
-## 5. タスクトレイの独立化・LED ソース拡張
+## 5. タスクトレイの独立化・LED 情報拡張（完了）
 
-3.1.1 で「表示サイズ＝コンパクト／フル／タスクトレイ」の排他 3 択としてタスクトレイ LED（ディスク Read/Write 統合 ON/OFF）を実装済み。3.2.0 では **5a（ウィンドウ/トレイ分離）＋ 5b（トレイデザインのスキン非依存化）＋ 5c のうちネット LED まで**を対象とする。**ドライブ別 LED（5c 残り）と多段階色化（5d）は別枠（将来版）。**
+3.1.1 で「表示サイズ＝コンパクト／フル／タスクトレイ」の排他 3 択としてタスクトレイ LED（ディスク Read/Write 統合 ON/OFF）を実装済みだった。3.2.0 の 5a〜5c ですべて実装済み。**ドライブ別 LED と多段階色化は別枠（将来版）のまま**。
 
-### スコープ確定事項
+### 実装内容
 
-- **5a. ウィンドウ表示とトレイ LED の分離**（**完了**）: 右クリックの表示メニューを **「ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ」の排他 3 択**（[uMainForm.pas:624-643](../src/uMainForm.pas#L624-L643)、GroupIndex 4）に組み替えた。「ウィンドウ＋トレイ LED」でウィンドウを出したままトレイも LED 化できる。ウィンドウサイズ（コンパクト/フル）は従来どおり別軸（[uMainForm.pas:911-935](../src/uMainForm.pas#L911-L935) `SyncViewMenu`）。
-  - **ini スキーマ（実装済み・直交キー）**:
-    ```ini
-    [View]
-    Compact=1          ; 従来どおり。ウィンドウサイズ／「トレイのみ」からの復帰先
-    WindowHidden=0     ; 「トレイのみ」= 1
-    [Tray]
-    Led=1             ; トレイアイコンを LED 化（0 = アプリアイコン固定）
-    ```
-    （`LedType`/`LedSource` は 5b/5c で追加）メニュー3択は `WindowHidden` × `Led` の2ビット。無効な組み合わせ（`WindowHidden=1` かつ `Led=0`）は `Normalize` で `Led=1` に矯正（[uSettings.pas:277-279](../src/uSettings.pas#L277-L279)）。マイグレーション: 旧 `[View] Size=tray` → `WindowHidden=1, Led=1` ／ 旧 `compact`/`full` → `WindowHidden=0, Led=0`（[uSettings.pas:316-337](../src/uSettings.pas#L316-L337)、3.1.1 の `Compact` legacy フォールバックと同方式）。`TimerTick`（[uMainForm.pas:1060-1075](../src/uMainForm.pas#L1060-L1075)）はウィンドウ描画とトレイ LED 更新を独立条件にし、両立を可能にした。
-  - 5a はスキン別 `TrayOff/On.ico` の読み込み経路（`Def.TrayOffFile`/`TrayOnFile`）は変更していない。`LedType`/`LedSource` の実体はまだ無く、LED は常時ディスク Read/Write ソース。
-- **5b. `[Tray]` を廃止し、固定の「トレイ LED タイプ」を内蔵**:
-  - スキンの `layout.cfg` `[Tray]` セクションと `TDisplayModeDef.TrayOffFile`/`TrayOnFile` を撤去。
-  - `assets/tray/<type>/` に **緑・青・赤** の Off/On アイコンを用意（緑＝Info Bar 素材流用、青＝Metalic 素材流用、赤＝緑/青から加工生成）。ユーザー向け名称は色のみ（由来は出さない）。
-  - `assets/tray/` は `uDisplayModes.LoadDisplayModes` の `assets/` 直下スキャンから**明示除外**（1 行）。3.1.2 の assets 厳格化と整合。
-  - 配置はファイルのまま（`.res` 埋め込みにしない）。現行 `LoadTrayIcon` の `LoadIconMetric(0, PChar(APath), LIM_SMALL, ...)` 経路をそのまま使い、ディレクトリだけ差し替える。
-  - 「トレイ LED タイプ」サブメニュー（スキン選択とは独立）。
-  - 赤は警告色に読まれやすいので Off 状態を「かなり暗い赤（消灯）」にして誤読を防ぐ。中立色（グレー/アンバー）は将来追加候補。
-- **5c（3.2.0 分）. ネット LED**: ソースは既存（`TDisplayState.NetActivityOn`）。トレイ LED ソースを **ディスク／ネット**から選べるサブメニュー。
-  - **ディスクとネットは「ソース別グリフ形状」で区別**（b 案）: ディスク＝シリンダー/横バー系、ネット＝上下矢印系。色は「タイプ」で固定なので形で差別化。素材は 色3 × ソース2 × Off/On = 12。16px では形差がギリギリなので **32×32 を主サイズ**に、16 はフォールバック。
-- **5d（別枠）. 多段階色化**: Off/On の 2 値でなくレイテンシ or 負荷で色段階。5b 完了が前提（段階数 × トレイタイプの素材）。駆動元の選択も要る。3.2.0 では扱わない。
+- **5a. ウィンドウ表示とトレイ LED の分離**: 右クリックの表示メニューを **「ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ」の排他 3 択**（[uMainForm.pas:640-659](../src/uMainForm.pas#L640-L659)、GroupIndex 4）に組み替えた。「ウィンドウ＋トレイ LED」でウィンドウを出したままトレイも LED 化できる。ウィンドウサイズ（コンパクト/フル）は従来どおり別軸。ini は `[View] WindowHidden` ＋ `[Tray] Led` の直交キー（旧 `[View] Size=compact|full|tray` は起動時に読み替え、保存時に削除）。`TimerTick` はウィンドウ描画とトレイ LED 更新を独立条件にし、両立を可能にした。
+- **5b. `[Tray]` を廃止し、スキン非依存の「トレイ LED の色」を導入**: スキンの `layout.cfg` `[Tray]` セクションと `TDisplayModeDef.TrayOffFile`/`TrayOnFile` を撤去。`assets/tray/<color>/` に緑・青・赤の Off/On アイコンを用意する。素材は [tools/generate-tray-icons.ps1](../tools/generate-tray-icons.ps1)（PowerShell + System.Drawing）によるプロシージャル生成（リング付きグラデーション球体、On はベル型減衰で明度を強調）。`assets/tray/` は `uDisplayModes.LoadDisplayModes` から明示除外（[uDisplayModes.pas:94-98](../src/view/uDisplayModes.pas#L94-L98)）。赤の Off はほぼ黒に近い暗さにして警告色との誤読を防止。
+- **5c. ディスク／ネット LED**: オプション画面「Tray LED」カードの「トレイ LED の情報」（ディスク／ネットワークの独立チェックボックス、`opt.tray_led_info`）で選ぶ。**両方同時 ON が可能**で、その場合は2つ目のトレイアイコン（`FTray2`、[uMainForm.pas:1300-1334](../src/uMainForm.pas#L1300-L1334)）を動的に生成し、既存アイコンがディスク・2つ目がネットの LED を独立して表示する。グリフ形状はディスク＝横二重バー、ネット＝上下三角で区別。ini は `[Tray] LedDisk`/`LedNet` の独立ブール2個。両方を OFF にはできない（片方を外した結果もう片方も OFF になる場合はその操作をキャンセルする、[uOptionsForm.pas](../src/uOptionsForm.pas) `ChkLedDiskClick`/`ChkLedNetClick`）。
+- トレイアイコンの表示位置・並び順（メイン領域／オーバーフロー、どこに並ぶか）は Windows シェル側が管理・記憶するもので、DiskLED のスコープ外（`Shell_NotifyIcon` の識別情報に紐づけて OS が保持）。将来のドライブ別 LED も同様に、ドライブごとの独立トレイアイコンとして追加され、配置は OS 管理になる見込み。
 
-### 技術的な裏付け（`src/uSettings.pas` / `src/uMainForm.pas` / `src/view/uDisplayModes.pas` / `src/view/uSkinLoader.pas` / `src/metrics/uMetricsTypes.pas` を確認済み）
-
-- 設定モデルは**既に分離済み**: `FCompact` と `FTraySize` は独立 bool（[uSettings.pas:20-21](../src/uSettings.pas#L20-L21)、write [316-322](../src/uSettings.pas#L316-L322)）。排他にしているのは UI 側で、`SetCompactView`（[uMainForm.pas:771-808](../src/uMainForm.pas#L771-L808)）が compact/full 選択時に `FSettings.TraySize := False` を強制しているだけ。
-- ウィンドウ非表示は `EnterTraySize` の `Visible := False` 一箇所（[uMainForm.pas:1105-1117](../src/uMainForm.pas#L1105-L1117)）。ここを「トレイ LED 有効でも『トレイのみ』以外は Visible を触らない」条件に変えれば「ウィンドウ＋トレイ LED」が作れる。
-- ini 永続化は現状 `[View] Size=compact|full|tray` の排他 3 値（読 [uSettings.pas:249-264](../src/uSettings.pas#L249-L264)、書 [316-322](../src/uSettings.pas#L316-L322)）。新スキーマ（上記 5a の直交キー）へ移行。`FTraySize` 相当は `FWindowHidden` に置き換わり、`[Tray]` の 3 キー（`Led`/`LedType`/`LedSource`）が加わる。`SetCompactView` の `FSettings.TraySize := False` 強制は「compact/full 選択時は `WindowHidden := False`、`Led` はそのまま」に変える。
-- トレイ Off/On は `[Tray]` セクション（任意、[uSkinLoader.pas:326-331](../src/view/uSkinLoader.pas#L326-L331)）→ `TDisplayModeDef.TrayOffFile`/`OnFile` → `TrayIconPath(Def.AssetDir, ...)`（[uMainForm.pas:1003-1037](../src/uMainForm.pas#L1003-L1037)）でスキンの `AssetDir` 経由。5b でこの経路を「選択中のトレイタイプ＋ソースの `assets/tray/<type>/` ディレクトリ」に付け替え、`[Tray]` リーダーと `TrayOffFile`/`OnFile` フィールドを撤去。既存 5 スキンの `TrayOff.ico`/`TrayOn.ico`（計 10 ファイル）を削除、`assets/LAYOUT.md` の `[Tray]` 節を削除。
-- **LED ソースは既に揃っている**: `TDisplayState` に `DiskRWOn` / `DiskReadOn` / `DiskWriteOn` / `NetActivityOn`（[uMetricsTypes.pas:113-118](../src/metrics/uMetricsTypes.pas#L113-L118)）。ネット LED は `RefreshTrayIconForState`（[uMainForm.pas:1092-1103](../src/uMainForm.pas#L1092-L1103)）と `TimerTick`（[uMainForm.pas:947-948](../src/uMainForm.pas#L947-L948)）の `FPipeline.State.DiskRWOn` 参照を「選択中ソース」に差し替えるだけ。新規コレクタ不要。
-- `LoadTrayIcon` は `LoadIconMetric`（正しい DPI 縮小）。`[Tray]` 欠落/失敗時のフォールバックは `ResetTrayToAppIcon`（アプリアイコン固定・LED なし）。
-
-### 5c ドライブ別 LED（別枠・将来版の設計メモ）
+### 5c ドライブ別 LED（別枠・将来版の設計メモ、未着手）
 
 - `uDiskCollector.pas` は `\PhysicalDisk(_Total)` 固定（[uDiskCollector.pas:142](../src/metrics/uDiskCollector.pas#L142)）。論理ドライブ別は `\LogicalDisk(<ドライブ文字>)` の**動的列挙**（USB 抜き差しでカウンタ再構築）＝本ドキュメント項目 4（GPU）と同じ課題クラス。項目 4 の PDH ワイルドカード基盤を流用できる。
 - ドライブラベル（C/D…）の表示: **OFF アイコンにのみレターを描く**（ON は点灯のみ）。レターは**実行時合成**（ベース OFF LED に GDI テキストを重ねて `HICON` 化。任意の文字・`_Total` 無印も同経路）。**要求サイズ 24px 以上のときだけレターを描く**（`LoadIconMetric(LIM_SMALL)` = 16@100% / 20@125% / 24@150% / 32@200%）。16px はレター無し＋Hint でドライブ識別。閾値は実装時に実描画で調整。
-
-### 見積り（3.2.0 分 = 5a + 5b + 5c ネット LED）
-
-- 5a: ini 3 値の意味再定義＋マイグレーション＋メニュー再構成＋`Visible` 条件化で 1〜2 日
-- 5b: `[Tray]` 撤去＋`assets/tray/{green,blue,red}/` 素材作成（ディスク/ネットのグリフ差 込みで 12 icon）＋ロード経路付け替え＋タイプ/ソースのサブメニュー＋ini キーで 2〜3 日
-- 合計 3〜5 日＋実機検証（Win10/11 × 100/125/150/200%、隠れアイコン、explorer 再起動での載せ直し）
 
 ## 6. asset-editor（ブラウザ版スキン編集ツール）
 
