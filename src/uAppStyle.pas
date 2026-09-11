@@ -45,9 +45,18 @@ var
     fresh diff would no longer see it as "new" -- without this cache a
     second switch back to an already-seen side would find TargetStyle = ''
     and wrongly fall back to the light style. Unit-level string vars start
-    out '' automatically, same as any global variable. }
+    out '' automatically, same as any global variable.
+
+    GLightStyleTried/GDarkStyleTried separately remember that a load was
+    already attempted, success or not: without them, a side whose .vsf is
+    missing/unparsable would never populate its Name cache (it stays ''),
+    so every later switch back to that side would redo the full disk
+    lookup and re-attempt TStyleManager.LoadFromFile on the same broken
+    file instead of just reusing the known '' result. }
   GLightStyleName: string;
   GDarkStyleName: string;
+  GLightStyleTried: Boolean;
+  GDarkStyleTried: Boolean;
 
 function LocateStyleFile(const AFileName: string): string;
 var
@@ -112,14 +121,20 @@ var
 begin
   if SystemUsesLightTheme then
   begin
-    if GLightStyleName = '' then
+    if not GLightStyleTried then
+    begin
       GLightStyleName := LoadStyleFileName(CLightFileName);
+      GLightStyleTried := True;
+    end;
     TargetStyle := GLightStyleName;
   end
   else
   begin
-    if GDarkStyleName = '' then
+    if not GDarkStyleTried then
+    begin
       GDarkStyleName := LoadStyleFileName(CDarkFileName);
+      GDarkStyleTried := True;
+    end;
     TargetStyle := GDarkStyleName;
   end;
 
@@ -127,8 +142,11 @@ begin
   begin
     { Requested side's style file missing/unloadable -- fall back to light
       rather than leaving the whole app on the plain native style. }
-    if GLightStyleName = '' then
+    if not GLightStyleTried then
+    begin
       GLightStyleName := LoadStyleFileName(CLightFileName);
+      GLightStyleTried := True;
+    end;
     TargetStyle := GLightStyleName;
   end;
 
