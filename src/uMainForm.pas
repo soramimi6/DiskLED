@@ -1339,11 +1339,12 @@ begin
     Src := FTrayOffIcon2;
   if (Src = nil) or Src.Empty then
   begin
-    { assets/tray/<type>/net{Off,On}.ico missing or failed to load: there is
-      no "app icon" fallback for a second tray icon the way FTray has one, so
-      hide it instead of leaving a blank/default icon parked in the tray.
-      HideSecondaryTray already resets FHasTrayLedState2 -- leave it as the
-      "not shown" state rather than marking this failed attempt as applied. }
+    { The net Off/On icon under assets/tray/<type>/ is missing or failed to
+      load: there is no app-icon fallback for a second tray icon the way
+      FTray has one, so hide it instead of leaving a blank/default icon
+      parked in the tray. HideSecondaryTray already resets
+      FHasTrayLedState2 -- leave it as the not-shown state rather than
+      marking this failed attempt as applied. }
     HideSecondaryTray;
     Exit;
   end;
