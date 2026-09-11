@@ -24,6 +24,8 @@ type
 
 procedure ConstrainAndSnapRect(var R: TRect; ADpi: Integer = 96);
 procedure ClampRectToWindowMonitor(var R: TRect; AWnd: HWND);
+function WorkAreaForWindow(AWnd: HWND): TRect;
+function WorkAreaForRect(const R: TRect): TRect;
 procedure BeginGadgetDrag(var State: TGadgetDragState; const ABounds: TRect);
 procedure ApplyGadgetDragRect(const State: TGadgetDragState; var R: TRect;
   ADpi: Integer);

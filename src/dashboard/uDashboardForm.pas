@@ -67,6 +67,10 @@ type
     procedure ApplyTheme;
     procedure ApplyDpiChrome;
     procedure ApplySavedDipBounds;
+    function CurrentWorkArea: TRect;
+    procedure EffectiveMinSize(ADpi: Integer; const AWork: TRect;
+      out AMinW, AMinH: Integer);
+    procedure ClampSizeToWorkArea(var AWidth, AHeight: Integer; const AWork: TRect);
     function WindowDpi: Integer;
     function CurrentMetrics: THudMetrics;
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
@@ -240,30 +244,91 @@ begin
   Result := HudMetrics(WindowDpi);
 end;
 
+function TDashboardForm.CurrentWorkArea: TRect;
+begin
+  if HandleAllocated then
+    Result := WorkAreaForWindow(Handle)
+  else
+    Result := WorkAreaForWindow(0);
+end;
+
+{ Minimum window size in physical pixels, per axis independently:
+  1) ideal 1000x900 DIP scaled to the current DPI, then
+  2) shrunk to the target monitor's work area if it would not fit (this is the
+     bug fix — a fixed DIP*DPI floor made the dashboard unshrinkable below the
+     screen at 150/200%), but never
+  3) below an absolute 800x600 DIP floor (matches uSettings.Normalize and the
+     .dfm design-time Constraints). On a monitor whose work area is smaller
+     than that floor the floor still wins; revisit the floor if that surfaces. }
+procedure TDashboardForm.EffectiveMinSize(ADpi: Integer; const AWork: TRect;
+  out AMinW, AMinH: Integer);
+var
+  FloorW, FloorH, WorkW, WorkH: Integer;
+begin
+  AMinW := ScalePx(1000, ADpi);
+  AMinH := ScalePx(900, ADpi);
+  WorkW := AWork.Right - AWork.Left;
+  WorkH := AWork.Bottom - AWork.Top;
+  if (WorkW > 0) and (AMinW > WorkW) then
+    AMinW := WorkW;
+  if (WorkH > 0) and (AMinH > WorkH) then
+    AMinH := WorkH;
+  FloorW := ScalePx(800, ADpi);
+  FloorH := ScalePx(600, ADpi);
+  if AMinW < FloorW then
+    AMinW := FloorW;
+  if AMinH < FloorH then
+    AMinH := FloorH;
+end;
+
+procedure TDashboardForm.ClampSizeToWorkArea(var AWidth, AHeight: Integer;
+  const AWork: TRect);
+var
+  WorkW, WorkH: Integer;
+begin
+  WorkW := AWork.Right - AWork.Left;
+  WorkH := AWork.Bottom - AWork.Top;
+  if (WorkW > 0) and (AWidth > WorkW) then
+    AWidth := WorkW;
+  if (WorkH > 0) and (AHeight > WorkH) then
+    AHeight := WorkH;
+end;
+
 procedure TDashboardForm.ApplyDpiChrome;
 var
-  Dpi: Integer;
+  Dpi, MinW, MinH: Integer;
   Met: THudMetrics;
 begin
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
-  Constraints.MinWidth := ScalePx(1000, Dpi);
-  Constraints.MinHeight := ScalePx(900, Dpi);
+  EffectiveMinSize(Dpi, CurrentWorkArea, MinW, MinH);
+  Constraints.MinWidth := MinW;
+  Constraints.MinHeight := MinH;
   if FHeaderPaint <> nil then
     FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
 end;
 
 procedure TDashboardForm.ApplySavedDipBounds;
 var
-  Dpi: Integer;
+  Dpi, X, Y, W, H, CW, CH: Integer;
 begin
   if FSettings = nil then
     Exit;
   Dpi := WindowDpi;
   { Restore the normal (restored) rectangle first, then maximize if saved. }
   WindowState := wsNormal;
-  SetBounds(ScalePx(FSettings.DashboardX, Dpi), ScalePx(FSettings.DashboardY, Dpi),
-    ScalePx(FSettings.DashboardW, Dpi), ScalePx(FSettings.DashboardH, Dpi));
+  X := ScalePx(FSettings.DashboardX, Dpi);
+  Y := ScalePx(FSettings.DashboardY, Dpi);
+  W := ScalePx(FSettings.DashboardW, Dpi);
+  H := ScalePx(FSettings.DashboardH, Dpi);
+  SetBounds(X, Y, W, H);
+  { A size saved on a larger/lower-DPI monitor can exceed the current monitor's
+    work area — shrink it to fit so the window is not born unshrinkable. }
+  CW := W;
+  CH := H;
+  ClampSizeToWorkArea(CW, CH, CurrentWorkArea);
+  if (CW <> W) or (CH <> H) then
+    SetBounds(X, Y, CW, CH);
   if FSettings.DashboardMaximized then
     WindowState := wsMaximized;
 end;
@@ -340,6 +405,7 @@ end;
 procedure TDashboardForm.WMDpiChanged(var Message: TMessage);
 var
   Suggested: TRect;
+  W, H: Integer;
 begin
   FWindowDpi := LoWord(Message.WParam);
   if FWindowDpi < 1 then
@@ -348,8 +414,12 @@ begin
   if Message.LParam <> 0 then
   begin
     Suggested := PRect(Message.LParam)^;
-    SetBounds(Suggested.Left, Suggested.Top,
-      Suggested.Right - Suggested.Left, Suggested.Bottom - Suggested.Top);
+    W := Suggested.Right - Suggested.Left;
+    H := Suggested.Bottom - Suggested.Top;
+    { The OS-suggested rect only preserves the DIP size; it can still overflow
+      the new monitor's work area when moving to a higher scale. }
+    ClampSizeToWorkArea(W, H, WorkAreaForRect(Suggested));
+    SetBounds(Suggested.Left, Suggested.Top, W, H);
   end;
   LayoutContent;
   ApplyTheme;
@@ -358,10 +428,23 @@ begin
 end;
 
 procedure TDashboardForm.WMDisplayChange(var Message: TMessage);
+var
+  W, H: Integer;
 begin
   inherited;
   { A monitor was added/removed or a resolution changed while the dashboard is
-    open — pull it back if that left it unreachable (matches TMainForm). }
+    open. Re-tighten the min-size constraints to the (possibly shrunk) work
+    area, clamp the current size into it, then pull the window back if it was
+    left unreachable (matches TMainForm). }
+  ApplyDpiChrome;
+  if HandleAllocated and (WindowState = wsNormal) then
+  begin
+    W := Width;
+    H := Height;
+    ClampSizeToWorkArea(W, H, CurrentWorkArea);
+    if (W <> Width) or (H <> Height) then
+      SetBounds(Left, Top, W, H);
+  end;
   ClampIntoView;
 end;
 
