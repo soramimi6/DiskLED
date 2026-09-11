@@ -3,6 +3,8 @@
 interface
 
 uses
+  Winapi.Windows,
+  Winapi.Messages,
   System.Classes,
   Vcl.Controls,
   Vcl.Forms,
@@ -91,6 +93,7 @@ type
     class function Execute(AOwner: TComponent; ASettings: TAppSettings): Boolean; static;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
+    procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
   end;
 
 var
@@ -119,6 +122,25 @@ procedure TOptionsForm.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
   Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
+end;
+
+procedure TOptionsForm.WMDpiChanged(var Message: TMessage);
+var
+  Suggested: TRect;
+begin
+  { Scaled=True already rescales the child controls on this message (via
+    VCL's own handling reached through inherited), but leaves the window's
+    own outer bounds alone for this bsDialog/WS_EX_TOOLWINDOW combination --
+    unlike a plain sizeable top-level form, nothing then resizes the frame to
+    match, so the rescaled content overflows it. Apply the OS-suggested rect
+    ourselves, the same way uMainForm/uDashboardForm already do. }
+  inherited;
+  if Message.LParam <> 0 then
+  begin
+    Suggested := PRect(Message.LParam)^;
+    SetBounds(Suggested.Left, Suggested.Top,
+      Suggested.Right - Suggested.Left, Suggested.Bottom - Suggested.Top);
+  end;
 end;
 
 procedure TOptionsForm.FormCreate(Sender: TObject);
