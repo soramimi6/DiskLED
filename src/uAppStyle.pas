@@ -1,8 +1,12 @@
 unit uAppStyle;
 
 { Activates one application-wide VCL style (the light or dark "Windows10"
-  style bundled under styles/, matching the OS light/dark setting) once at
-  startup, from DiskLED.dpr.
+  style bundled under styles/, matching the OS light/dark setting). Called
+  once at startup from DiskLED.dpr, and again on a live OS light/dark
+  switch from uMainForm.WMSettingChange -- TStyleManager.TrySetStyle
+  refreshes every currently open form/control that has no StyleName of its
+  own, so windows like TOptionsForm follow a live switch automatically as
+  long as this is called again when it happens.
 
   This exists because a per-form TControl.StyleName override is meaningless
   on its own: VCL only ever consults a control's own StyleName once a
@@ -32,6 +36,18 @@ uses
   Vcl.Themes,
   Vcl.Styles,
   uDashboardTheme;
+
+var
+  { Cache each side's discovered style name after its first successful load
+    (see LoadStyleFileName's before/after diff). ApplyAppStyle is called
+    again on a live OS light/dark switch (see uMainForm.WMSettingChange),
+    and by then the previously-loaded style is already registered, so a
+    fresh diff would no longer see it as "new" -- without this cache a
+    second switch back to an already-seen side would find TargetStyle = ''
+    and wrongly fall back to the light style. Unit-level string vars start
+    out '' automatically, same as any global variable. }
+  GLightStyleName: string;
+  GDarkStyleName: string;
 
 function LocateStyleFile(const AFileName: string): string;
 var
@@ -92,18 +108,29 @@ const
   CLightFileName = 'Windows10.vsf';
   CDarkFileName = 'Windows10Dark.vsf';
 var
-  TargetFile, TargetStyle: string;
+  TargetStyle: string;
 begin
   if SystemUsesLightTheme then
-    TargetFile := CLightFileName
+  begin
+    if GLightStyleName = '' then
+      GLightStyleName := LoadStyleFileName(CLightFileName);
+    TargetStyle := GLightStyleName;
+  end
   else
-    TargetFile := CDarkFileName;
+  begin
+    if GDarkStyleName = '' then
+      GDarkStyleName := LoadStyleFileName(CDarkFileName);
+    TargetStyle := GDarkStyleName;
+  end;
 
-  TargetStyle := LoadStyleFileName(TargetFile);
-  if (TargetStyle = '') and (TargetFile <> CLightFileName) then
-    { Dark style file missing/unloadable -- fall back to light rather than
-      leaving the whole app on the plain native style. }
-    TargetStyle := LoadStyleFileName(CLightFileName);
+  if TargetStyle = '' then
+  begin
+    { Requested side's style file missing/unloadable -- fall back to light
+      rather than leaving the whole app on the plain native style. }
+    if GLightStyleName = '' then
+      GLightStyleName := LoadStyleFileName(CLightFileName);
+    TargetStyle := GLightStyleName;
+  end;
 
   if TargetStyle <> '' then
     TStyleManager.TrySetStyle(TargetStyle, False);
