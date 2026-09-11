@@ -305,6 +305,10 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+  { This window paints its own skin entirely -- opt out of the app-wide
+    custom style uAppStyle activates at startup (see uAppStyle's header
+    comment). 'Windows' is VCL's built-in name for "no custom style". }
+  StyleName := 'Windows';
   DoubleBuffered := True;
   Scaled := False;
   FReadyToPersist := False;

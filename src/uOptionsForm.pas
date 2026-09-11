@@ -80,7 +80,6 @@ type
     procedure BtnOkClick(Sender: TObject);
   private
     FSettings: TAppSettings;
-    procedure ApplyModernStyle;
     procedure ApplyCaptions;
     procedure LoadFromSettings;
     procedure SyncPingControlsEnabled;
@@ -104,8 +103,6 @@ implementation
 uses
   System.SysUtils,
   Winapi.Windows,
-  Vcl.Themes,
-  Vcl.Styles,
   uAppStrings,
   uStartup,
   uPackaging,
@@ -118,128 +115,23 @@ const
   CDefaultTimeoutMs = 1000;
   CMinIntervalSec = 300;
 
-var
-  { Cache the style name each .vsf file registers under, discovered once per
-    process (see LoadStyleFileName) -- reopening the dialog later must not
-    try to detect it again via a before/after diff, since by then the style
-    is already registered and no "new" entry would appear. Unit-level
-    string vars start out '' automatically, same as any global variable. }
-  GLightStyleName: string;
-  GDarkStyleName: string;
-
 procedure TOptionsForm.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
   Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
 end;
 
-function LocateStyleFile(const AFileName: string): string;
-var
-  Base, Candidate: string;
-  i: Integer;
-begin
-  Base := ExtractFilePath(ParamStr(0));
-  for i := 0 to 5 do
-  begin
-    Candidate := IncludeTrailingPathDelimiter(Base) + 'styles\' + AFileName;
-    if FileExists(Candidate) then
-      Exit(Candidate);
-    Base := ExpandFileName(IncludeTrailingPathDelimiter(Base) + '..');
-  end;
-  Result := '';
-end;
-
-{ Loads AFileName and returns the style name it registered, without having
-  to guess/hardcode that name: .vsf resource files carry their own internal
-  name (set in the VCL Style Designer when the file was authored), which is
-  not guaranteed to match the filename exactly. Comparing TStyleManager's
-  StyleNames before/after the load finds whatever name actually appeared. }
-function LoadStyleFileName(const AFileName: string): string;
-var
-  Path, N: string;
-  Before: TArray<string>;
-  WasThere: Boolean;
-  B: string;
-begin
-  Result := '';
-  Path := LocateStyleFile(AFileName);
-  if Path = '' then
-    Exit;
-  Before := TStyleManager.StyleNames;
-  try
-    { Return value intentionally unused -- success/failure is determined
-      below by whether a new name actually shows up in StyleNames. }
-    TStyleManager.LoadFromFile(Path);
-  except
-    Exit;
-  end;
-  for N in TStyleManager.StyleNames do
-  begin
-    WasThere := False;
-    for B in Before do
-      if SameText(B, N) then
-      begin
-        WasThere := True;
-        Break;
-      end;
-    if not WasThere then
-      Exit(N);
-  end;
-end;
-
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
-  ApplyModernStyle;
-  SyncPingControlsEnabled;
-end;
-
-procedure TOptionsForm.ApplyModernStyle;
-const
-  CLightFileName = 'Windows10.vsf';
-  CDarkFileName = 'Windows10Dark.vsf';
-var
-  TargetFile, TargetStyle: string;
-begin
-  { Per-form style only — MainForm stays unstyled (custom skin window).
-    Follows the OS light/dark setting the same way the dashboard/Ping
-    windows do (SystemUsesLightTheme), just through a stock VCL style
-    (Project Options > Appearance ships the same "Windows10 Dark" style)
-    instead of hand-painted controls. }
-  if SystemUsesLightTheme then
-    TargetFile := CLightFileName
-  else
-    TargetFile := CDarkFileName;
-
-  if TargetFile = CLightFileName then
-  begin
-    if GLightStyleName = '' then
-      GLightStyleName := LoadStyleFileName(CLightFileName);
-    TargetStyle := GLightStyleName;
-  end
-  else
-  begin
-    if GDarkStyleName = '' then
-      GDarkStyleName := LoadStyleFileName(CDarkFileName);
-    TargetStyle := GDarkStyleName;
-  end;
-
-  if TargetStyle = '' then
-  begin
-    { Dark style file missing/unloadable -- fall back to light rather than
-      silently staying unstyled. }
-    if GLightStyleName = '' then
-      GLightStyleName := LoadStyleFileName(CLightFileName);
-    TargetStyle := GLightStyleName;
-  end;
-
-  if TargetStyle <> '' then
-    StyleName := TargetStyle;
-
-  { Matches the dark/light title bar the dashboard/Ping windows already
-    apply; DwmSetWindowAttribute is harmless to call even under the light
-    style since it only darkens the frame when SystemUsesLightTheme is
-    False. Accessing Handle here forces the window handle to exist. }
+  { No StyleName of its own -- it inherits the app-wide custom style
+    uAppStyle activates at startup (see that unit's header comment), unlike
+    uMainForm/uThemedHudForm windows which opt out to keep their own
+    hand-painted look. Only the DWM dark/light title bar needs doing here
+    explicitly; DwmSetWindowAttribute is harmless to call even under the
+    light style since it only darkens the frame when SystemUsesLightTheme
+    is False. Accessing Handle forces the window handle to exist. }
   ApplyHudTitleBar(Handle);
+  SyncPingControlsEnabled;
 end;
 
 procedure TOptionsForm.BindSettings(ASettings: TAppSettings);

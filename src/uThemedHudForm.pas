@@ -40,6 +40,13 @@ end;
 procedure TThemedHudForm.CreateWnd;
 begin
   inherited;
+  { This window paints itself entirely (its own palette, not a VCL style) --
+    opt out of the app-wide custom style uAppStyle activates at startup so
+    its native child controls (buttons, list views, ...) keep their plain
+    look instead of being re-skinned. 'Windows' is VCL's built-in name for
+    "no custom style"; children with no StyleName of their own inherit this
+    from the form. }
+  StyleName := 'Windows';
   ApplyHudTitleBar(Handle);
 end;
 
