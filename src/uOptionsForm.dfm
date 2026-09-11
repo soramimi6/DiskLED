@@ -330,6 +330,7 @@ object OptionsForm: TOptionsForm
         Checked = True
         State = cbChecked
         TabOrder = 3
+        OnClick = ChkLedDiskClick
       end
       object ChkLedNet: TCheckBox
         Left = 150
@@ -338,6 +339,7 @@ object OptionsForm: TOptionsForm
         Height = 21
         Caption = 'Network'
         TabOrder = 4
+        OnClick = ChkLedNetClick
       end
     end
     object CardPing: TPanel

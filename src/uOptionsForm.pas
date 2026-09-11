@@ -69,6 +69,8 @@ type
     procedure FormCreate(Sender: TObject);
     procedure ChkPingEnabledClick(Sender: TObject);
     procedure ChkAutoGwClick(Sender: TObject);
+    procedure ChkLedDiskClick(Sender: TObject);
+    procedure ChkLedNetClick(Sender: TObject);
     procedure BtnResetThresholdsClick(Sender: TObject);
     procedure BtnOkClick(Sender: TObject);
   private
@@ -244,6 +246,21 @@ end;
 procedure TOptionsForm.ChkAutoGwClick(Sender: TObject);
 begin
   SyncPingControlsEnabled;
+end;
+
+procedure TOptionsForm.ChkLedDiskClick(Sender: TObject);
+begin
+  { Unchecking this would leave both off (nothing for the tray LED to show):
+    cancel the uncheck by putting it straight back on. Checked := True here
+    does not itself fire OnClick, so this does not recurse. }
+  if (not ChkLedDisk.Checked) and (not ChkLedNet.Checked) then
+    ChkLedDisk.Checked := True;
+end;
+
+procedure TOptionsForm.ChkLedNetClick(Sender: TObject);
+begin
+  if (not ChkLedNet.Checked) and (not ChkLedDisk.Checked) then
+    ChkLedNet.Checked := True;
 end;
 
 procedure TOptionsForm.BtnResetThresholdsClick(Sender: TObject);
@@ -484,7 +501,8 @@ begin
     FSettings.TrayLedType := 'red'
   else
     FSettings.TrayLedType := 'green';
-  { At least one is restored by Normalize if both end up unchecked. }
+  { ChkLedDiskClick/ChkLedNetClick keep at least one checked; Normalize is
+    just a backstop against the two ever both landing on False here. }
   FSettings.TrayLedDisk := ChkLedDisk.Checked;
   FSettings.TrayLedNet := ChkLedNet.Checked;
   FSettings.PingEnabled := ChkPingEnabled.Checked;
