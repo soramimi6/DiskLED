@@ -60,6 +60,13 @@ begin
   AddStr('menu.window_only', 'ウィンドウのみ', 'Window Only');
   AddStr('menu.window_tray_led', 'ウィンドウ＋トレイ LED', 'Window + Tray LED');
   AddStr('menu.tray_only', 'トレイ LED のみ', 'Tray LED Only');
+  AddStr('menu.led_type', 'トレイ LED の色', 'Tray LED Color');
+  AddStr('menu.led_type_green', '緑', 'Green');
+  AddStr('menu.led_type_blue', '青', 'Blue');
+  AddStr('menu.led_type_red', '赤', 'Red');
+  AddStr('menu.led_source', 'トレイ LED のソース', 'Tray LED Source');
+  AddStr('menu.led_source_disk', 'ディスク', 'Disk');
+  AddStr('menu.led_source_net', 'ネットワーク', 'Network');
   AddStr('menu.scale', '表示倍率', 'Display Scale');
   AddStr('menu.scale_auto', '自動', 'Auto');
   AddStr('menu.exit', '終了', 'Exit');

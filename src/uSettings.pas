@@ -22,6 +22,8 @@ type
     FCompact: Boolean;
     FWindowHidden: Boolean;
     FTrayLed: Boolean;
+    FTrayLedType: string;
+    FTrayLedSource: string;
     FGraphRateHz: Double;
     FSpeedScale: TSpeedScale;
     FPingEnabled: Boolean;
@@ -76,10 +78,15 @@ type
       with the LED off (Normalize forces TrayLed := True whenever this is
       True — there would be nothing left to show). }
     property WindowHidden: Boolean read FWindowHidden write FWindowHidden;
-    { Tray icon shows the disk-activity LED instead of the fixed app icon.
+    { Tray icon shows the activity LED instead of the fixed app icon.
       Independent of WindowHidden: the window can stay visible while the
       tray also shows the LED ("window + tray LED"). }
     property TrayLed: Boolean read FTrayLed write FTrayLed;
+    { Tray LED color, skin-independent: 'green' / 'blue' / 'red'. Assets live
+      under assets/tray/<type>/. }
+    property TrayLedType: string read FTrayLedType write FTrayLedType;
+    { Which activity drives the tray LED: 'disk' or 'net'. }
+    property TrayLedSource: string read FTrayLedSource write FTrayLedSource;
     property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
     property SpeedScale: TSpeedScale read FSpeedScale write FSpeedScale;
     property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
@@ -117,6 +124,20 @@ begin
   Result := LowerCase(Trim(AValue));
   if (Result <> 'ja') and (Result <> 'en') then
     Result := 'auto';
+end;
+
+function NormalizeTrayLedType(const AValue: string): string;
+begin
+  Result := LowerCase(Trim(AValue));
+  if (Result <> 'green') and (Result <> 'blue') and (Result <> 'red') then
+    Result := 'green';
+end;
+
+function NormalizeTrayLedSource(const AValue: string): string;
+begin
+  Result := LowerCase(Trim(AValue));
+  if (Result <> 'disk') and (Result <> 'net') then
+    Result := 'disk';
 end;
 
 class function TAppSettings.ExeIniPath: string;
@@ -205,6 +226,8 @@ begin
   FCompact := True;
   FWindowHidden := False;
   FTrayLed := False;
+  FTrayLedType := 'green';
+  FTrayLedSource := 'disk';
   FGraphRateHz := 1.0;
   FSpeedScale := ssLinear;
   FPingEnabled := True;
@@ -255,6 +278,8 @@ begin
   if not ((FScale = 0) or (FScale = 100) or (FScale = 150) or (FScale = 200)) then
     FScale := 0;
   FLanguage := NormalizeLang(FLanguage);
+  FTrayLedType := NormalizeTrayLedType(FTrayLedType);
+  FTrayLedSource := NormalizeTrayLedSource(FTrayLedSource);
   if Abs(FGraphRateHz - 2.0) < 0.01 then
     FGraphRateHz := 2.0
   else if Abs(FGraphRateHz - 0.5) < 0.01 then
@@ -335,6 +360,8 @@ begin
       FWindowHidden := Ini.ReadBool('View', 'WindowHidden', FWindowHidden);
       FTrayLed := Ini.ReadBool('Tray', 'Led', FTrayLed);
     end;
+    FTrayLedType := Ini.ReadString('Tray', 'LedType', FTrayLedType);
+    FTrayLedSource := Ini.ReadString('Tray', 'LedSource', FTrayLedSource);
     FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
     if SameText(Trim(Ini.ReadString('View', 'SpeedScale', 'linear')), 'log') then
       FSpeedScale := ssLog
@@ -395,6 +422,8 @@ begin
       migration branch active forever and shadow WindowHidden/TrayLed. }
     Ini.DeleteKey('View', 'Size');
     Ini.WriteBool('Tray', 'Led', FTrayLed);
+    Ini.WriteString('Tray', 'LedType', FTrayLedType);
+    Ini.WriteString('Tray', 'LedSource', FTrayLedSource);
     Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
     if FSpeedScale = ssLog then
       Ini.WriteString('View', 'SpeedScale', 'log')

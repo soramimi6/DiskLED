@@ -91,6 +91,8 @@ type
     FMiWindowOnly: TMenuItem;
     FMiWindowTrayLed: TMenuItem;
     FMiTrayOnly: TMenuItem;
+    FMiLedType: TMenuItem;
+    FMiLedSource: TMenuItem;
     FMiScale: TMenuItem;
     FTrayOffIcon: TIcon;
     FTrayOnIcon: TIcon;
@@ -115,6 +117,9 @@ type
     procedure SyncViewMenu;
     procedure AddScaleMenuItem(const ACaption: string; APct: Integer);
     procedure SyncScaleMenu;
+    procedure AddLedTypeMenuItem(const ACaption, AValue: string);
+    procedure AddLedSourceMenuItem(const ACaption, AValue: string);
+    function TrayLedSourceOn: Boolean;
     procedure TimerTick(Sender: TObject);
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
@@ -123,6 +128,8 @@ type
     procedure miWindowTrayLedClick(Sender: TObject);
     procedure miTrayOnlyClick(Sender: TObject);
     procedure miScaleClick(Sender: TObject);
+    procedure miLedTypeClick(Sender: TObject);
+    procedure miLedSourceClick(Sender: TObject);
     procedure SetWindowTrayState(AHidden, ALed: Boolean);
     procedure EnterTrayOnly;
     procedure LeaveTrayOnly;
@@ -642,6 +649,21 @@ begin
   FMiTrayOnly.OnClick := miTrayOnlyClick;
   FPopup.Items.Add(FMiTrayOnly);
 
+  { Tray LED appearance: skin-independent (assets/tray/<type>/), children
+    only -- same GroupIndex-isolation reasoning as FMiScale below. }
+  FMiLedType := TMenuItem.Create(FPopup);
+  FMiLedType.Caption := S('menu.led_type');
+  FPopup.Items.Add(FMiLedType);
+  AddLedTypeMenuItem(S('menu.led_type_green'), 'green');
+  AddLedTypeMenuItem(S('menu.led_type_blue'), 'blue');
+  AddLedTypeMenuItem(S('menu.led_type_red'), 'red');
+
+  FMiLedSource := TMenuItem.Create(FPopup);
+  FMiLedSource.Caption := S('menu.led_source');
+  FPopup.Items.Add(FMiLedSource);
+  AddLedSourceMenuItem(S('menu.led_source_disk'), 'disk');
+  AddLedSourceMenuItem(S('menu.led_source_net'), 'net');
+
   FMiScale := TMenuItem.Create(FPopup);
   FMiScale.Caption := S('menu.scale');
   FPopup.Items.Add(FMiScale);
@@ -911,6 +933,7 @@ end;
 procedure TMainForm.SyncViewMenu;
 var
   InFull, Hidden, Led: Boolean;
+  i: Integer;
 begin
   if (FMiCompact = nil) or (FMiFull = nil) then
     Exit;
@@ -933,6 +956,14 @@ begin
     { Hidden implies Led (Normalize enforces it), so Hidden alone identifies
       this choice. }
     FMiTrayOnly.Checked := Hidden;
+
+  if (FMiLedType <> nil) and (FSettings <> nil) then
+    for i := 0 to FMiLedType.Count - 1 do
+      FMiLedType[i].Checked := SameText(FMiLedType[i].Hint, FSettings.TrayLedType);
+  if (FMiLedSource <> nil) and (FSettings <> nil) then
+    for i := 0 to FMiLedSource.Count - 1 do
+      FMiLedSource[i].Checked := SameText(FMiLedSource[i].Hint, FSettings.TrayLedSource);
+
   SyncScaleMenu;
 end;
 
@@ -947,6 +978,32 @@ begin
   mi.Tag := APct;
   mi.OnClick := miScaleClick;
   FMiScale.Add(mi);
+end;
+
+procedure TMainForm.AddLedTypeMenuItem(const ACaption, AValue: string);
+var
+  mi: TMenuItem;
+begin
+  mi := TMenuItem.Create(FMiLedType);
+  mi.Caption := ACaption;
+  mi.RadioItem := True;
+  mi.GroupIndex := 5;
+  mi.Hint := AValue;
+  mi.OnClick := miLedTypeClick;
+  FMiLedType.Add(mi);
+end;
+
+procedure TMainForm.AddLedSourceMenuItem(const ACaption, AValue: string);
+var
+  mi: TMenuItem;
+begin
+  mi := TMenuItem.Create(FMiLedSource);
+  mi.Caption := ACaption;
+  mi.RadioItem := True;
+  mi.GroupIndex := 6;
+  mi.Hint := AValue;
+  mi.OnClick := miLedSourceClick;
+  FMiLedSource.Add(mi);
 end;
 
 procedure TMainForm.SyncScaleMenu;
@@ -1063,7 +1120,7 @@ begin
   { Window rendering and the tray LED are independent now: either, both, or
     (checked at the settings layer) neither can be active at once. }
   if (FSettings <> nil) and FSettings.TrayLed then
-    UpdateTrayLed(FPipeline.State.DiskRWOn);
+    UpdateTrayLed(TrayLedSourceOn);
   if (FSettings = nil) or (not FSettings.WindowHidden) then
   begin
     if UsingFullView then
@@ -1152,6 +1209,47 @@ begin
   PersistSettings;
 end;
 
+procedure TMainForm.miLedTypeClick(Sender: TObject);
+begin
+  if FSettings = nil then
+    Exit;
+  if SameText(FSettings.TrayLedType, TMenuItem(Sender).Hint) then
+  begin
+    SyncViewMenu;
+    Exit;
+  end;
+  FSettings.TrayLedType := TMenuItem(Sender).Hint;
+  PersistSettings;
+  SyncViewMenu;
+  RefreshTrayIconForState;
+end;
+
+procedure TMainForm.miLedSourceClick(Sender: TObject);
+begin
+  if FSettings = nil then
+    Exit;
+  if SameText(FSettings.TrayLedSource, TMenuItem(Sender).Hint) then
+  begin
+    SyncViewMenu;
+    Exit;
+  end;
+  FSettings.TrayLedSource := TMenuItem(Sender).Hint;
+  PersistSettings;
+  SyncViewMenu;
+  RefreshTrayIconForState;
+end;
+
+function TMainForm.TrayLedSourceOn: Boolean;
+begin
+  Result := False;
+  if (FSettings = nil) or (FPipeline = nil) then
+    Exit;
+  if SameText(FSettings.TrayLedSource, 'net') then
+    Result := FPipeline.State.NetActivityOn
+  else
+    Result := FPipeline.State.DiskRWOn;
+end;
+
 function TMainForm.TrayIconPath(const AAssetDir, AFileName: string): string;
 begin
   if AFileName = '' then
@@ -1179,14 +1277,21 @@ end;
 
 procedure TMainForm.ReloadTrayIcons;
 var
-  Def: TDisplayModeDef;
+  TypeDir, Src: string;
 begin
   FreeAndNil(FTrayOffIcon);
   FreeAndNil(FTrayOnIcon);
-  if (FLayout.ModeId = '') or (not TryGetDisplayMode(FLayout.ModeId, Def)) then
+  if FSettings = nil then
     Exit;
-  FTrayOffIcon := LoadTrayIcon(TrayIconPath(Def.AssetDir, Def.TrayOffFile));
-  FTrayOnIcon := LoadTrayIcon(TrayIconPath(Def.AssetDir, Def.TrayOnFile));
+  { Skin-independent: assets/tray/<type>/<source>Off|On.ico, unrelated to the
+    gadget's current display mode. }
+  TypeDir := 'tray' + PathDelim + FSettings.TrayLedType;
+  if SameText(FSettings.TrayLedSource, 'net') then
+    Src := 'net'
+  else
+    Src := 'disk';
+  FTrayOffIcon := LoadTrayIcon(TrayIconPath(TypeDir, Src + 'Off.ico'));
+  FTrayOnIcon := LoadTrayIcon(TrayIconPath(TypeDir, Src + 'On.ico'));
 end;
 
 procedure TMainForm.ResetTrayToAppIcon;
@@ -1243,10 +1348,11 @@ end;
 
 procedure TMainForm.RefreshTrayIconForState;
 begin
-  { Shared by SetWindowTrayState, and by ApplyMode/WMDpiChanged for a mode or
-    DPI change while the LED is showing: reload the Off/On icons for whatever
-    skin is current, then re-apply the LED for the live disk state. When the
-    LED is off, fall back to the fixed app icon instead. }
+  { Shared by SetWindowTrayState, by the LED type/source menu handlers, and by
+    ApplyMode/WMDpiChanged for a mode or DPI change while the LED is showing:
+    reload the Off/On icons for whatever type/source is current, then
+    re-apply the LED for the live state. When the LED is off, fall back to
+    the fixed app icon instead. }
   if FSettings = nil then
     Exit;
   if not FSettings.TrayLed then
@@ -1256,8 +1362,7 @@ begin
   end;
   ReloadTrayIcons;
   FHasTrayLedState := False;
-  if FPipeline <> nil then
-    UpdateTrayLed(FPipeline.State.DiskRWOn);
+  UpdateTrayLed(TrayLedSourceOn);
 end;
 
 procedure TMainForm.SetWindowTrayState(AHidden, ALed: Boolean);

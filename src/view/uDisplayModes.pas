@@ -25,8 +25,6 @@ type
     HasFull: Boolean;
     Layout: TViewLayout;
     FullLayout: TViewLayout;
-    TrayOffFile: string;
-    TrayOnFile: string;
   end;
 
 procedure LoadDisplayModes(const AAssetsRoot: string);
@@ -93,6 +91,11 @@ begin
     Dirs := TDirectory.GetDirectories(Root);
     for Dir in Dirs do
     begin
+      { assets/tray/ holds the skin-independent tray LED icon set, not a
+        display mode; it has no layout.cfg so this would already Continue
+        below, but skip it by name up front to keep that intent explicit. }
+      if SameText(ExtractFileName(ExcludeTrailingPathDelimiter(Dir)), 'tray') then
+        Continue;
       IniPath := IncludeTrailingPathDelimiter(Dir) + 'layout.cfg';
       if not TFile.Exists(IniPath) then
         Continue;
@@ -108,8 +111,6 @@ begin
       Def.Layout.ModeId := Def.Id;
       Def.FullLayout := Meta.FullLayout;
       Def.FullLayout.ModeId := Def.Id;
-      Def.TrayOffFile := Meta.TrayOffFile;
-      Def.TrayOnFile := Meta.TrayOnFile;
 
       for i := 0 to List.Count - 1 do
         if SameText(List[i].Id, Def.Id) then
