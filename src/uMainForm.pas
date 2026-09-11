@@ -96,6 +96,14 @@ type
     FTrayOnIcon: TIcon;
     FTrayLedOn: Boolean;
     FHasTrayLedState: Boolean;
+    { Second tray icon, created on demand: shown only while both TrayLedDisk
+      and TrayLedNet are on, always displaying the net LED (the primary FTray
+      shows disk in that case -- see PrimarySourceIsDisk). }
+    FTray2: TTrayIcon;
+    FTrayOffIcon2: TIcon;
+    FTrayOnIcon2: TIcon;
+    FTrayLedOn2: Boolean;
+    FHasTrayLedState2: Boolean;
     FActivateMsg: Cardinal;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
@@ -115,7 +123,12 @@ type
     procedure SyncViewMenu;
     procedure AddScaleMenuItem(const ACaption: string; APct: Integer);
     procedure SyncScaleMenu;
+    function PrimarySourceIsDisk: Boolean;
+    function BothLedSourcesOn: Boolean;
     function TrayLedSourceOn: Boolean;
+    procedure EnsureSecondaryTray;
+    procedure HideSecondaryTray;
+    procedure UpdateTrayLed2(AOn: Boolean);
     procedure TimerTick(Sender: TObject);
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
@@ -548,6 +561,8 @@ begin
   FreeAndNil(FTraceRouteForm);
   FreeAndNil(FTrayOffIcon);
   FreeAndNil(FTrayOnIcon);
+  FreeAndNil(FTrayOffIcon2);
+  FreeAndNil(FTrayOnIcon2);
   FCollector.Free;
   FPipeline.Free;
   FHistory.Free;
@@ -1062,10 +1077,14 @@ begin
     end;
   end;
 
-  { Window rendering and the tray LED are independent now: either, both, or
-    (checked at the settings layer) neither can be active at once. }
+  { Window rendering and the tray LED(s) are independent now: either, both,
+    or (checked at the settings layer) neither can be active at once. }
   if (FSettings <> nil) and FSettings.TrayLed then
+  begin
     UpdateTrayLed(TrayLedSourceOn);
+    if BothLedSourcesOn then
+      UpdateTrayLed2(FPipeline.State.NetActivityOn);
+  end;
   if (FSettings = nil) or (not FSettings.WindowHidden) then
   begin
     if UsingFullView then
@@ -1154,15 +1173,28 @@ begin
   PersistSettings;
 end;
 
+function TMainForm.PrimarySourceIsDisk: Boolean;
+begin
+  { Disk is the primary (FTray) source whenever it's on at all -- including
+    when both are on, in which case net becomes the secondary FTray2. Net is
+    primary only when it's the sole source selected. }
+  Result := (FSettings = nil) or FSettings.TrayLedDisk;
+end;
+
+function TMainForm.BothLedSourcesOn: Boolean;
+begin
+  Result := (FSettings <> nil) and FSettings.TrayLedDisk and FSettings.TrayLedNet;
+end;
+
 function TMainForm.TrayLedSourceOn: Boolean;
 begin
   Result := False;
   if (FSettings = nil) or (FPipeline = nil) then
     Exit;
-  if SameText(FSettings.TrayLedSource, 'net') then
-    Result := FPipeline.State.NetActivityOn
+  if PrimarySourceIsDisk then
+    Result := FPipeline.State.DiskRWOn
   else
-    Result := FPipeline.State.DiskRWOn;
+    Result := FPipeline.State.NetActivityOn;
 end;
 
 function TMainForm.TrayIconPath(const AAssetDir, AFileName: string): string;
@@ -1192,21 +1224,28 @@ end;
 
 procedure TMainForm.ReloadTrayIcons;
 var
-  TypeDir, Src: string;
+  TypeDir, PrimarySrc: string;
 begin
   FreeAndNil(FTrayOffIcon);
   FreeAndNil(FTrayOnIcon);
+  FreeAndNil(FTrayOffIcon2);
+  FreeAndNil(FTrayOnIcon2);
   if FSettings = nil then
     Exit;
   { Skin-independent: assets/tray/<type>/<source>Off|On.ico, unrelated to the
     gadget's current display mode. }
   TypeDir := 'tray' + PathDelim + FSettings.TrayLedType;
-  if SameText(FSettings.TrayLedSource, 'net') then
-    Src := 'net'
+  if PrimarySourceIsDisk then
+    PrimarySrc := 'disk'
   else
-    Src := 'disk';
-  FTrayOffIcon := LoadTrayIcon(TrayIconPath(TypeDir, Src + 'Off.ico'));
-  FTrayOnIcon := LoadTrayIcon(TrayIconPath(TypeDir, Src + 'On.ico'));
+    PrimarySrc := 'net';
+  FTrayOffIcon := LoadTrayIcon(TrayIconPath(TypeDir, PrimarySrc + 'Off.ico'));
+  FTrayOnIcon := LoadTrayIcon(TrayIconPath(TypeDir, PrimarySrc + 'On.ico'));
+  if BothLedSourcesOn then
+  begin
+    FTrayOffIcon2 := LoadTrayIcon(TrayIconPath(TypeDir, 'netOff.ico'));
+    FTrayOnIcon2 := LoadTrayIcon(TrayIconPath(TypeDir, 'netOn.ico'));
+  end;
 end;
 
 procedure TMainForm.ResetTrayToAppIcon;
@@ -1261,9 +1300,46 @@ begin
   FHasTrayLedState := True;
 end;
 
+procedure TMainForm.EnsureSecondaryTray;
+begin
+  if FTray2 = nil then
+  begin
+    FTray2 := TTrayIcon.Create(Self);
+    FTray2.Hint := 'DiskLED';
+    FTray2.PopupMenu := FPopup;
+    FTray2.OnDblClick := TrayDblClick;
+  end;
+  FTray2.Visible := True;
+end;
+
+procedure TMainForm.HideSecondaryTray;
+begin
+  if FTray2 <> nil then
+    FTray2.Visible := False;
+  FHasTrayLedState2 := False;
+end;
+
+procedure TMainForm.UpdateTrayLed2(AOn: Boolean);
+var
+  Src: TIcon;
+begin
+  if (FTray2 = nil) or (not FTray2.Visible) then
+    Exit;
+  if FHasTrayLedState2 and (FTrayLedOn2 = AOn) then
+    Exit;
+  if AOn then
+    Src := FTrayOnIcon2
+  else
+    Src := FTrayOffIcon2;
+  if (Src <> nil) and (not Src.Empty) then
+    FTray2.Icon := Src;
+  FTrayLedOn2 := AOn;
+  FHasTrayLedState2 := True;
+end;
+
 procedure TMainForm.RefreshTrayIconForState;
 begin
-  { Shared by SetWindowTrayState, by the LED type/source menu handlers, and by
+  { Shared by SetWindowTrayState, by Options (LED type/source), and by
     ApplyMode/WMDpiChanged for a mode or DPI change while the LED is showing:
     reload the Off/On icons for whatever type/source is current, then
     re-apply the LED for the live state. When the LED is off, fall back to
@@ -1273,11 +1349,21 @@ begin
   if not FSettings.TrayLed then
   begin
     ResetTrayToAppIcon;
+    HideSecondaryTray;
     Exit;
   end;
   ReloadTrayIcons;
   FHasTrayLedState := False;
   UpdateTrayLed(TrayLedSourceOn);
+  if BothLedSourcesOn then
+  begin
+    EnsureSecondaryTray;
+    FHasTrayLedState2 := False;
+    if FPipeline <> nil then
+      UpdateTrayLed2(FPipeline.State.NetActivityOn);
+  end
+  else
+    HideSecondaryTray;
 end;
 
 procedure TMainForm.SetWindowTrayState(AHidden, ALed: Boolean);

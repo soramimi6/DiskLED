@@ -119,9 +119,9 @@ begin
   AddStr('opt.tray_led_color_green', '緑', 'Green');
   AddStr('opt.tray_led_color_blue', '青', 'Blue');
   AddStr('opt.tray_led_color_red', '赤', 'Red');
-  AddStr('opt.tray_led_source', 'トレイ LED のソース', 'Tray LED Source');
-  AddStr('opt.tray_led_source_disk', 'ディスク', 'Disk');
-  AddStr('opt.tray_led_source_net', 'ネットワーク', 'Network');
+  AddStr('opt.tray_led_info', 'トレイ LED の情報', 'Tray LED Info');
+  AddStr('opt.tray_led_info_disk', 'ディスク', 'Disk');
+  AddStr('opt.tray_led_info_net', 'ネットワーク', 'Network');
   AddStr('opt.ping_enabled', 'Ping を有効にする', 'Enable Ping');
   AddStr('opt.ping_auto_gw', 'デフォルトゲートウェイを使う', 'Use default gateway');
   AddStr('opt.ping_host', 'Ping ホスト', 'Ping host');

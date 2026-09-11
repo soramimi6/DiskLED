@@ -23,7 +23,8 @@ type
     FWindowHidden: Boolean;
     FTrayLed: Boolean;
     FTrayLedType: string;
-    FTrayLedSource: string;
+    FTrayLedDisk: Boolean;
+    FTrayLedNet: Boolean;
     FGraphRateHz: Double;
     FSpeedScale: TSpeedScale;
     FPingEnabled: Boolean;
@@ -85,8 +86,12 @@ type
     { Tray LED color, skin-independent: 'green' / 'blue' / 'red'. Assets live
       under assets/tray/<type>/. }
     property TrayLedType: string read FTrayLedType write FTrayLedType;
-    { Which activity drives the tray LED: 'disk' or 'net'. }
-    property TrayLedSource: string read FTrayLedSource write FTrayLedSource;
+    { Which activity the tray LED reflects. Both may be on at once: a second
+      tray icon appears for whichever of the two is not the primary display
+      (see TMainForm.PrimarySourceIsDisk). Normalize forces at least one on
+      whenever TrayLed is on. }
+    property TrayLedDisk: Boolean read FTrayLedDisk write FTrayLedDisk;
+    property TrayLedNet: Boolean read FTrayLedNet write FTrayLedNet;
     property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
     property SpeedScale: TSpeedScale read FSpeedScale write FSpeedScale;
     property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
@@ -133,11 +138,20 @@ begin
     Result := 'green';
 end;
 
-function NormalizeTrayLedSource(const AValue: string): string;
+{ Legacy 3.2.0-pre-release single-choice key ('disk' / 'net'), migrated into
+  the TrayLedDisk/TrayLedNet pair. }
+procedure LegacyLedSourceToFlags(const AValue: string; out ADisk, ANet: Boolean);
 begin
-  Result := LowerCase(Trim(AValue));
-  if (Result <> 'disk') and (Result <> 'net') then
-    Result := 'disk';
+  if SameText(Trim(AValue), 'net') then
+  begin
+    ADisk := False;
+    ANet := True;
+  end
+  else
+  begin
+    ADisk := True;
+    ANet := False;
+  end;
 end;
 
 class function TAppSettings.ExeIniPath: string;
@@ -227,7 +241,8 @@ begin
   FWindowHidden := False;
   FTrayLed := False;
   FTrayLedType := 'green';
-  FTrayLedSource := 'disk';
+  FTrayLedDisk := True;
+  FTrayLedNet := False;
   FGraphRateHz := 1.0;
   FSpeedScale := ssLinear;
   FPingEnabled := True;
@@ -279,7 +294,8 @@ begin
     FScale := 0;
   FLanguage := NormalizeLang(FLanguage);
   FTrayLedType := NormalizeTrayLedType(FTrayLedType);
-  FTrayLedSource := NormalizeTrayLedSource(FTrayLedSource);
+  if not (FTrayLedDisk or FTrayLedNet) then
+    FTrayLedDisk := True;
   if Abs(FGraphRateHz - 2.0) < 0.01 then
     FGraphRateHz := 2.0
   else if Abs(FGraphRateHz - 0.5) < 0.01 then
@@ -361,7 +377,15 @@ begin
       FTrayLed := Ini.ReadBool('Tray', 'Led', FTrayLed);
     end;
     FTrayLedType := Ini.ReadString('Tray', 'LedType', FTrayLedType);
-    FTrayLedSource := Ini.ReadString('Tray', 'LedSource', FTrayLedSource);
+    { LedSource is the legacy (pre-release) single-choice key; LedDisk/LedNet
+      are the current pair that lets both be on at once. }
+    if Ini.ValueExists('Tray', 'LedSource') then
+      LegacyLedSourceToFlags(Ini.ReadString('Tray', 'LedSource', ''), FTrayLedDisk, FTrayLedNet)
+    else
+    begin
+      FTrayLedDisk := Ini.ReadBool('Tray', 'LedDisk', FTrayLedDisk);
+      FTrayLedNet := Ini.ReadBool('Tray', 'LedNet', FTrayLedNet);
+    end;
     FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
     if SameText(Trim(Ini.ReadString('View', 'SpeedScale', 'linear')), 'log') then
       FSpeedScale := ssLog
@@ -423,7 +447,9 @@ begin
     Ini.DeleteKey('View', 'Size');
     Ini.WriteBool('Tray', 'Led', FTrayLed);
     Ini.WriteString('Tray', 'LedType', FTrayLedType);
-    Ini.WriteString('Tray', 'LedSource', FTrayLedSource);
+    Ini.WriteBool('Tray', 'LedDisk', FTrayLedDisk);
+    Ini.WriteBool('Tray', 'LedNet', FTrayLedNet);
+    Ini.DeleteKey('Tray', 'LedSource');
     Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
     if FSpeedScale = ssLog then
       Ini.WriteString('View', 'SpeedScale', 'log')

@@ -39,13 +39,12 @@ type
     RbScaleLog: TRadioButton;
     CardTrayLed: TPanel;
     LblSecTrayLedColor: TLabel;
-    LblSecTrayLedSource: TLabel;
+    LblSecTrayLedInfo: TLabel;
     RbLedGreen: TRadioButton;
     RbLedBlue: TRadioButton;
     RbLedRed: TRadioButton;
-    PnlLedSource: TPanel;
-    RbLedDisk: TRadioButton;
-    RbLedNet: TRadioButton;
+    ChkLedDisk: TCheckBox;
+    ChkLedNet: TCheckBox;
     CardPing: TPanel;
     LblSecPing: TLabel;
     ChkPingEnabled: TCheckBox;
@@ -195,9 +194,9 @@ begin
   RbLedGreen.Caption := S('opt.tray_led_color_green');
   RbLedBlue.Caption := S('opt.tray_led_color_blue');
   RbLedRed.Caption := S('opt.tray_led_color_red');
-  LblSecTrayLedSource.Caption := S('opt.tray_led_source');
-  RbLedDisk.Caption := S('opt.tray_led_source_disk');
-  RbLedNet.Caption := S('opt.tray_led_source_net');
+  LblSecTrayLedInfo.Caption := S('opt.tray_led_info');
+  ChkLedDisk.Caption := S('opt.tray_led_info_disk');
+  ChkLedNet.Caption := S('opt.tray_led_info_net');
   LblSecPing.Caption := S('opt.group.ping');
   ChkPingEnabled.Caption := S('opt.ping_enabled');
   ChkAutoGw.Caption := S('opt.ping_auto_gw');
@@ -351,10 +350,8 @@ begin
     RbLedRed.Checked := True
   else
     RbLedGreen.Checked := True;
-  if SameText(FSettings.TrayLedSource, 'net') then
-    RbLedNet.Checked := True
-  else
-    RbLedDisk.Checked := True;
+  ChkLedDisk.Checked := FSettings.TrayLedDisk;
+  ChkLedNet.Checked := FSettings.TrayLedNet;
   ChkPingEnabled.Checked := FSettings.PingEnabled;
   ChkAutoGw.Checked := FSettings.PingAutoGateway;
   EdHost.Text := FSettings.PingHost;
@@ -487,10 +484,9 @@ begin
     FSettings.TrayLedType := 'red'
   else
     FSettings.TrayLedType := 'green';
-  if RbLedNet.Checked then
-    FSettings.TrayLedSource := 'net'
-  else
-    FSettings.TrayLedSource := 'disk';
+  { At least one is restored by Normalize if both end up unchecked. }
+  FSettings.TrayLedDisk := ChkLedDisk.Checked;
+  FSettings.TrayLedNet := ChkLedNet.Checked;
   FSettings.PingEnabled := ChkPingEnabled.Checked;
   FSettings.PingAutoGateway := ChkAutoGw.Checked;
   FSettings.PingHost := Trim(EdHost.Text);

@@ -282,12 +282,12 @@ object OptionsForm: TOptionsForm
         Font.Style = [fsBold]
         ParentFont = False
       end
-      object LblSecTrayLedSource: TLabel
+      object LblSecTrayLedInfo: TLabel
         Left = 20
         Top = 72
-        Width = 96
+        Width = 80
         Height = 17
-        Caption = 'Tray LED Source'
+        Caption = 'Tray LED Info'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -13
@@ -321,33 +321,23 @@ object OptionsForm: TOptionsForm
         Caption = 'Red'
         TabOrder = 2
       end
-      object PnlLedSource: TPanel
-        Left = 12
-        Top = 90
-        Width = 376
-        Height = 32
-        BevelOuter = bvNone
-        Color = clWhite
-        ParentBackground = False
+      object ChkLedDisk: TCheckBox
+        Left = 20
+        Top = 96
+        Width = 120
+        Height = 21
+        Caption = 'Disk'
+        Checked = True
+        State = cbChecked
         TabOrder = 3
-        object RbLedDisk: TRadioButton
-          Left = 8
-          Top = 4
-          Width = 110
-          Height = 21
-          Caption = 'Disk'
-          Checked = True
-          TabOrder = 0
-          TabStop = True
-        end
-        object RbLedNet: TRadioButton
-          Left = 140
-          Top = 4
-          Width = 110
-          Height = 21
-          Caption = 'Network'
-          TabOrder = 1
-        end
+      end
+      object ChkLedNet: TCheckBox
+        Left = 150
+        Top = 96
+        Width = 120
+        Height = 21
+        Caption = 'Network'
+        TabOrder = 4
       end
     end
     object CardPing: TPanel
