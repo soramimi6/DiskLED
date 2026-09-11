@@ -91,8 +91,6 @@ type
     FMiWindowOnly: TMenuItem;
     FMiWindowTrayLed: TMenuItem;
     FMiTrayOnly: TMenuItem;
-    FMiLedType: TMenuItem;
-    FMiLedSource: TMenuItem;
     FMiScale: TMenuItem;
     FTrayOffIcon: TIcon;
     FTrayOnIcon: TIcon;
@@ -117,8 +115,6 @@ type
     procedure SyncViewMenu;
     procedure AddScaleMenuItem(const ACaption: string; APct: Integer);
     procedure SyncScaleMenu;
-    procedure AddLedTypeMenuItem(const ACaption, AValue: string);
-    procedure AddLedSourceMenuItem(const ACaption, AValue: string);
     function TrayLedSourceOn: Boolean;
     procedure TimerTick(Sender: TObject);
     procedure miModeClick(Sender: TObject);
@@ -128,8 +124,6 @@ type
     procedure miWindowTrayLedClick(Sender: TObject);
     procedure miTrayOnlyClick(Sender: TObject);
     procedure miScaleClick(Sender: TObject);
-    procedure miLedTypeClick(Sender: TObject);
-    procedure miLedSourceClick(Sender: TObject);
     procedure SetWindowTrayState(AHidden, ALed: Boolean);
     procedure EnterTrayOnly;
     procedure LeaveTrayOnly;
@@ -649,21 +643,6 @@ begin
   FMiTrayOnly.OnClick := miTrayOnlyClick;
   FPopup.Items.Add(FMiTrayOnly);
 
-  { Tray LED appearance: skin-independent (assets/tray/<type>/), children
-    only -- same GroupIndex-isolation reasoning as FMiScale below. }
-  FMiLedType := TMenuItem.Create(FPopup);
-  FMiLedType.Caption := S('menu.led_type');
-  FPopup.Items.Add(FMiLedType);
-  AddLedTypeMenuItem(S('menu.led_type_green'), 'green');
-  AddLedTypeMenuItem(S('menu.led_type_blue'), 'blue');
-  AddLedTypeMenuItem(S('menu.led_type_red'), 'red');
-
-  FMiLedSource := TMenuItem.Create(FPopup);
-  FMiLedSource.Caption := S('menu.led_source');
-  FPopup.Items.Add(FMiLedSource);
-  AddLedSourceMenuItem(S('menu.led_source_disk'), 'disk');
-  AddLedSourceMenuItem(S('menu.led_source_net'), 'net');
-
   FMiScale := TMenuItem.Create(FPopup);
   FMiScale.Caption := S('menu.scale');
   FPopup.Items.Add(FMiScale);
@@ -933,7 +912,6 @@ end;
 procedure TMainForm.SyncViewMenu;
 var
   InFull, Hidden, Led: Boolean;
-  i: Integer;
 begin
   if (FMiCompact = nil) or (FMiFull = nil) then
     Exit;
@@ -957,13 +935,6 @@ begin
       this choice. }
     FMiTrayOnly.Checked := Hidden;
 
-  if (FMiLedType <> nil) and (FSettings <> nil) then
-    for i := 0 to FMiLedType.Count - 1 do
-      FMiLedType[i].Checked := SameText(FMiLedType[i].Hint, FSettings.TrayLedType);
-  if (FMiLedSource <> nil) and (FSettings <> nil) then
-    for i := 0 to FMiLedSource.Count - 1 do
-      FMiLedSource[i].Checked := SameText(FMiLedSource[i].Hint, FSettings.TrayLedSource);
-
   SyncScaleMenu;
 end;
 
@@ -978,32 +949,6 @@ begin
   mi.Tag := APct;
   mi.OnClick := miScaleClick;
   FMiScale.Add(mi);
-end;
-
-procedure TMainForm.AddLedTypeMenuItem(const ACaption, AValue: string);
-var
-  mi: TMenuItem;
-begin
-  mi := TMenuItem.Create(FMiLedType);
-  mi.Caption := ACaption;
-  mi.RadioItem := True;
-  mi.GroupIndex := 5;
-  mi.Hint := AValue;
-  mi.OnClick := miLedTypeClick;
-  FMiLedType.Add(mi);
-end;
-
-procedure TMainForm.AddLedSourceMenuItem(const ACaption, AValue: string);
-var
-  mi: TMenuItem;
-begin
-  mi := TMenuItem.Create(FMiLedSource);
-  mi.Caption := ACaption;
-  mi.RadioItem := True;
-  mi.GroupIndex := 6;
-  mi.Hint := AValue;
-  mi.OnClick := miLedSourceClick;
-  FMiLedSource.Add(mi);
 end;
 
 procedure TMainForm.SyncScaleMenu;
@@ -1209,36 +1154,6 @@ begin
   PersistSettings;
 end;
 
-procedure TMainForm.miLedTypeClick(Sender: TObject);
-begin
-  if FSettings = nil then
-    Exit;
-  if SameText(FSettings.TrayLedType, TMenuItem(Sender).Hint) then
-  begin
-    SyncViewMenu;
-    Exit;
-  end;
-  FSettings.TrayLedType := TMenuItem(Sender).Hint;
-  PersistSettings;
-  SyncViewMenu;
-  RefreshTrayIconForState;
-end;
-
-procedure TMainForm.miLedSourceClick(Sender: TObject);
-begin
-  if FSettings = nil then
-    Exit;
-  if SameText(FSettings.TrayLedSource, TMenuItem(Sender).Hint) then
-  begin
-    SyncViewMenu;
-    Exit;
-  end;
-  FSettings.TrayLedSource := TMenuItem(Sender).Hint;
-  PersistSettings;
-  SyncViewMenu;
-  RefreshTrayIconForState;
-end;
-
 function TMainForm.TrayLedSourceOn: Boolean;
 begin
   Result := False;
@@ -1442,6 +1357,7 @@ begin
   if TOptionsForm.Execute(Self, FSettings) then
   begin
     ApplySettingsToUi;
+    RefreshTrayIconForState;
     PersistSettings;
     if UpdateCheckEnabled then
       ScheduleUpdateCheck

@@ -37,6 +37,15 @@ type
     LblSecScale: TLabel;
     RbScaleLinear: TRadioButton;
     RbScaleLog: TRadioButton;
+    CardTrayLed: TPanel;
+    LblSecTrayLedColor: TLabel;
+    LblSecTrayLedSource: TLabel;
+    RbLedGreen: TRadioButton;
+    RbLedBlue: TRadioButton;
+    RbLedRed: TRadioButton;
+    PnlLedSource: TPanel;
+    RbLedDisk: TRadioButton;
+    RbLedNet: TRadioButton;
     CardPing: TPanel;
     LblSecPing: TLabel;
     ChkPingEnabled: TCheckBox;
@@ -182,6 +191,13 @@ begin
   LblSecScale.Caption := S('opt.speed_scale');
   RbScaleLinear.Caption := S('opt.speed_scale_linear');
   RbScaleLog.Caption := S('opt.speed_scale_log');
+  LblSecTrayLedColor.Caption := S('opt.tray_led_color');
+  RbLedGreen.Caption := S('opt.tray_led_color_green');
+  RbLedBlue.Caption := S('opt.tray_led_color_blue');
+  RbLedRed.Caption := S('opt.tray_led_color_red');
+  LblSecTrayLedSource.Caption := S('opt.tray_led_source');
+  RbLedDisk.Caption := S('opt.tray_led_source_disk');
+  RbLedNet.Caption := S('opt.tray_led_source_net');
   LblSecPing.Caption := S('opt.group.ping');
   ChkPingEnabled.Caption := S('opt.ping_enabled');
   ChkAutoGw.Caption := S('opt.ping_auto_gw');
@@ -329,6 +345,16 @@ begin
     RbScaleLog.Checked := True
   else
     RbScaleLinear.Checked := True;
+  if SameText(FSettings.TrayLedType, 'blue') then
+    RbLedBlue.Checked := True
+  else if SameText(FSettings.TrayLedType, 'red') then
+    RbLedRed.Checked := True
+  else
+    RbLedGreen.Checked := True;
+  if SameText(FSettings.TrayLedSource, 'net') then
+    RbLedNet.Checked := True
+  else
+    RbLedDisk.Checked := True;
   ChkPingEnabled.Checked := FSettings.PingEnabled;
   ChkAutoGw.Checked := FSettings.PingAutoGateway;
   EdHost.Text := FSettings.PingHost;
@@ -455,6 +481,16 @@ begin
     FSettings.SpeedScale := ssLog
   else
     FSettings.SpeedScale := ssLinear;
+  if RbLedBlue.Checked then
+    FSettings.TrayLedType := 'blue'
+  else if RbLedRed.Checked then
+    FSettings.TrayLedType := 'red'
+  else
+    FSettings.TrayLedType := 'green';
+  if RbLedNet.Checked then
+    FSettings.TrayLedSource := 'net'
+  else
+    FSettings.TrayLedSource := 'disk';
   FSettings.PingEnabled := ChkPingEnabled.Checked;
   FSettings.PingAutoGateway := ChkAutoGw.Checked;
   FSettings.PingHost := Trim(EdHost.Text);

@@ -4,7 +4,7 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 498
+  ClientHeight = 634
   ClientWidth = 859
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object OptionsForm: TOptionsForm
     Left = 0
     Top = 0
     Width = 859
-    Height = 442
+    Height = 578
     Align = alClient
     BevelOuter = bvNone
     Color = 15921906
@@ -260,6 +260,96 @@ object OptionsForm: TOptionsForm
         TabOrder = 1
       end
     end
+    object CardTrayLed: TPanel
+      Left = 20
+      Top = 434
+      Width = 400
+      Height = 128
+      BevelOuter = bvNone
+      Color = clWhite
+      ParentBackground = False
+      TabOrder = 4
+      object LblSecTrayLedColor: TLabel
+        Left = 20
+        Top = 12
+        Width = 88
+        Height = 17
+        Caption = 'Tray LED Color'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Segoe UI'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object LblSecTrayLedSource: TLabel
+        Left = 20
+        Top = 72
+        Width = 96
+        Height = 17
+        Caption = 'Tray LED Source'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -13
+        Font.Name = 'Segoe UI'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object RbLedGreen: TRadioButton
+        Left = 20
+        Top = 40
+        Width = 110
+        Height = 21
+        Caption = 'Green'
+        Checked = True
+        TabOrder = 0
+        TabStop = True
+      end
+      object RbLedBlue: TRadioButton
+        Left = 140
+        Top = 40
+        Width = 110
+        Height = 21
+        Caption = 'Blue'
+        TabOrder = 1
+      end
+      object RbLedRed: TRadioButton
+        Left = 260
+        Top = 40
+        Width = 110
+        Height = 21
+        Caption = 'Red'
+        TabOrder = 2
+      end
+      object PnlLedSource: TPanel
+        Left = 12
+        Top = 90
+        Width = 376
+        Height = 32
+        BevelOuter = bvNone
+        Color = clWhite
+        ParentBackground = False
+        TabOrder = 3
+        object RbLedDisk: TRadioButton
+          Left = 8
+          Top = 4
+          Width = 110
+          Height = 21
+          Caption = 'Disk'
+          Checked = True
+          TabOrder = 0
+          TabStop = True
+        end
+        object RbLedNet: TRadioButton
+          Left = 140
+          Top = 4
+          Width = 110
+          Height = 21
+          Caption = 'Network'
+          TabOrder = 1
+        end
+      end
+    end
     object CardPing: TPanel
       Left = 436
       Top = 16
@@ -406,7 +496,7 @@ object OptionsForm: TOptionsForm
   end
   object PnlButtons: TPanel
     Left = 0
-    Top = 442
+    Top = 578
     Width = 859
     Height = 56
     Align = alBottom
