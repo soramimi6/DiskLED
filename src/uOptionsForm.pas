@@ -105,7 +105,6 @@ implementation
 
 uses
   System.SysUtils,
-  Winapi.Windows,
   uAppStrings,
   uStartup,
   uPackaging,
