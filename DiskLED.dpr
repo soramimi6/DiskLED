@@ -31,6 +31,7 @@ uses
   uWindowPlacement in 'src\uWindowPlacement.pas',
   uDpiScale in 'src\uDpiScale.pas',
   uSettings in 'src\uSettings.pas',
+  uAppStyle in 'src\uAppStyle.pas',
   uStartup in 'src\uStartup.pas',
   uPackaging in 'src\uPackaging.pas',
   uUpdateCheck in 'src\uUpdateCheck.pas',
@@ -61,6 +62,11 @@ begin
   Application.MainFormOnTaskbar := False;
   Application.ShowMainForm := True;
   Application.Title := 'DiskLED';
+  { Must run before any form is created: a per-form StyleName override
+    (used by uMainForm/uThemedHudForm to opt out, and implicitly by
+    uOptionsForm to opt in) only has any effect once an app-wide custom
+    style is active -- see uAppStyle's header comment. }
+  ApplyAppStyle;
   { Strip APPWINDOW from Application before the main form is created. }
   SetWindowLong(Application.Handle, GWL_EXSTYLE,
     (GetWindowLong(Application.Handle, GWL_EXSTYLE) or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW));

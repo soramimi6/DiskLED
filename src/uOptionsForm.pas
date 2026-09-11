@@ -8,12 +8,17 @@ uses
   Vcl.Forms,
   Vcl.StdCtrls,
   Vcl.ExtCtrls,
+  Vcl.ComCtrls,
   Vcl.Graphics,
   uSettings;
 
 type
   TOptionsForm = class(TForm)
-    PnlContent: TPanel;
+    PageControl1: TPageControl;
+    TsGeneral: TTabSheet;
+    TsDisplay: TTabSheet;
+    TsTrayLed: TTabSheet;
+    TsPing: TTabSheet;
     CardWindow: TPanel;
     LblSecWindow: TLabel;
     ChkStayOnTop: TCheckBox;
@@ -75,7 +80,6 @@ type
     procedure BtnOkClick(Sender: TObject);
   private
     FSettings: TAppSettings;
-    procedure ApplyModernStyle;
     procedure ApplyCaptions;
     procedure LoadFromSettings;
     procedure SyncPingControlsEnabled;
@@ -99,12 +103,11 @@ implementation
 uses
   System.SysUtils,
   Winapi.Windows,
-  Vcl.Themes,
-  Vcl.Styles,
   uAppStrings,
   uStartup,
   uPackaging,
-  uMetricsTypes;
+  uMetricsTypes,
+  uDashboardTheme;
 
 const
   CDefaultFairMs = 200;
@@ -118,56 +121,17 @@ begin
   Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
 end;
 
-function StyleIsAvailable(const AName: string): Boolean;
-var
-  N: string;
-begin
-  for N in TStyleManager.StyleNames do
-    if SameText(N, AName) then
-      Exit(True);
-  Result := False;
-end;
-
-function LocateWindows10Style: string;
-var
-  Base, Candidate: string;
-  i: Integer;
-begin
-  Base := ExtractFilePath(ParamStr(0));
-  for i := 0 to 5 do
-  begin
-    Candidate := IncludeTrailingPathDelimiter(Base) + 'styles\Windows10.vsf';
-    if FileExists(Candidate) then
-      Exit(Candidate);
-    Base := ExpandFileName(IncludeTrailingPathDelimiter(Base) + '..');
-  end;
-  Result := '';
-end;
-
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
-  ApplyModernStyle;
+  { No StyleName of its own -- it inherits the app-wide custom style
+    uAppStyle activates at startup (see that unit's header comment), unlike
+    uMainForm/uThemedHudForm windows which opt out to keep their own
+    hand-painted look. Only the DWM dark/light title bar needs doing here
+    explicitly; DwmSetWindowAttribute is harmless to call even under the
+    light style since it only darkens the frame when SystemUsesLightTheme
+    is False. Accessing Handle forces the window handle to exist. }
+  ApplyHudTitleBar(Handle);
   SyncPingControlsEnabled;
-end;
-
-procedure TOptionsForm.ApplyModernStyle;
-const
-  CStyleName = 'Windows10';
-var
-  Path: string;
-begin
-  { Per-form style only — MainForm stays unstyled (custom skin window). }
-  if not StyleIsAvailable(CStyleName) then
-  begin
-    Path := LocateWindows10Style;
-    if Path <> '' then
-    try
-      TStyleManager.LoadFromFile(Path);
-    except
-    end;
-  end;
-  if StyleIsAvailable(CStyleName) then
-    StyleName := CStyleName;
 end;
 
 procedure TOptionsForm.BindSettings(ASettings: TAppSettings);
@@ -180,6 +144,10 @@ end;
 procedure TOptionsForm.ApplyCaptions;
 begin
   Caption := S('opt.title');
+  TsGeneral.Caption := S('opt.tab.general');
+  TsDisplay.Caption := S('opt.tab.display');
+  TsTrayLed.Caption := S('opt.tab.tray_led');
+  TsPing.Caption := S('opt.tab.ping');
   LblSecWindow.Caption := S('opt.group.window');
   LblLanguage.Caption := S('opt.language');
   LblLanguageHint.Caption := S('opt.language_restart_hint');

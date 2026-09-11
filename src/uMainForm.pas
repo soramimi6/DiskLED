@@ -160,6 +160,7 @@ type
     procedure WMSysCommand(var Message: TWMSysCommand); message WM_SYSCOMMAND;
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
     procedure WMDisplayChange(var Message: TMessage); message WM_DISPLAYCHANGE;
+    procedure WMSettingChange(var Message: TWMSettingChange); message WM_SETTINGCHANGE;
     procedure WMMoving(var Message: TMessage); message WM_MOVING;
     procedure WMExitSizeMove(var Message: TMessage); message WM_EXITSIZEMOVE;
     procedure WMEnterSizeMove(var Message: TMessage); message WM_ENTERSIZEMOVE;
@@ -211,6 +212,7 @@ uses
   System.Win.ComObj,
   Winapi.ShlObj,
   uAppStrings,
+  uAppStyle,
   uDisplayModes,
   uGraphRenderer,
   uOptionsForm,
@@ -305,6 +307,10 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
+  { This window paints its own skin entirely -- opt out of the app-wide
+    custom style uAppStyle activates at startup (see uAppStyle's header
+    comment). 'Windows' is VCL's built-in name for "no custom style". }
+  StyleName := 'Windows';
   DoubleBuffered := True;
   Scaled := False;
   FReadyToPersist := False;
@@ -1691,6 +1697,23 @@ begin
   ApplyWindowBounds;
   PersistSettings;
   inherited;
+end;
+
+procedure TMainForm.WMSettingChange(var Message: TWMSettingChange);
+begin
+  inherited;
+  { A live OS light/dark switch: re-activate the app-wide VCL style to match
+    (see uAppStyle's header comment). This form itself opts out via
+    StyleName := 'Windows' in FormCreate, so it is unaffected either way;
+    this only exists so windows like TOptionsForm -- which set no StyleName
+    of their own -- follow the OS setting without needing to be reopened.
+    Handled here rather than per-window because WM_SETTINGCHANGE is
+    broadcast to every top-level window and this form always exists for
+    the lifetime of the app, unlike Options/Dashboard/Ping which may not be
+    open when the switch happens. }
+  if (Message.Section <> nil) and
+    SameText(string(Message.Section), 'ImmersiveColorSet') then
+    ApplyAppStyle;
 end;
 
 procedure TMainForm.WMMoving(var Message: TMessage);
