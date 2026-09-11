@@ -684,7 +684,7 @@ var
   Bar: TRect;
   Level: Double;
   Y, LineH, LabelW, H, M, Mid, Gap, BarH, BarY, BarLeft, ChanW, RowGap: Integer;
-  NameY, NameH, NameW, MaxNameW, LblY, InnerTop, InnerBot, BlockH: Integer;
+  NameY, NameH, NameW, MaxNameW, LblY, InnerTop, InnerBot, BlockH, TitleH: Integer;
   LeftR, RightR: TRect;
 begin
   ACanvas.Brush.Color := APalette.Bg;
@@ -708,6 +708,7 @@ begin
     UpperCase(AHeading));
   ACanvas.TextOut(RightR.Left + AMetrics.Margin, RightR.Top + Dip(AMetrics, 8),
     UpperCase(AVolHeading));
+  TitleH := ACanvas.TextHeight('Ag');
 
   if ASnap.PowerAc then
     Src := AAcLbl
@@ -730,14 +731,15 @@ begin
 
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.BodySize;
-  LineH := ACanvas.TextHeight('Ag') + Dip(AMetrics, 18);
+  RowGap := Dip(AMetrics, 9);
+  LineH := ACanvas.TextHeight('Ag') + RowGap;
   LabelW := ACanvas.TextWidth(ARemainLbl);
   if ACanvas.TextWidth(ASourceLbl) > LabelW then
     LabelW := ACanvas.TextWidth(ASourceLbl);
   if ACanvas.TextWidth(ABattLbl) > LabelW then
     LabelW := ACanvas.TextWidth(ABattLbl);
   Inc(LabelW, Dip(AMetrics, 12));
-  Y := LeftR.Top + Dip(AMetrics, 44);
+  Y := LeftR.Top + Dip(AMetrics, 8) + TitleH + RowGap;
   TransparentText(ACanvas);
   ACanvas.Font.Color := APalette.TextMuted;
   ACanvas.TextOut(LeftR.Left + AMetrics.Margin, Y, ASourceLbl);
