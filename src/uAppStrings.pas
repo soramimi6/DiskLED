@@ -57,7 +57,9 @@ begin
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
-  AddStr('menu.tray', 'タスクトレイ', 'Task Tray');
+  AddStr('menu.window_only', 'ウィンドウのみ', 'Window Only');
+  AddStr('menu.window_tray_led', 'ウィンドウ＋トレイ LED', 'Window + Tray LED');
+  AddStr('menu.tray_only', 'トレイ LED のみ', 'Tray LED Only');
   AddStr('menu.scale', '表示倍率', 'Display Scale');
   AddStr('menu.scale_auto', '自動', 'Auto');
   AddStr('menu.exit', '終了', 'Exit');

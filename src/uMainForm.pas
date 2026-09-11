@@ -88,7 +88,9 @@ type
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
     FClosing: Boolean;
-    FMiTray: TMenuItem;
+    FMiWindowOnly: TMenuItem;
+    FMiWindowTrayLed: TMenuItem;
+    FMiTrayOnly: TMenuItem;
     FMiScale: TMenuItem;
     FTrayOffIcon: TIcon;
     FTrayOnIcon: TIcon;
@@ -117,10 +119,13 @@ type
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
     procedure miFullClick(Sender: TObject);
-    procedure miTrayClick(Sender: TObject);
+    procedure miWindowOnlyClick(Sender: TObject);
+    procedure miWindowTrayLedClick(Sender: TObject);
+    procedure miTrayOnlyClick(Sender: TObject);
     procedure miScaleClick(Sender: TObject);
-    procedure EnterTraySize;
-    procedure LeaveTraySize;
+    procedure SetWindowTrayState(AHidden, ALed: Boolean);
+    procedure EnterTrayOnly;
+    procedure LeaveTrayOnly;
     procedure ReloadTrayIcons;
     procedure UpdateTrayLed(AOn: Boolean);
     procedure ResetTrayToAppIcon;
@@ -234,8 +239,8 @@ begin
     process's own logic knows which one applies right now. }
   if (FActivateMsg <> 0) and (Message.Msg = FActivateMsg) then
   begin
-    if (FSettings <> nil) and FSettings.TraySize then
-      LeaveTraySize
+    if (FSettings <> nil) and FSettings.WindowHidden then
+      LeaveTrayOnly
     else
       BringWindowForward;
     Message.Result := 0;
@@ -312,10 +317,10 @@ begin
   if not IsStorePackage then
     FSettings.Startup := TStartup.IsRegistered;
 
-  { Starting directly in tray size: Application.Run otherwise force-shows
+  { Starting with the window hidden: Application.Run otherwise force-shows
     the main form right after this method returns (FMainForm.Visible := True
     when ShowMainForm), regardless of the Visible this method leaves behind. }
-  if FSettings.TraySize then
+  if FSettings.WindowHidden then
     Application.ShowMainForm := False;
 
   try
@@ -610,12 +615,32 @@ begin
   FMiFull.OnClick := miFullClick;
   FPopup.Items.Add(FMiFull);
 
-  FMiTray := TMenuItem.Create(FPopup);
-  FMiTray.Caption := S('menu.tray');
-  FMiTray.RadioItem := True;
-  FMiTray.GroupIndex := 2;
-  FMiTray.OnClick := miTrayClick;
-  FPopup.Items.Add(FMiTray);
+  Sep := TMenuItem.Create(FPopup);
+  Sep.Caption := '-';
+  FPopup.Items.Add(Sep);
+
+  { Window visibility and the tray LED are an orthogonal 3-way exclusive
+    choice, independent of the Compact/Full size above (GroupIndex 2). }
+  FMiWindowOnly := TMenuItem.Create(FPopup);
+  FMiWindowOnly.Caption := S('menu.window_only');
+  FMiWindowOnly.RadioItem := True;
+  FMiWindowOnly.GroupIndex := 4;
+  FMiWindowOnly.OnClick := miWindowOnlyClick;
+  FPopup.Items.Add(FMiWindowOnly);
+
+  FMiWindowTrayLed := TMenuItem.Create(FPopup);
+  FMiWindowTrayLed.Caption := S('menu.window_tray_led');
+  FMiWindowTrayLed.RadioItem := True;
+  FMiWindowTrayLed.GroupIndex := 4;
+  FMiWindowTrayLed.OnClick := miWindowTrayLedClick;
+  FPopup.Items.Add(FMiWindowTrayLed);
+
+  FMiTrayOnly := TMenuItem.Create(FPopup);
+  FMiTrayOnly.Caption := S('menu.tray_only');
+  FMiTrayOnly.RadioItem := True;
+  FMiTrayOnly.GroupIndex := 4;
+  FMiTrayOnly.OnClick := miTrayOnlyClick;
+  FPopup.Items.Add(FMiTrayOnly);
 
   FMiScale := TMenuItem.Create(FPopup);
   FMiScale.Caption := S('menu.scale');
@@ -834,17 +859,12 @@ end;
 procedure TMainForm.SetCompactView(ACompact: Boolean);
 var
   KeepLeft, KeepTop: Integer;
-  WasTray: Boolean;
 begin
   if FSettings = nil then
     Exit;
   if (not ACompact) and (not FHasFull) then
     ACompact := True;
-  { Also the tray-size exit path: switching to a specific compact/full size
-    always leaves tray size, even if ACompact happens to match the value
-    already stored (the value kept as the tray's restore target). }
-  WasTray := FSettings.TraySize;
-  if (FSettings.Compact = ACompact) and (not WasTray) then
+  if FSettings.Compact = ACompact then
   begin
     SyncViewMenu;
     Exit;
@@ -852,12 +872,6 @@ begin
   KeepLeft := Left;
   KeepTop := Top;
   FSettings.Compact := ACompact;
-  if WasTray then
-  begin
-    FSettings.TraySize := False;
-    ResetTrayToAppIcon;
-    Visible := True;
-  end;
   ApplyViewSize;
   SetBounds(KeepLeft, KeepTop, Width, Height);
   ApplyWindowBounds;
@@ -866,8 +880,6 @@ begin
   Render;
   Invalidate;
   FHasFp := False;
-  if WasTray then
-    BringWindowForward;
 end;
 
 procedure TMainForm.ApplyWindowBounds;
@@ -898,20 +910,29 @@ end;
 
 procedure TMainForm.SyncViewMenu;
 var
-  InFull: Boolean;
-  InTray: Boolean;
+  InFull, Hidden, Led: Boolean;
 begin
   if (FMiCompact = nil) or (FMiFull = nil) then
     Exit;
-  { Compact layout always exists; Full only when [ModeFull] is defined. }
+  { Compact layout always exists; Full only when [ModeFull] is defined.
+    Size is independent of window/tray visibility, so it reflects the saved
+    preference regardless of Hidden/Led. }
   FMiCompact.Enabled := True;
   FMiFull.Enabled := FHasFull;
-  InTray := (FSettings <> nil) and FSettings.TraySize;
-  InFull := (not InTray) and UsingFullView;
-  FMiCompact.Checked := (not InTray) and (not InFull);
+  InFull := UsingFullView;
+  FMiCompact.Checked := not InFull;
   FMiFull.Checked := InFull;
-  if FMiTray <> nil then
-    FMiTray.Checked := InTray;
+
+  Hidden := (FSettings <> nil) and FSettings.WindowHidden;
+  Led := (FSettings <> nil) and FSettings.TrayLed;
+  if FMiWindowOnly <> nil then
+    FMiWindowOnly.Checked := (not Hidden) and (not Led);
+  if FMiWindowTrayLed <> nil then
+    FMiWindowTrayLed.Checked := (not Hidden) and Led;
+  if FMiTrayOnly <> nil then
+    { Hidden implies Led (Normalize enforces it), so Hidden alone identifies
+      this choice. }
+    FMiTrayOnly.Checked := Hidden;
   SyncScaleMenu;
 end;
 
@@ -1039,9 +1060,11 @@ begin
     end;
   end;
 
-  if (FSettings <> nil) and FSettings.TraySize then
-    UpdateTrayLed(FPipeline.State.DiskRWOn)
-  else
+  { Window rendering and the tray LED are independent now: either, both, or
+    (checked at the settings layer) neither can be active at once. }
+  if (FSettings <> nil) and FSettings.TrayLed then
+    UpdateTrayLed(FPipeline.State.DiskRWOn);
+  if (FSettings = nil) or (not FSettings.WindowHidden) then
   begin
     if UsingFullView then
       GraphKey := FGraphGen
@@ -1090,9 +1113,19 @@ begin
   SetCompactView(False);
 end;
 
-procedure TMainForm.miTrayClick(Sender: TObject);
+procedure TMainForm.miWindowOnlyClick(Sender: TObject);
 begin
-  EnterTraySize;
+  SetWindowTrayState(False, False);
+end;
+
+procedure TMainForm.miWindowTrayLedClick(Sender: TObject);
+begin
+  SetWindowTrayState(False, True);
+end;
+
+procedure TMainForm.miTrayOnlyClick(Sender: TObject);
+begin
+  EnterTrayOnly;
 end;
 
 procedure TMainForm.miScaleClick(Sender: TObject);
@@ -1201,8 +1234,8 @@ begin
   if (Src <> nil) and (not Src.Empty) then
     FTray.Icon := Src
   else
-    { [Tray] missing or icon failed to load: fixed app icon, no LED, but
-      tray size stays selectable per the plan's fallback decision. }
+    { [Tray] missing or icon failed to load: fall back to the fixed app icon
+      instead of leaving a stale or blank tray icon. }
     ResetTrayToAppIcon;
   FTrayLedOn := AOn;
   FHasTrayLedState := True;
@@ -1210,40 +1243,57 @@ end;
 
 procedure TMainForm.RefreshTrayIconForState;
 begin
-  { Shared by EnterTraySize, and by ApplyMode/WMDpiChanged for a mode or DPI
-    change while already tray-sized: reload the Off/On icons for whatever is
-    current, then re-apply the LED for the live disk state. }
-  if (FSettings = nil) or (not FSettings.TraySize) then
+  { Shared by SetWindowTrayState, and by ApplyMode/WMDpiChanged for a mode or
+    DPI change while the LED is showing: reload the Off/On icons for whatever
+    skin is current, then re-apply the LED for the live disk state. When the
+    LED is off, fall back to the fixed app icon instead. }
+  if FSettings = nil then
     Exit;
+  if not FSettings.TrayLed then
+  begin
+    ResetTrayToAppIcon;
+    Exit;
+  end;
   ReloadTrayIcons;
   FHasTrayLedState := False;
   if FPipeline <> nil then
     UpdateTrayLed(FPipeline.State.DiskRWOn);
 end;
 
-procedure TMainForm.EnterTraySize;
+procedure TMainForm.SetWindowTrayState(AHidden, ALed: Boolean);
 begin
   if FSettings = nil then
     Exit;
-  if not FSettings.TraySize then
+  if (FSettings.WindowHidden = AHidden) and (FSettings.TrayLed = ALed) then
   begin
-    FSettings.TraySize := True;
-    Visible := False;
-    PersistSettings;
     SyncViewMenu;
+    Exit;
   end;
+  FSettings.WindowHidden := AHidden;
+  FSettings.TrayLed := ALed;
+  Visible := not AHidden;
+  PersistSettings;
+  SyncViewMenu;
   RefreshTrayIconForState;
+  if not AHidden then
+    BringWindowForward;
 end;
 
-procedure TMainForm.LeaveTraySize;
+procedure TMainForm.EnterTrayOnly;
 begin
-  { SetCompactView already restores whichever compact/full FSettings.Compact
-    holds and leaves tray size as part of that; keep this as the "restore to
-    the last remembered size" entry point used by dblclick, second-instance
-    activation, and the reset-position menu item. }
-  if (FSettings = nil) or (not FSettings.TraySize) then
+  SetWindowTrayState(True, True);
+end;
+
+procedure TMainForm.LeaveTrayOnly;
+begin
+  { The "restore to a visible window" entry point used by dblclick,
+    second-instance activation, and the reset-position menu item. Drops the
+    tray LED too, matching what a plain double-click restored before the LED
+    could be kept alongside a visible window; pick "Window + Tray LED" from
+    the menu to keep it showing. }
+  if (FSettings = nil) or (not FSettings.WindowHidden) then
     Exit;
-  SetCompactView(FSettings.Compact);
+  SetWindowTrayState(False, False);
 end;
 
 procedure TMainForm.miPingResultClick(Sender: TObject);
@@ -1263,16 +1313,16 @@ begin
 
   { The dashboard is a separate top-level window with its own saved position;
     bring it back too, whatever we do with the gadget below. Every path out of
-    this handler reaches PersistSettings (directly, or via LeaveTraySize ->
-    SetCompactView), which persists the dashboard rect, so no explicit save. }
+    this handler reaches PersistSettings (directly, or via LeaveTrayOnly ->
+    SetWindowTrayState), which persists the dashboard rect, so no explicit save. }
   if FDashboardForm <> nil then
     FDashboardForm.ClampIntoView;
 
-  { Reachable during tray size too (same popup) - leave tray size first so
-    Visible and FSettings.TraySize don't end up disagreeing. }
-  if (FSettings <> nil) and FSettings.TraySize then
+  { Reachable while tray-only too (same popup) - show the window first so
+    Visible and FSettings.WindowHidden don't end up disagreeing. }
+  if (FSettings <> nil) and FSettings.WindowHidden then
   begin
-    LeaveTraySize;
+    LeaveTrayOnly;
     Exit;
   end;
   ApplyWindowBounds;
@@ -1442,8 +1492,8 @@ end;
 
 procedure TMainForm.TrayDblClick(Sender: TObject);
 begin
-  if (FSettings <> nil) and FSettings.TraySize then
-    LeaveTraySize
+  if (FSettings <> nil) and FSettings.WindowHidden then
+    LeaveTrayOnly
   else
     BringWindowForward;
 end;

@@ -20,7 +20,8 @@ type
     FScale: Integer;
     FLanguage: string;
     FCompact: Boolean;
-    FTraySize: Boolean;
+    FWindowHidden: Boolean;
+    FTrayLed: Boolean;
     FGraphRateHz: Double;
     FSpeedScale: TSpeedScale;
     FPingEnabled: Boolean;
@@ -68,10 +69,17 @@ type
     { UI language preference: 'auto' (follow OS), 'ja', or 'en'. Applied only
       at startup (see uAppStrings.InitAppLanguage); a change needs a restart. }
     property Language: string read FLanguage write FLanguage;
-    { Last non-tray choice; kept updated even while TraySize is active so
-      the tray double-click / next-launch restore has a target. }
+    { Window size preference (compact/full), independent of WindowHidden. }
     property Compact: Boolean read FCompact write FCompact;
-    property TraySize: Boolean read FTraySize write FTraySize;
+    { Main window hidden (tray-only display). Orthogonal to TrayLed: the
+      window can be hidden with the LED on ("tray LED only"), but not hidden
+      with the LED off (Normalize forces TrayLed := True whenever this is
+      True — there would be nothing left to show). }
+    property WindowHidden: Boolean read FWindowHidden write FWindowHidden;
+    { Tray icon shows the disk-activity LED instead of the fixed app icon.
+      Independent of WindowHidden: the window can stay visible while the
+      tray also shows the LED ("window + tray LED"). }
+    property TrayLed: Boolean read FTrayLed write FTrayLed;
     property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
     property SpeedScale: TSpeedScale read FSpeedScale write FSpeedScale;
     property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
@@ -195,7 +203,8 @@ begin
   FScale := 0;
   FLanguage := 'auto';
   FCompact := True;
-  FTraySize := False;
+  FWindowHidden := False;
+  FTrayLed := False;
   FGraphRateHz := 1.0;
   FSpeedScale := ssLinear;
   FPingEnabled := True;
@@ -266,6 +275,9 @@ begin
     FPingTimeoutMs := FPingSlowMs + 1;
   if Trim(FMode) = '' then
     FMode := 'original';
+  { A hidden window with no tray LED would leave nothing on screen at all. }
+  if FWindowHidden then
+    FTrayLed := True;
   { Dashboard size/pos are 96dpi DIP. Clamp leftover physical pixels from
     earlier PMv2 builds that stored window pixels instead of DIP. }
   if FDashboardW > 3840 then
@@ -302,20 +314,26 @@ begin
     FScale := Ini.ReadInteger('General', 'Scale', FScale);
     FLanguage := Ini.ReadString('General', 'Language', FLanguage);
     FCompact := Ini.ReadBool('View', 'Compact', FCompact);
-    { Size is the current key; Compact above is read first as the legacy
-      fallback for files written by versions before the tray size existed. }
+    { Size is the legacy (3.1.1) exclusive key; Compact above is read first
+      as the fallback for files written before it existed. WindowHidden/
+      TrayLed are the current orthogonal pair (3.2.0), read only when Size
+      is absent so files already migrated aren't pulled back by a stale key. }
     SizeStr := Trim(Ini.ReadString('View', 'Size', ''));
-    if SizeStr = '' then
-      FTraySize := False
-    else
+    if SizeStr <> '' then
     begin
-      FTraySize := SameText(SizeStr, 'tray');
+      FWindowHidden := SameText(SizeStr, 'tray');
+      FTrayLed := FWindowHidden;
       if SameText(SizeStr, 'full') then
         FCompact := False
       else if SameText(SizeStr, 'compact') then
         FCompact := True;
       { SizeStr = 'tray': FCompact keeps the legacy value read above, which
-        is the compact/full state to restore when leaving the tray. }
+        is the compact/full state to restore when the window is shown again. }
+    end
+    else
+    begin
+      FWindowHidden := Ini.ReadBool('View', 'WindowHidden', FWindowHidden);
+      FTrayLed := Ini.ReadBool('Tray', 'Led', FTrayLed);
     end;
     FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
     if SameText(Trim(Ini.ReadString('View', 'SpeedScale', 'linear')), 'log') then
@@ -371,12 +389,12 @@ begin
     Ini.WriteInteger('General', 'Scale', FScale);
     Ini.WriteString('General', 'Language', FLanguage);
     Ini.WriteBool('View', 'Compact', FCompact);
-    if FTraySize then
-      Ini.WriteString('View', 'Size', 'tray')
-    else if FCompact then
-      Ini.WriteString('View', 'Size', 'compact')
-    else
-      Ini.WriteString('View', 'Size', 'full');
+    Ini.WriteBool('View', 'WindowHidden', FWindowHidden);
+    { Delete the legacy exclusive key: once this file is saved under the new
+      orthogonal schema, a leftover Size=tray/compact/full would keep Load's
+      migration branch active forever and shadow WindowHidden/TrayLed. }
+    Ini.DeleteKey('View', 'Size');
+    Ini.WriteBool('Tray', 'Led', FTrayLed);
     Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
     if FSpeedScale = ssLog then
       Ini.WriteString('View', 'SpeedScale', 'log')
