@@ -4,9 +4,9 @@
 
 事前検証（現行コード `src/` を確認済み）の結果は各項目に残してある。
 
-3.2.0 の対象は **1・3・4・5・6・7**（項目 2 は着手順から外した保留枠）。着手順は `7 → 1 → 3 → 4 → 5 → 6`。項目 7 は不具合修正のため最優先で着手する。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 6（asset-editor）は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去後に確定するため 5 の後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
+3.2.0 の対象は **1・3・4・5・6・7・8**（項目 2 は着手順から外した保留枠）。着手順は `7 → 1 → 3 → 4 → 5 → 8 → 6`。項目 7 は不具合修正のため最優先で着手する。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 8（オプション画面の複数ページ化）は項目 5 でオプション画面の設定項目が増えた後、asset-editor（6）の前に片付ける。項目 6 は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去後に確定するため最後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・3・4・5・7 が完了**（項目 4 は Disk/Net カードの DPI 確認のみ残る、表の「ステータス」列参照）。残るは項目 6（asset-editor、設計判断を確定済み・実装未着手）のみ。項目 2 は保留。
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・3・4・5・7・8 が完了**（項目 4 は Disk/Net カードの DPI 確認のみ残る、表の「ステータス」列参照）。残るは項目 6（asset-editor、設計判断を確定済み・実装未着手）のみ。項目 2 は保留。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -17,6 +17,7 @@
 | 5 | タスクトレイの独立化・LED 情報拡張（5a+5b+ディスク/ネット同時表示。ドライブ別・多段階色は別枠） | 高（設定モデルは既に分離済み・LED ソースも既存） | 中（メニュー再構成／`[Tray]` 撤去／トレイ素材 12 icon） | **完了**（`feature/3.2.0`、IDE ビルド・実機確認済み。5a/5b/5c すべて実装済み） | 中 |
 | 6 | asset-editor（ブラウザ版スキン編集ツール、3.2.0 で完成版） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジン移植＋テキスト/GUI 両編集の同期＋バリデーション。Delphi と JS の 2 重実装が恒久コスト） | **設計済・未着手**（スコープ確定。項目 5 の `[Tray]` 撤去後に layout.cfg 形式が固まる前提） | 中〜低（工数は大、必須度は中〜低） |
 | 7 | ダッシュボードの最小ウィンドウサイズをDPIスケール・画面サイズに追従させる（不具合修正） | 高（原因箇所を特定済み） | 低〜中（最小サイズ算出ロジックの変更＋ワークエリアクランプの配線） | **完了**（`feature/3.2.0`、IDE ビルド検証済。200%/150% での縮小・モニター間移動・ini 復元・1000×800 DIP 緩和後のクリッピング無しを実機確認済み。電源カードの縦間隔詰めも同ブランチで実施・確認済み） | 最優先（不具合修正） |
+| 8 | オプション画面を複数ページ化し、OS のライト/ダーク設定に追従させる | 高（標準 VCL 部品のみで実現） | 低〜中（`TPageControl`/`TTabSheet` への再配置＋アプリ全体への VCL スタイル適用） | **完了**（`feature/3.2.0`、IDE ビルド・実機確認済み。既存コントロールの再配置のみでロジック変更なし。ライト/ダーク切替のライブ追従を含め動作確認済み） | 中 |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
@@ -262,3 +263,35 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 - `public_docs/SKIN_GUIDE.md` JA+EN ＋ `docs/MAINTAINING-PUBLIC-DOCS.md` 更新
 - `docs/CONTRIBUTING.md` に「`uSkinLoader.pas` 変更時は asset-editor の JS を追従」を追記
 - 仕上げ: 開発者が実スキン作業でドッグフーディングし、出た不足を潰す
+
+## 8. オプション画面を複数ページ化し、OS のライト/ダーク設定に追従させる（完了）
+
+オプション画面（`TOptionsForm`）を、今後も設定項目が増える前提で `TPageControl`/`TTabSheet` による複数ページ構成へ再配置し、あわせて OS のライト/ダーク設定にも追従させる。既存の設定・iniキー・検証ロジックは一切変更せず、既存のネイティブコントロール（`TPanel`/`TCheckBox`/`TRadioButton`/`TEdit` 等）をページ間で再配置するだけに留める。
+
+### スコープ確定事項
+
+- **独自描画のコントロール刷新はしない**。ダッシュボード/Ping結果画面（`TThemedHudForm` 系）のような GDI+ 自家描画への刷新はせず、標準 VCL 部品（`TPageControl`/`TTabSheet` と既存のネイティブコントロール）のみで実現する。
+- **ページ構成は既存の6枚のカードパネルをそのまま4ページへ集約**: 全般（`CardWindow`）／表示（`CardFps`+`CardScale`）／トレイ LED（`CardTrayLed`）／Ping・ネットワーク（`CardPing`、`CardThresholds` を含む）。カード内のコントロール構成・`TAppSettings` とのバインディングは無変更。
+- **配色は「独自パレット」ではなく Delphi 標準の VCL スタイル機能を使う**。プロジェクトに同梱済みの `Windows10`/`Windows10 Dark` スタイル（`styles/Windows10.vsf`／`styles/Windows10Dark.vsf`）を、`uDashboardTheme.SystemUsesLightTheme`（既存、`AppsUseLightTheme` レジストリ値を読む）に応じて選択する。
+
+### 技術的な裏付け（RAD Studio 37.0 の VCL ソース `source\vcl\Vcl.Controls.pas`/`Vcl.Themes.pas`/`Vcl.ExtCtrls.pas` を確認済み）
+
+- **VCL スタイルはフォーム単位の `StyleName` だけでは効かない**。`TControl.IsCustomStyleActive` はクラス変数 `TStyleManager.IsCustomStyleActive`（`ActiveStyle <> SystemStyle` のときのみ True）を先に見てから、フォーム自身の `StyleName` を参照する。`TStyleManager.SetStyle`/`TrySetStyle` で**アプリ全体に一度スタイルを有効化していないと**、個々のフォームの `StyleName` は常に無視される。本プロジェクトは元々これを一度も呼んでいなかった。
+- `TStyleManager.SetStyle`（`Vcl.Themes.pas`、`TStyleManager.SetStyle(Style: TCustomStyleServices)`）はスタイルが実際に変わったとき、開いている全フォームへ `CM_CUSTOMSTYLECHANGED` を送る。これにより **アプリ全体のスタイルを切り替えるだけで、開いている該当フォームが自動的に再描画される**（フォームを開き直す必要が無い）。
+- `TPanelStyleHook`（`Vcl.ExtCtrls.pas`）によるパネル背景の自家描画は、`TCustomPanel.ParentBackground = True` のときのみ働く。オプション画面の全カードパネルはこれに合わせて `ParentBackground := True` にした（[uOptionsForm.dfm](../src/uOptionsForm.dfm) 内 8 箇所）。
+
+### 実装内容
+
+1. [uOptionsForm.dfm](../src/uOptionsForm.dfm): `PageControl1: TPageControl`（[:18](../src/uOptionsForm.dfm#L18)、`Align = alClient`）配下に `TsGeneral`/`TsDisplay`/`TsTrayLed`/`TsPing`（[:26,125,267,352](../src/uOptionsForm.dfm#L26)）の4 `TTabSheet` を配置し、既存のカードパネルをその子として再配置（ロジック変更なし）。ダイアログサイズを `ClientHeight=470`／`ClientWidth=460`（[:7-8](../src/uOptionsForm.dfm#L7)、旧 634×859 の単一ページ2カラムから変更）。デザイン時にキャプションが空欄でメンテナンスしづらくならないよう、各 `TTabSheet` に他ラベルと同じ流儀の英語 `Caption` を設定（`General`/`Display`/`Tray LED`/`Ping && Network`。`&` は VCL のアクセラレータマーカーのため `&&` でエスケープ、[uAppStrings.pas:94-96](../src/uAppStrings.pas#L94-L96)）。カードパネル 8 箇所の `ParentBackground` を `False`→`True` に変更。
+2. [uOptionsForm.pas](../src/uOptionsForm.pas): `TOptionsForm` は引き続きプレーンな `TForm`（独自描画基底クラスへの変更はしない）。`ApplyCaptions`（[:144](../src/uOptionsForm.pas#L144)）の先頭にタブキャプションの多言語適用（`TsGeneral.Caption := S('opt.tab.general')` 等）を追加（[:147-150](../src/uOptionsForm.pas#L147)）。文字列キー4件を [uAppStrings.pas:91-96](../src/uAppStrings.pas#L91) に追加。フォーム自身に `StyleName` は設定せず、後述の `uAppStyle` によるアプリ全体スタイルをそのまま継承する。
+3. 新規ユニット [uAppStyle.pas](../src/uAppStyle.pas): `ApplyAppStyle` が `SystemUsesLightTheme` に応じて `styles/Windows10.vsf`／`Windows10Dark.vsf` を読み込み、`TStyleManager.TrySetStyle`（[:136](../src/uAppStyle.pas#L136)）でアプリ全体へ適用する。`.vsf` の内部登録名はファイル名と一致する保証が無いため、`TStyleManager.StyleNames` の読み込み前後差分で実際の名前を検出する（`LoadStyleFileName`、[:73-104](../src/uAppStyle.pas#L73)）。検出結果はライト/ダーク双方をユニット変数（[:49-50](../src/uAppStyle.pas#L49)）にキャッシュし、2回目以降の呼び出し（後述のライブ切替）でも正しい名前を再利用する。[DiskLED.dpr:69](../DiskLED.dpr#L69) で最初のフォーム生成前に一度呼ぶ。
+4. **自家描画ウィンドウの除外**: メイン画面（`TMainForm`）・ダッシュボード/Ping結果画面（`TThemedHudForm` 系）はアプリ全体スタイルの対象から外す必要がある（対象のままだとネイティブ子コントロールが再スキンされ、既存の自家描画パレットと衝突する）。`StyleName := 'Windows'`（VCL 組み込みの「スタイル無し」の名前）をそれぞれの生成時に設定: [uMainForm.pas:311](../src/uMainForm.pas#L311)（`FormCreate`）、[uThemedHudForm.pas:49](../src/uThemedHudForm.pas#L49)（`CreateWnd`、ダッシュボード・Ping結果画面が共有する基底クラス）。
+5. **ライブなライト/ダーク切替への追従**: `TStyleManager.SetStyle` は呼び出し時点で開いているフォームへ再描画通知を送るのみで、OS 設定がアプリ起動後に切り替わったときに自動で再度呼ばれるわけではない。アプリ生存中は常に存在する `TMainForm` に `WM_SETTINGCHANGE` ハンドラを追加し（[uMainForm.pas:163,1702-1717](../src/uMainForm.pas#L1702)）、`ImmersiveColorSet` セクションの変更（ダッシュボード/Ping結果画面が自身のパレット追従に使っているのと同じ通知、[uThemedHudForm.pas:53-59](../src/uThemedHudForm.pas#L53)）を受けたら `ApplyAppStyle` を呼び直す。
+
+### 実機で見たこと（確認済み）
+
+- オプション画面が全般／表示／トレイ LED／Ping・ネットワークの4タブに分かれ、既存の全設定項目が過不足なく操作できる。
+- OS のライト/ダーク設定に応じてオプション画面の配色（パネル背景含む）が切り替わる。
+- アプリ起動中に OS 設定をライト⇔ダークへ切り替えると、オプション画面を開いたままでも、開いていなくても次回表示時に正しく追従する。
+- メイン画面（ガジェット本体）・ダッシュボード・Ping結果画面は、切り替え前後とも見た目に変化がない（`StyleName := 'Windows'` による除外が機能している）。
+- Delphi IDE 上でタブキャプションが空欄にならず、他ラベルと同じ感覚でメンテナンスできる。
