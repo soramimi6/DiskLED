@@ -253,7 +253,7 @@ begin
 end;
 
 { Minimum window size in physical pixels, per axis independently:
-  1) ideal 1000x900 DIP scaled to the current DPI, then
+  1) ideal 1000x800 DIP scaled to the current DPI, then
   2) shrunk to the target monitor's work area if it would not fit (this is the
      bug fix — a fixed DIP*DPI floor made the dashboard unshrinkable below the
      screen at 150/200%), but never
@@ -266,7 +266,7 @@ var
   FloorW, FloorH, WorkW, WorkH: Integer;
 begin
   AMinW := ScalePx(1000, ADpi);
-  AMinH := ScalePx(900, ADpi);
+  AMinH := ScalePx(800, ADpi);
   WorkW := AWork.Right - AWork.Left;
   WorkH := AWork.Bottom - AWork.Top;
   if (WorkW > 0) and (AMinW > WorkW) then
