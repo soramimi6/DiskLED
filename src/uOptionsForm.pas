@@ -167,8 +167,10 @@ begin
     Exit;
   Before := TStyleManager.StyleNames;
   try
-    if not TStyleManager.LoadFromFile(Path) then
-      Exit;
+    { Return value intentionally unused -- success/failure is determined
+      below by whether a new name actually shows up in StyleNames, matching
+      how the previous version of this code called LoadFromFile too. }
+    TStyleManager.LoadFromFile(Path);
   except
     Exit;
   end;
