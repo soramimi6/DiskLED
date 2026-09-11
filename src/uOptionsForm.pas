@@ -8,12 +8,17 @@ uses
   Vcl.Forms,
   Vcl.StdCtrls,
   Vcl.ExtCtrls,
+  Vcl.ComCtrls,
   Vcl.Graphics,
   uSettings;
 
 type
   TOptionsForm = class(TForm)
-    PnlContent: TPanel;
+    PageControl1: TPageControl;
+    TsGeneral: TTabSheet;
+    TsDisplay: TTabSheet;
+    TsTrayLed: TTabSheet;
+    TsPing: TTabSheet;
     CardWindow: TPanel;
     LblSecWindow: TLabel;
     ChkStayOnTop: TCheckBox;
@@ -180,6 +185,10 @@ end;
 procedure TOptionsForm.ApplyCaptions;
 begin
   Caption := S('opt.title');
+  TsGeneral.Caption := S('opt.tab.general');
+  TsDisplay.Caption := S('opt.tab.display');
+  TsTrayLed.Caption := S('opt.tab.tray_led');
+  TsPing.Caption := S('opt.tab.ping');
   LblSecWindow.Caption := S('opt.group.window');
   LblLanguage.Caption := S('opt.language');
   LblLanguageHint.Caption := S('opt.language_restart_hint');

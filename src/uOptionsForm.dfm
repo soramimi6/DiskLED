@@ -4,8 +4,8 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 634
-  ClientWidth = 859
+  ClientHeight = 470
+  ClientWidth = 460
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -15,18 +15,16 @@ object OptionsForm: TOptionsForm
   Position = poScreenCenter
   OnCreate = FormCreate
   TextHeight = 15
-  object PnlContent: TPanel
+  object PageControl1: TPageControl
     Left = 0
     Top = 0
-    Width = 859
-    Height = 578
+    Width = 460
+    Height = 414
     Align = alClient
-    BevelOuter = bvNone
-    Color = 15921906
-    ParentBackground = False
     TabOrder = 0
+    object TsGeneral: TTabSheet
     object CardWindow: TPanel
-      Left = 20
+      Left = 16
       Top = 16
       Width = 400
       Height = 158
@@ -121,9 +119,11 @@ object OptionsForm: TOptionsForm
         TabOrder = 2
       end
     end
+    end
+    object TsDisplay: TTabSheet
     object CardFps: TPanel
-      Left = 20
-      Top = 186
+      Left = 16
+      Top = 16
       Width = 400
       Height = 128
       BevelOuter = bvNone
@@ -220,8 +220,8 @@ object OptionsForm: TOptionsForm
       end
     end
     object CardScale: TPanel
-      Left = 20
-      Top = 326
+      Left = 16
+      Top = 160
       Width = 400
       Height = 96
       BevelOuter = bvNone
@@ -260,9 +260,11 @@ object OptionsForm: TOptionsForm
         TabOrder = 1
       end
     end
+    end
+    object TsTrayLed: TTabSheet
     object CardTrayLed: TPanel
-      Left = 20
-      Top = 434
+      Left = 16
+      Top = 16
       Width = 400
       Height = 128
       BevelOuter = bvNone
@@ -342,8 +344,10 @@ object OptionsForm: TOptionsForm
         OnClick = ChkLedNetClick
       end
     end
+    end
+    object TsPing: TTabSheet
     object CardPing: TPanel
-      Left = 436
+      Left = 16
       Top = 16
       Width = 400
       Height = 328
@@ -485,11 +489,12 @@ object OptionsForm: TOptionsForm
         end
       end
     end
+    end
   end
   object PnlButtons: TPanel
     Left = 0
-    Top = 578
-    Width = 859
+    Top = 414
+    Width = 460
     Height = 56
     Align = alBottom
     BevelOuter = bvNone
@@ -499,15 +504,14 @@ object OptionsForm: TOptionsForm
     object ShpButtonTop: TShape
       Left = 0
       Top = 0
-      Width = 859
+      Width = 460
       Height = 1
       Align = alTop
       Pen.Color = 14211288
-      ExplicitWidth = 440
     end
     object BtnOk: TButton
-      Left = 632
-      Top = 7
+      Left = 256
+      Top = 12
       Width = 96
       Height = 32
       Caption = 'Apply'
@@ -516,8 +520,8 @@ object OptionsForm: TOptionsForm
       OnClick = BtnOkClick
     end
     object BtnCancel: TButton
-      Left = 748
-      Top = 7
+      Left = 360
+      Top = 12
       Width = 88
       Height = 32
       Cancel = True
