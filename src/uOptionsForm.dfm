@@ -23,6 +23,7 @@ object OptionsForm: TOptionsForm
     Align = alClient
     TabOrder = 0
     object TsGeneral: TTabSheet
+      Caption = 'General'
     object CardWindow: TPanel
       Left = 16
       Top = 16
@@ -121,6 +122,7 @@ object OptionsForm: TOptionsForm
     end
     end
     object TsDisplay: TTabSheet
+      Caption = 'Display'
     object CardFps: TPanel
       Left = 16
       Top = 16
@@ -262,6 +264,7 @@ object OptionsForm: TOptionsForm
     end
     end
     object TsTrayLed: TTabSheet
+      Caption = 'Tray LED'
     object CardTrayLed: TPanel
       Left = 16
       Top = 16
@@ -346,6 +349,7 @@ object OptionsForm: TOptionsForm
     end
     end
     object TsPing: TTabSheet
+      Caption = 'Ping && Network'
     object CardPing: TPanel
       Left = 16
       Top = 16

@@ -109,7 +109,8 @@ uses
   uAppStrings,
   uStartup,
   uPackaging,
-  uMetricsTypes;
+  uMetricsTypes,
+  uDashboardTheme;
 
 const
   CDefaultFairMs = 200;
@@ -133,7 +134,7 @@ begin
   Result := False;
 end;
 
-function LocateWindows10Style: string;
+function LocateStyleFile(const AFileName: string): string;
 var
   Base, Candidate: string;
   i: Integer;
@@ -141,7 +142,7 @@ begin
   Base := ExtractFilePath(ParamStr(0));
   for i := 0 to 5 do
   begin
-    Candidate := IncludeTrailingPathDelimiter(Base) + 'styles\Windows10.vsf';
+    Candidate := IncludeTrailingPathDelimiter(Base) + 'styles\' + AFileName;
     if FileExists(Candidate) then
       Exit(Candidate);
     Base := ExpandFileName(IncludeTrailingPathDelimiter(Base) + '..');
@@ -157,22 +158,48 @@ end;
 
 procedure TOptionsForm.ApplyModernStyle;
 const
-  CStyleName = 'Windows10';
+  CLightStyleName = 'Windows10';
+  CLightFileName = 'Windows10.vsf';
+  CDarkStyleName = 'Windows10 Dark';
+  CDarkFileName = 'Windows10Dark.vsf';
 var
-  Path: string;
+  TargetStyle, TargetFile, Path: string;
 begin
-  { Per-form style only — MainForm stays unstyled (custom skin window). }
-  if not StyleIsAvailable(CStyleName) then
+  { Per-form style only — MainForm stays unstyled (custom skin window).
+    Follows the OS light/dark setting the same way the dashboard/Ping
+    windows do (SystemUsesLightTheme), just through a stock VCL style
+    (Project Options > Appearance ships the same "Windows10 Dark" style)
+    instead of hand-painted controls. }
+  if SystemUsesLightTheme then
   begin
-    Path := LocateWindows10Style;
+    TargetStyle := CLightStyleName;
+    TargetFile := CLightFileName;
+  end
+  else
+  begin
+    TargetStyle := CDarkStyleName;
+    TargetFile := CDarkFileName;
+  end;
+
+  if not StyleIsAvailable(TargetStyle) then
+  begin
+    Path := LocateStyleFile(TargetFile);
     if Path <> '' then
     try
       TStyleManager.LoadFromFile(Path);
     except
     end;
   end;
-  if StyleIsAvailable(CStyleName) then
-    StyleName := CStyleName;
+  if StyleIsAvailable(TargetStyle) then
+    StyleName := TargetStyle
+  else if StyleIsAvailable(CLightStyleName) then
+    StyleName := CLightStyleName; { fall back to light if the dark style file is missing }
+
+  { Matches the dark/light title bar the dashboard/Ping windows already
+    apply; DwmSetWindowAttribute is harmless to call even under the light
+    style since it only darkens the frame when SystemUsesLightTheme is
+    False. Accessing Handle here forces the window handle to exist. }
+  ApplyHudTitleBar(Handle);
 end;
 
 procedure TOptionsForm.BindSettings(ASettings: TAppSettings);

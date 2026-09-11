@@ -91,7 +91,9 @@ begin
   AddStr('opt.tab.general', '全般', 'General');
   AddStr('opt.tab.display', '表示', 'Display');
   AddStr('opt.tab.tray_led', 'トレイ LED', 'Tray LED');
-  AddStr('opt.tab.ping', 'Ping・ネットワーク', 'Ping & Network');
+  { The && is a literal & once VCL strips the Caption accelerator marker
+    (TTabSheet.Caption, like any VCL Caption, treats a lone & specially). }
+  AddStr('opt.tab.ping', 'Ping・ネットワーク', 'Ping && Network');
   AddStr('opt.group.window', 'ウィンドウ', 'Window');
   AddStr('opt.language', '表示言語', 'Language');
   AddStr('opt.language_restart_hint',
