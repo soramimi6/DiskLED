@@ -66,6 +66,7 @@ type
     procedure ApplyDonutLevels;
     procedure ApplyTheme;
     procedure ApplyDpiChrome;
+    procedure ApplyDpiChromeFor(const AWork: TRect);
     procedure ApplySavedDipBounds;
     function CurrentWorkArea: TRect;
     procedure EffectiveMinSize(ADpi: Integer; const AWork: TRect;
@@ -127,8 +128,11 @@ begin
     FWindowDpi := MonitorDpiForWindow(0);
   if FWindowDpi < 1 then
     FWindowDpi := 96;
-  ApplyDpiChrome;
+  { Position before sizing the chrome: CurrentWorkArea falls back to
+    BoundsRect when there's no handle yet, so it only resolves the correct
+    (target) monitor once ApplySavedDipBounds has moved Left/Top there. }
   ApplySavedDipBounds;
+  ApplyDpiChrome;
 
   FHeaderPaint := TPaintBox.Create(Self);
   FHeaderPaint.Parent := Self;
@@ -249,7 +253,13 @@ begin
   if HandleAllocated then
     Result := WorkAreaForWindow(Handle)
   else
-    Result := WorkAreaForWindow(0);
+    { No HWND yet (e.g. during FormCreate, before ApplySavedDipBounds has
+      positioned the window): WorkAreaForWindow(0) would silently fall back
+      to the primary monitor regardless of where the window is about to
+      land. BoundsRect already reflects Left/Top/Width/Height as VCL
+      properties even without a handle, so resolve the monitor from that
+      instead -- correct as soon as the caller has set the target position. }
+    Result := WorkAreaForRect(BoundsRect);
 end;
 
 { Minimum window size in physical pixels, per axis independently:
@@ -295,13 +305,24 @@ begin
 end;
 
 procedure TDashboardForm.ApplyDpiChrome;
+begin
+  ApplyDpiChromeFor(CurrentWorkArea);
+end;
+
+{ Same as ApplyDpiChrome, but against a caller-supplied work area instead of
+  CurrentWorkArea. WMDpiChanged needs this: while handling the message the
+  window's HWND is still associated with the *old* monitor (SetBounds to the
+  suggested rect hasn't run yet), so CurrentWorkArea/WorkAreaForWindow(Handle)
+  would resolve the wrong screen -- the same reason it already uses
+  WorkAreaForRect(Suggested) for its own size clamp a few lines down. }
+procedure TDashboardForm.ApplyDpiChromeFor(const AWork: TRect);
 var
   Dpi, MinW, MinH: Integer;
   Met: THudMetrics;
 begin
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
-  EffectiveMinSize(Dpi, CurrentWorkArea, MinW, MinH);
+  EffectiveMinSize(Dpi, AWork, MinW, MinH);
   Constraints.MinWidth := MinW;
   Constraints.MinHeight := MinH;
   if FHeaderPaint <> nil then
@@ -410,17 +431,23 @@ begin
   FWindowDpi := LoWord(Message.WParam);
   if FWindowDpi < 1 then
     FWindowDpi := MonitorDpiForWindow(Handle);
-  ApplyDpiChrome;
   if Message.LParam <> 0 then
   begin
     Suggested := PRect(Message.LParam)^;
+    { Handle is still associated with the old monitor at this point (the
+      window hasn't moved yet), so size the chrome against the suggested
+      rect's monitor rather than CurrentWorkArea -- same reasoning as the
+      size clamp below, which already avoids WorkAreaForWindow(Handle). }
+    ApplyDpiChromeFor(WorkAreaForRect(Suggested));
     W := Suggested.Right - Suggested.Left;
     H := Suggested.Bottom - Suggested.Top;
     { The OS-suggested rect only preserves the DIP size; it can still overflow
       the new monitor's work area when moving to a higher scale. }
     ClampSizeToWorkArea(W, H, WorkAreaForRect(Suggested));
     SetBounds(Suggested.Left, Suggested.Top, W, H);
-  end;
+  end
+  else
+    ApplyDpiChrome;
   LayoutContent;
   ApplyTheme;
   Invalidate;

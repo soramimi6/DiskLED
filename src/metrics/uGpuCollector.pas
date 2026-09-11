@@ -26,7 +26,6 @@ type
     FCounter: THandle;
     FUsePdh: Boolean;
     FInitTried: Boolean;
-    FPrimed: Boolean;
     FBuf: array of Byte;
     FLast: Double;
     FLastTick: Cardinal;
@@ -135,7 +134,6 @@ begin
   Result := False;
   FQuery := 0;
   FCounter := 0;
-  FPrimed := False;
   if PdhOpenQueryW(nil, 0, FQuery) <> 0 then
   begin
     FQuery := 0;
@@ -147,7 +145,10 @@ begin
     Exit;
   end;
   { First collect primes the counter; formatted values are valid from the
-    second collect on. }
+    second collect on. This collect is that first one, so by the time Sample
+    ever calls SamplePdh (gated on this function having returned True),
+    the counter is already primed and every SamplePdh call can read real
+    formatted values -- no separate "first call after init" case needed. }
   PdhCollectQueryData(FQuery);
   Result := True;
 end;
@@ -178,13 +179,6 @@ begin
     Exit;
   if PdhCollectQueryData(FQuery) <> 0 then
     Exit;
-  if not FPrimed then
-  begin
-    FPrimed := True;
-    FLast := 0;
-    AValue := 0;
-    Exit(True);
-  end;
 
   BufSize := DWORD(Length(FBuf));
   ItemCount := 0;
