@@ -118,20 +118,19 @@ const
   CDefaultTimeoutMs = 1000;
   CMinIntervalSec = 300;
 
+var
+  { Cache the style name each .vsf file registers under, discovered once per
+    process (see LoadStyleFileName) -- reopening the dialog later must not
+    try to detect it again via a before/after diff, since by then the style
+    is already registered and no "new" entry would appear. Unit-level
+    string vars start out '' automatically, same as any global variable. }
+  GLightStyleName: string;
+  GDarkStyleName: string;
+
 procedure TOptionsForm.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
   Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
-end;
-
-function StyleIsAvailable(const AName: string): Boolean;
-var
-  N: string;
-begin
-  for N in TStyleManager.StyleNames do
-    if SameText(N, AName) then
-      Exit(True);
-  Result := False;
 end;
 
 function LocateStyleFile(const AFileName: string): string;
@@ -150,6 +149,43 @@ begin
   Result := '';
 end;
 
+{ Loads AFileName and returns the style name it registered, without having
+  to guess/hardcode that name: .vsf resource files carry their own internal
+  name (set in the VCL Style Designer when the file was authored), which is
+  not guaranteed to match the filename exactly. Comparing TStyleManager's
+  StyleNames before/after the load finds whatever name actually appeared. }
+function LoadStyleFileName(const AFileName: string): string;
+var
+  Path, N: string;
+  Before: TArray<string>;
+  WasThere: Boolean;
+  B: string;
+begin
+  Result := '';
+  Path := LocateStyleFile(AFileName);
+  if Path = '' then
+    Exit;
+  Before := TStyleManager.StyleNames;
+  try
+    if not TStyleManager.LoadFromFile(Path) then
+      Exit;
+  except
+    Exit;
+  end;
+  for N in TStyleManager.StyleNames do
+  begin
+    WasThere := False;
+    for B in Before do
+      if SameText(B, N) then
+      begin
+        WasThere := True;
+        Break;
+      end;
+    if not WasThere then
+      Exit(N);
+  end;
+end;
+
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
   ApplyModernStyle;
@@ -158,12 +194,10 @@ end;
 
 procedure TOptionsForm.ApplyModernStyle;
 const
-  CLightStyleName = 'Windows10';
   CLightFileName = 'Windows10.vsf';
-  CDarkStyleName = 'Windows10 Dark';
   CDarkFileName = 'Windows10Dark.vsf';
 var
-  TargetStyle, TargetFile, Path: string;
+  TargetFile, TargetStyle: string;
 begin
   { Per-form style only — MainForm stays unstyled (custom skin window).
     Follows the OS light/dark setting the same way the dashboard/Ping
@@ -171,29 +205,34 @@ begin
     (Project Options > Appearance ships the same "Windows10 Dark" style)
     instead of hand-painted controls. }
   if SystemUsesLightTheme then
+    TargetFile := CLightFileName
+  else
+    TargetFile := CDarkFileName;
+
+  if TargetFile = CLightFileName then
   begin
-    TargetStyle := CLightStyleName;
-    TargetFile := CLightFileName;
+    if GLightStyleName = '' then
+      GLightStyleName := LoadStyleFileName(CLightFileName);
+    TargetStyle := GLightStyleName;
   end
   else
   begin
-    TargetStyle := CDarkStyleName;
-    TargetFile := CDarkFileName;
+    if GDarkStyleName = '' then
+      GDarkStyleName := LoadStyleFileName(CDarkFileName);
+    TargetStyle := GDarkStyleName;
   end;
 
-  if not StyleIsAvailable(TargetStyle) then
+  if TargetStyle = '' then
   begin
-    Path := LocateStyleFile(TargetFile);
-    if Path <> '' then
-    try
-      TStyleManager.LoadFromFile(Path);
-    except
-    end;
+    { Dark style file missing/unloadable -- fall back to light rather than
+      silently staying unstyled. }
+    if GLightStyleName = '' then
+      GLightStyleName := LoadStyleFileName(CLightFileName);
+    TargetStyle := GLightStyleName;
   end;
-  if StyleIsAvailable(TargetStyle) then
-    StyleName := TargetStyle
-  else if StyleIsAvailable(CLightStyleName) then
-    StyleName := CLightStyleName; { fall back to light if the dark style file is missing }
+
+  if TargetStyle <> '' then
+    StyleName := TargetStyle;
 
   { Matches the dark/light title bar the dashboard/Ping windows already
     apply; DwmSetWindowAttribute is harmless to call even under the light
