@@ -157,7 +157,13 @@
   </div>
 
   <div class="bg-base-100 p-4 flex flex-col overflow-y-auto">
-    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">layout.cfg</h2>
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">layout.cfg</h2>
+      <div class="flex items-center gap-2">
+        <span id="saveMsg" class="text-xs text-base-content/60"></span>
+        <button type="button" class="btn btn-sm btn-primary" id="btnSave" data-i18n="saveButton" data-i18n-title="saveButtonTitle"></button>
+      </div>
+    </div>
     <div class="relative flex-1 min-h-[460px] rounded-box border border-base-300 overflow-hidden">
       <pre id="cfgHighlight" aria-hidden="true" class="cfg-editor-layer absolute inset-0 w-full h-full m-0 overflow-auto pointer-events-none"></pre>
       <textarea id="cfgText" spellcheck="false" class="cfg-editor-layer absolute inset-0 w-full h-full resize-none outline-none overflow-auto"
@@ -286,6 +292,17 @@ const STRINGS = {
   skinErrorFailedToLoad: { en: 'Failed to load "{root}": {msg}', ja: '「{root}」の読み込みに失敗しました: {msg}' },
   assetLabelCompactFull: { en: 'compact + full', ja: 'コンパクト＋フル' },
   assetLabelCompactOnly: { en: 'compact only', ja: 'コンパクトのみ' },
+  saveButton: { en: 'Save', ja: '保存' },
+  saveButtonTitle: {
+    en: 'Save layout.cfg. Uses a native save dialog when the browser allows it here; otherwise downloads the file for you to move into the asset folder yourself.',
+    ja: 'layout.cfgを保存します。ブラウザがこの環境で許可していればネイティブの保存ダイアログを使用し、そうでなければファイルをダウンロードするので、ご自身でアセットフォルダに移動してください。',
+  },
+  saveDone: { en: 'Saved.', ja: '保存しました。' },
+  saveCancelled: { en: 'Save cancelled.', ja: '保存をキャンセルしました。' },
+  saveDownloaded: {
+    en: 'Downloaded layout.cfg — move it into "{root}" to apply it.',
+    ja: 'layout.cfgをダウンロードしました — 適用するには「{root}」に移動してください。',
+  },
 
   // editorFields.js field labels/hints (option arrays like Kind=bar/peak/vu
   // are literal layout.cfg values and are never translated).
@@ -854,6 +871,53 @@ function setCfgText(text) {
 }
 
 cfgText.addEventListener('scroll', syncHighlightScroll);
+
+// ---- Save ----
+// Native save dialog (File System Access API) when the browser allows it in
+// this context; it doesn't when the page itself was opened as a plain
+// file:// document (Chromium blocks the whole API there, same restriction
+// this tool's own loading path was designed around -- see index.html's
+// history for why <input webkitdirectory> was chosen over
+// showDirectoryPicker for loading in the first place). Falls back to a
+// plain Blob download, which the plan's own tech notes already call out as
+// the accepted fallback (a manual "move the file into the asset folder"
+// step). Saving is never blocked on validity -- a plain text editor doesn't
+// refuse to save invalid text either, and the user may be mid-edit.
+const btnSave = document.getElementById('btnSave');
+const saveMsg = document.getElementById('saveMsg');
+
+async function saveLayoutCfg() {
+  const text = loadedAsset.doc.toText();
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'layout.cfg',
+        types: [{ description: 'layout.cfg', accept: { 'text/plain': ['.cfg'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      saveMsg.textContent = t('saveDone');
+      return;
+    } catch (e) {
+      if (e && e.name === 'AbortError') { saveMsg.textContent = t('saveCancelled'); return; }
+      // Any other failure (most commonly a SecurityError under file://)
+      // falls through to the download fallback below.
+    }
+  }
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'layout.cfg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  saveMsg.textContent = t('saveDownloaded', { root: loadedAsset.name });
+}
+
+btnSave.addEventListener('click', () => { if (loadedAsset) saveLayoutCfg(); });
 
 function setFieldsEnabled(enabled) {
   fieldsPanel.querySelectorAll('input,select,button').forEach((el) => { el.disabled = !enabled; });
