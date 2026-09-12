@@ -210,11 +210,73 @@ function drawMeters(ctx, images, layout, state) {
   drawPercent(ctx, images, layout.swapVal, state.swap);
 }
 
+const GRAPH_LANES = ['cpu', 'mem', 'swap', 'diskRead', 'diskWrite', 'netIn', 'netOut'];
+
+// Mirrors GraphMaxWidth (uLayoutTypes.pas:115-132): widest enabled lane,
+// used to size the history buffer the graph reads from.
+function graphMaxWidth(graph) {
+  let max = 0;
+  for (const key of GRAPH_LANES) {
+    const lane = graph[key];
+    if (lane.enabled && lane.w > max) max = lane.w;
+  }
+  return max;
+}
+
+// Mirrors TGraphRenderer.Draw's DrawLane local proc (uGraphRenderer.pas:45-98).
+function drawGraphLane(ctx, graph, lane, key, history) {
+  if (!lane.enabled || lane.w < 1 || lane.h < 1 || !history) return;
+  const cap = history.capacity;
+  if (cap < 1) return;
+
+  const w = Math.min(lane.w, cap);
+  const start = cap - w;
+  const left = lane.x, top = lane.y, bottom = lane.y + lane.h;
+  const color = `rgb(${lane.color.r},${lane.color.g},${lane.color.b})`;
+
+  if (graph.style === 'bar') {
+    ctx.fillStyle = color;
+    for (let i = 0; i < w; i++) {
+      const v = clamp01(history.sampleChronological(start + i)[key]);
+      const y = Math.round(v * lane.h);
+      if (y < 1) continue;
+      ctx.fillRect(left + i, bottom - y, 1, y);
+    }
+  } else {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < w; i++) {
+      const v = clamp01(history.sampleChronological(start + i)[key]);
+      const x = left + i + 0.5;
+      const y = bottom - 1 - Math.round(v * (lane.h - 1)) + 0.5;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+// Mirrors TGraphRenderer.Draw (uGraphRenderer.pas:28-110). `history` is a
+// HistoryBuffer (asset-editor/js/historyBuffer.js); its lane keys
+// (cpu/mem/swap/diskRead/diskWrite/netIn/netOut) match TLaneKind 1:1.
+function drawGraph(ctx, graph, history) {
+  if (!graph || !graph.enabled) return;
+  drawGraphLane(ctx, graph, graph.cpu, 'cpu', history);
+  drawGraphLane(ctx, graph, graph.mem, 'mem', history);
+  drawGraphLane(ctx, graph, graph.swap, 'swap', history);
+  drawGraphLane(ctx, graph, graph.diskRead, 'diskRead', history);
+  drawGraphLane(ctx, graph, graph.diskWrite, 'diskWrite', history);
+  drawGraphLane(ctx, graph, graph.netIn, 'netIn', history);
+  drawGraphLane(ctx, graph, graph.netOut, 'netOut', history);
+}
+
 // Renders one full frame: background, then meters/LEDs/digits, then the
+// graph (Full layouts only, when history is supplied), then the
 // window-level color-key cutout (see drawBackground's comment) so the
 // caller's canvas shows exactly what the real transparent gadget window
 // would show through to the desktop -- painted here as a checkerboard.
-function renderFrame(canvas, images, layout, state) {
+function renderFrame(canvas, images, layout, state, history) {
   canvas.width = layout.width;
   canvas.height = layout.height;
   const ctx = canvas.getContext('2d');
@@ -222,6 +284,7 @@ function renderFrame(canvas, images, layout, state) {
 
   drawBackground(ctx, images, layout);
   drawMeters(ctx, images, layout, state);
+  if (layout.graph) drawGraph(ctx, layout.graph, history);
 
   if (layout.transparent) {
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -234,6 +297,6 @@ function renderFrame(canvas, images, layout, state) {
   }
 }
 
-return { clamp01, stripFrame, renderFrame, formatPercentText };
+return { clamp01, stripFrame, renderFrame, formatPercentText, graphMaxWidth };
 
 });

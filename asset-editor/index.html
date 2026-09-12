@@ -89,6 +89,7 @@
 
 <script src="js/cfgModel.js"></script>
 <script src="js/skinLoader.js"></script>
+<script src="js/historyBuffer.js"></script>
 <script src="js/renderer.js"></script>
 <script>
 // Classic scripts (not type="module"), deliberately: Chromium refuses to
@@ -187,7 +188,36 @@ function currentLayout() {
 function repaint() {
   const cur = currentLayout();
   if (!cur) return;
-  SkinRenderer.renderFrame(canvas, cur.images, cur.layout, derivedState());
+  SkinRenderer.renderFrame(canvas, cur.images, cur.layout, derivedState(), graphHistory);
+}
+
+// Graph preview: a synthetic rolling history, sampled from the manual
+// sliders on a timer -- there's no real metrics collector here, but this is
+// the same "1 pixel = 1 sample" model uHistoryBuffer.pas uses, just fed by
+// hand instead of TCollector. Only runs while a Full layout with an enabled
+// [GraphFull] is actually showing (graph-less skins/modes pay nothing).
+let graphHistory = null;
+let graphTimer = null;
+const GRAPH_SAMPLE_INTERVAL_MS = 300;
+
+function syncGraphState() {
+  const cur = currentLayout();
+  const graph = cur && cur.layout.graph;
+  if (!graph || !graph.enabled) {
+    graphHistory = null;
+    if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
+    return;
+  }
+  const capacity = SkinRenderer.graphMaxWidth(graph);
+  if (!graphHistory || graphHistory.capacity !== capacity) {
+    graphHistory = new HistoryBuffer(capacity);
+  }
+  if (!graphTimer) {
+    graphTimer = setInterval(() => {
+      graphHistory.push(state);
+      repaint();
+    }, GRAPH_SAMPLE_INTERVAL_MS);
+  }
 }
 
 function slider(label, key, min, max, step) {
@@ -274,6 +304,7 @@ function buildControls() {
 function onModeChanged() {
   modeFull.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
   if (modeFull.disabled) modeCompact.checked = true;
+  syncGraphState();
   repaint();
 }
 
@@ -309,6 +340,8 @@ folderInput.addEventListener('change', async () => {
   assetLabel.textContent = '';
   loadedAsset = null;
   previewSection.hidden = true;
+  graphHistory = null;
+  if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
   if (files.length === 0) return;
 
   const rootName = files[0].webkitRelativePath.split('/')[0];
