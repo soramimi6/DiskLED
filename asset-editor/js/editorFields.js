@@ -20,7 +20,7 @@
 
 // Field types: 'text', 'int', 'bool', 'color', 'enum' (needs `options`).
 const SPRITE_FIELDS = [
-  { key: 'File', label: 'Image file', type: 'text' },
+  { key: 'File', label: 'Image file', type: 'text', fileRef: true },
   { key: 'X', label: 'X', type: 'int' },
   { key: 'Y', label: 'Y', type: 'int' },
   { key: 'Frames', label: 'Frames', type: 'int' },
@@ -40,7 +40,7 @@ const DIGIT_FIELDS = [
   { key: 'ValY', label: 'Digit Y', type: 'int' },
   { key: 'ValB', label: 'Digit count', type: 'int' },
   { key: 'ValFZ', label: 'Zero-fill', type: 'bool' },
-  { key: 'ValFontFile', label: 'Bitmap font file (style=bitmap)', type: 'text' },
+  { key: 'ValFontFile', label: 'Bitmap font file (style=bitmap)', type: 'text', fileRef: true },
   { key: 'ValFontMaskColor', label: 'Bitmap font mask color (blank = opaque)', type: 'color' },
   { key: 'ValFont', label: 'System font name (style=system)', type: 'text' },
   { key: 'ValFontSize', label: 'System font size', type: 'int' },
@@ -58,7 +58,7 @@ const GENERAL_FIELDS = [
 const MODE_FIELDS = [
   { key: 'Width', label: 'Width', type: 'int' },
   { key: 'Height', label: 'Height', type: 'int' },
-  { key: 'Bg', label: 'Background image file', type: 'text' },
+  { key: 'Bg', label: 'Background image file', type: 'text', fileRef: true },
   { key: 'Transparent', label: 'Transparent', type: 'bool' },
   { key: 'MaskColor', label: 'Mask color', type: 'color' },
 ];

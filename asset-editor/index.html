@@ -45,15 +45,34 @@
     tab-size: 4;
     box-sizing: border-box;
   }
-  #cfgHighlight { background: #282a36; color: #f8f8f2; }
-  #cfgText { color: transparent; background: transparent; caret-color: #f8f8f2; }
-  #cfgText::selection { background: rgba(189, 147, 249, 0.4); }
-  .tok-section { color: #50fa7b; font-weight: 600; }
-  .tok-bracket { color: #bd93f9; }
-  .tok-key { color: #8be9fd; }
-  .tok-eq { color: #ff79c6; }
-  .tok-value { color: #f1fa8c; }
-  .tok-comment { color: #6272a4; font-style: italic; }
+  #cfgText { color: transparent; background: transparent; }
+  .tok-section { font-weight: 600; }
+  .tok-comment { font-style: italic; }
+
+  /* Light (default): a balanced palette in the same Dracula role-mapping
+     (section/bracket/key/eq/value/comment), just re-tuned for contrast on
+     a light background -- Dracula's own pastel hues (#50fa7b, #8be9fd, ...)
+     are too washed-out to read against white. */
+  #cfgHighlight { background: #f8f8f2; color: #282a36; }
+  #cfgText { caret-color: #282a36; }
+  #cfgText::selection { background: rgba(111, 66, 193, 0.15); }
+  .tok-section { color: #1a7f37; }
+  .tok-bracket { color: #6f42c1; }
+  .tok-key { color: #0e7490; }
+  .tok-eq { color: #bf3989; }
+  .tok-value { color: #953800; }
+  .tok-comment { color: #6b7280; }
+
+  /* Dark: the actual Dracula palette (https://draculatheme.com). */
+  html[data-theme="dark"] #cfgHighlight { background: #282a36; color: #f8f8f2; }
+  html[data-theme="dark"] #cfgText { caret-color: #f8f8f2; }
+  html[data-theme="dark"] #cfgText::selection { background: rgba(189, 147, 249, 0.4); }
+  html[data-theme="dark"] .tok-section { color: #50fa7b; }
+  html[data-theme="dark"] .tok-bracket { color: #bd93f9; }
+  html[data-theme="dark"] .tok-key { color: #8be9fd; }
+  html[data-theme="dark"] .tok-eq { color: #ff79c6; }
+  html[data-theme="dark"] .tok-value { color: #f1fa8c; }
+  html[data-theme="dark"] .tok-comment { color: #6272a4; }
 </style>
 </head>
 <body class="bg-base-200 text-base-content text-sm h-screen flex flex-col overflow-hidden">
@@ -113,6 +132,13 @@
     <div class="px-4 pb-4 pt-2 flex gap-8 flex-wrap" id="controls">
       <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsMeters"></div>
       <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsLedsPing"></div>
+      <div class="flex flex-col gap-1.5">
+        <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Set all meters</span>
+        <button type="button" class="btn btn-sm" id="btnMetersMax">Max</button>
+        <button type="button" class="btn btn-sm" id="btnMetersMin">Min</button>
+        <button type="button" class="btn btn-sm" id="btnMetersInitial">Initial</button>
+        <button type="button" class="btn btn-sm" id="btnMetersRandom">Random</button>
+      </div>
     </div>
     <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
       <p class="text-xs text-base-content/60 mb-2">
@@ -217,11 +243,16 @@ let loadedAsset = null;
 // real app derives them (see uMetricsTypes.pas's TMeterBallistics.DiskIo/
 // NetIo comments and uMeterRenderer's shared NetActivity/NetTotal draw)
 // rather than exposed as separate controls, to keep the control list small.
-const state = {
+const METER_KEYS = ['cpu', 'mem', 'swap', 'diskRead', 'diskWrite', 'netIn', 'netOut', 'audio', 'audioL', 'audioR'];
+const INITIAL_METER_VALUES = {
   cpu: 0.5, mem: 0.5, swap: 0.2,
   diskRead: 0.3, diskWrite: 0.3,
   netIn: 0.3, netOut: 0.3,
   audio: 0.4, audioL: 0.4, audioR: 0.4,
+};
+
+const state = {
+  ...INITIAL_METER_VALUES,
   diskReadOn: true, diskWriteOn: false,
   netInOn: true, netOutOn: false,
   pingLevel: 3, // Normal
@@ -367,6 +398,22 @@ function buildControls() {
   });
   controlsLedsPing.appendChild(pingWrap);
 }
+
+// Bulk-set every meter slider at once, for quickly sweeping the preview to
+// an extreme or a fresh random spread instead of dragging each one by hand.
+// Rebuilding via buildControls() is simplest way to refresh each slider's
+// displayed input/out value from the new state, rather than tracking every
+// slider element to update individually.
+function setAllMeters(valueForKey) {
+  for (const key of METER_KEYS) state[key] = valueForKey(key);
+  buildControls();
+  repaint();
+}
+
+document.getElementById('btnMetersMax').addEventListener('click', () => setAllMeters(() => 1));
+document.getElementById('btnMetersMin').addEventListener('click', () => setAllMeters(() => 0));
+document.getElementById('btnMetersInitial').addEventListener('click', () => setAllMeters((key) => INITIAL_METER_VALUES[key]));
+document.getElementById('btnMetersRandom').addEventListener('click', () => setAllMeters(() => Math.random()));
 
 function onModeChanged() {
   modeFullBtn.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
@@ -592,6 +639,12 @@ function renderFieldPanel(sectionName) {
       input.id = `f_${field.key}`;
       input.value = raw || '';
       input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
+      if (field.fileRef) {
+        const trimmed = (raw || '').trim();
+        const missing = trimmed !== '' && !loadedAsset.images.has(trimmed.toLowerCase());
+        input.classList.toggle('input-error', missing);
+        input.title = missing ? `"${trimmed}" not found among the loaded images.` : '';
+      }
       fieldsPanel.appendChild(input);
     }
   }
