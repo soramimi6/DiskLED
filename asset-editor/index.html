@@ -275,6 +275,14 @@ const STRINGS = {
   sectionAddTitle: { en: 'Check to add this section to layout.cfg', ja: 'チェックするとlayout.cfgにこのセクションを追加します' },
   sectionRemoveTitle: { en: 'Uncheck to remove this section from layout.cfg', ja: 'チェックを外すとlayout.cfgからこのセクションを削除します' },
   noSchemaNote: { en: "Not a recognized section — edit it in the text pane.", ja: '認識されないセクションです。テキスト欄で編集してください。' },
+  warnDuplicateKeys: {
+    en: 'Duplicate key(s) in this section (the first occurrence is used): {keys}. Remove the extra line(s) in the text pane.',
+    ja: 'このセクションに重複キーがあります（最初の行が使われます）: {keys}。テキスト欄で余分な行を削除してください。',
+  },
+  warnUnknownKeys: {
+    en: "Unknown key(s) in this section (kept as-is; not editable here): {keys}",
+    ja: 'このセクションに未知のキーがあります（そのまま保持されます。ここでは編集できません）: {keys}',
+  },
   cfgTextTitle: {
     en: 'Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview.',
     ja: 'layout.cfgの生テキストです。編集すると少し間を置いて再解析され、フィールドとプレビューに反映されます。',
@@ -1028,12 +1036,33 @@ function fieldText(key, field) {
   return field.lane ? t(key, { lane: field.lane }) : t(key);
 }
 
+// Renders a full-width warning box into fieldsPanel's 2-column grid.
+function warningBox(kind, textKey, keys) {
+  const el = document.createElement('div');
+  el.className = `col-span-2 alert ${kind === 'error' ? 'alert-error' : 'alert-warning'} text-xs`;
+  el.textContent = t(textKey, { keys: keys.join(', ') });
+  return el;
+}
+
 function renderFieldPanel(sectionName) {
   fieldsPanel.innerHTML = '';
   if (!sectionName) return;
+
+  // Duplicate-key detection runs for every section, schema or not (it's a
+  // pure text-level check); unknown-key detection only makes sense where
+  // there's a field list to compare against. Neither is fixed automatically
+  // -- see cfgModel.js's findDuplicateKeys/sectionKeys and the plan's own
+  // "重複キー＝エラー表示（自動削除しない）／不明なキー＝行を保持し警告".
+  const duplicates = loadedAsset.doc.findDuplicateKeys(sectionName);
+  if (duplicates.length) fieldsPanel.appendChild(warningBox('error', 'warnDuplicateKeys', duplicates));
+
   const desc = EditorFields.describeSection(sectionName);
   noSchemaNote.hidden = !!desc;
   if (!desc) return;
+
+  const known = new Set(desc.fields.map((f) => f.key.toLowerCase()));
+  const unknown = loadedAsset.doc.sectionKeys(sectionName).filter((k) => !known.has(k.toLowerCase()));
+  if (unknown.length) fieldsPanel.appendChild(warningBox('warning', 'warnUnknownKeys', unknown));
 
   for (const field of desc.fields) {
     const label = document.createElement('label');

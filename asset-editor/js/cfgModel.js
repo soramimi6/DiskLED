@@ -29,6 +29,11 @@ const SECTION_RE = /^\s*\[(.+?)\]\s*$/;
 // the value), but preserving an optional ';'-led comment here is cheap and
 // matches the plan's "行末コメント保持" requirement defensively.
 const KEY_RE = /^(\s*([^=\s][^=]*?)\s*=\s*)([^;]*?)(\s*(?:;.*)?)$/;
+// A whole line that is (optionally indented) a comment. KEY_RE's key group
+// ([^=\s][^=]*?) doesn't exclude a leading ';', so a comment containing its
+// own '=' (e.g. "; ... 1px = 1 sample ...") would otherwise be misread as a
+// key -- every KEY_RE match site below checks this first.
+const COMMENT_LINE_RE = /^\s*;/;
 
 class CfgDoc {
   constructor(text) {
@@ -56,7 +61,7 @@ class CfgDoc {
       if (current) {
         current.endLine = i;
       }
-      const keyMatch = KEY_RE.exec(line);
+      const keyMatch = COMMENT_LINE_RE.test(line) ? null : KEY_RE.exec(line);
       if (keyMatch && current) {
         const key = keyMatch[2];
         // First occurrence wins for lookups; a duplicate is a validation
@@ -141,6 +146,51 @@ class CfgDoc {
     if (!section) return;
     this.lines.splice(section.headerLine, section.endLine - section.headerLine + 1);
     this._rebuildIndex();
+  }
+
+  // Every distinct key actually present in a section, one entry per key
+  // (first-occurrence casing) regardless of how many times it repeats --
+  // pair with findDuplicateKeys to also see which of these repeat. Used by
+  // the asset-editor GUI to spot keys it has no field for ("unknown key").
+  sectionKeys(sectionName) {
+    const section = this.findSection(sectionName);
+    if (!section) return [];
+    const seenLower = new Set();
+    const result = [];
+    for (let i = section.headerLine + 1; i <= section.endLine; i++) {
+      const line = this.lines[i];
+      if (COMMENT_LINE_RE.test(line)) continue;
+      const m = KEY_RE.exec(line);
+      if (!m) continue;
+      const lower = m[2].toLowerCase();
+      if (seenLower.has(lower)) continue;
+      seenLower.add(lower);
+      result.push(m[2]);
+    }
+    return result;
+  }
+
+  // Key names that appear more than once within a section. The constructor
+  // comment already notes why this isn't resolved by the section/key index
+  // itself (that index only ever records the first occurrence's line, for
+  // lookups) -- detecting a duplicate is a validation-layer concern the
+  // asset-editor GUI surfaces as a warning; CfgDoc never removes or merges
+  // one on its own.
+  findDuplicateKeys(sectionName) {
+    const section = this.findSection(sectionName);
+    if (!section) return [];
+    const counts = new Map(); // lower(key) -> { key: firstCasing, count }
+    for (let i = section.headerLine + 1; i <= section.endLine; i++) {
+      const line = this.lines[i];
+      if (COMMENT_LINE_RE.test(line)) continue;
+      const m = KEY_RE.exec(line);
+      if (!m) continue;
+      const lower = m[2].toLowerCase();
+      const entry = counts.get(lower);
+      if (entry) entry.count++;
+      else counts.set(lower, { key: m[2], count: 1 });
+    }
+    return [...counts.values()].filter((e) => e.count > 1).map((e) => e.key);
   }
 
   toText() {
