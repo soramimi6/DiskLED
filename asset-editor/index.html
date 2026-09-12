@@ -52,16 +52,18 @@
   /* Light (default): a balanced palette in the same Dracula role-mapping
      (section/bracket/key/eq/value/comment), just re-tuned for contrast on
      a light background -- Dracula's own pastel hues (#50fa7b, #8be9fd, ...)
-     are too washed-out to read against white. */
+     are too washed-out to read against white. Kept vivid/saturated rather
+     than muted, per feedback that an earlier darker-but-duller pass didn't
+     stand out enough. */
   #cfgHighlight { background: #f8f8f2; color: #282a36; }
   #cfgText { caret-color: #282a36; }
   #cfgText::selection { background: rgba(111, 66, 193, 0.15); }
-  .tok-section { color: #1a7f37; }
-  .tok-bracket { color: #6f42c1; }
-  .tok-key { color: #0e7490; }
-  .tok-eq { color: #bf3989; }
-  .tok-value { color: #953800; }
-  .tok-comment { color: #6b7280; }
+  .tok-section { color: #0a9c3e; }
+  .tok-bracket { color: #7c3aed; }
+  .tok-key { color: #0891b2; }
+  .tok-eq { color: #db2777; }
+  .tok-value { color: #c2410c; }
+  .tok-comment { color: #64748b; }
 
   /* Dark: the actual Dracula palette (https://draculatheme.com). */
   html[data-theme="dark"] #cfgHighlight { background: #282a36; color: #f8f8f2; }
@@ -87,11 +89,18 @@
   <span id="assetLabel" class="text-xs text-base-content/60"></span>
 </div>
 
-<div id="previewBar" class="bg-base-100 border-b border-base-300 px-4 py-3 flex items-center gap-4 flex-wrap shrink-0" hidden>
+<div id="previewBar" class="bg-base-100 border-b border-base-300 px-4 py-3 flex flex-col items-start gap-3 shrink-0" hidden>
   <div class="canvas-frame inline-block border border-base-300 rounded-box shadow"><canvas id="previewCanvas"></canvas></div>
-  <div class="join" id="modeToggle" title="Preview and edit either the compact or the full layout.">
-    <button type="button" id="modeCompactBtn" class="btn btn-sm join-item btn-active">Compact</button>
-    <button type="button" id="modeFullBtn" class="btn btn-sm join-item">Full</button>
+  <div class="flex items-center gap-4 flex-wrap">
+    <div class="join" id="modeToggle" title="Preview and edit either the compact or the full layout.">
+      <button type="button" id="modeCompactBtn" class="btn btn-sm join-item btn-active">Compact</button>
+      <button type="button" id="modeFullBtn" class="btn btn-sm join-item">Full</button>
+    </div>
+    <div class="join" id="scaleToggle" title="Preview display scale (doesn't affect the underlying pixels).">
+      <button type="button" id="scale1Btn" class="btn btn-sm join-item btn-active">x1</button>
+      <button type="button" id="scale2Btn" class="btn btn-sm join-item">x2</button>
+      <button type="button" id="scale5Btn" class="btn btn-sm join-item">x5</button>
+    </div>
   </div>
 </div>
 
@@ -274,10 +283,28 @@ function currentLayout() {
   return { layout: useFull ? loadedAsset.skin.full : loadedAsset.skin.compact, images: loadedAsset.images };
 }
 
+let previewScale = 1;
+
 function repaint() {
   const cur = currentLayout();
   if (!cur) return;
   SkinRenderer.renderFrame(canvas, cur.images, cur.layout, derivedState(), graphHistory);
+  // renderFrame sets canvas.width/height (the backing pixel resolution) to
+  // the skin's native size every call; re-apply the CSS display size after
+  // so the scale picked below survives a layout/mode switch. image-rendering:
+  // pixelated (set globally on #previewCanvas) keeps the upscale crisp.
+  canvas.style.width = `${canvas.width * previewScale}px`;
+  canvas.style.height = `${canvas.height * previewScale}px`;
+}
+
+const scaleButtons = { 1: document.getElementById('scale1Btn'), 2: document.getElementById('scale2Btn'), 5: document.getElementById('scale5Btn') };
+for (const [scale, el] of Object.entries(scaleButtons)) {
+  el.addEventListener('click', () => {
+    previewScale = Number(scale);
+    for (const btn of Object.values(scaleButtons)) btn.classList.remove('btn-active');
+    el.classList.add('btn-active');
+    repaint();
+  });
 }
 
 // Graph preview: a synthetic rolling history, sampled from the manual
@@ -413,7 +440,7 @@ function setAllMeters(valueForKey) {
 document.getElementById('btnMetersMax').addEventListener('click', () => setAllMeters(() => 1));
 document.getElementById('btnMetersMin').addEventListener('click', () => setAllMeters(() => 0));
 document.getElementById('btnMetersInitial').addEventListener('click', () => setAllMeters((key) => INITIAL_METER_VALUES[key]));
-document.getElementById('btnMetersRandom').addEventListener('click', () => setAllMeters(() => Math.random()));
+document.getElementById('btnMetersRandom').addEventListener('click', () => setAllMeters(() => Math.round(Math.random() * 100) / 100));
 
 function onModeChanged() {
   modeFullBtn.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
