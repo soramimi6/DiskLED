@@ -160,7 +160,8 @@
     <div class="flex items-center justify-between mb-2">
       <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60">layout.cfg</h2>
       <div class="flex items-center gap-2">
-        <span id="saveMsg" class="text-xs text-base-content/60"></span>
+        <span id="cfgActionMsg" class="text-xs text-base-content/60"></span>
+        <button type="button" class="btn btn-sm" id="btnCopy" data-i18n="copyButton" data-i18n-title="copyButtonTitle"></button>
         <button type="button" class="btn btn-sm btn-primary" id="btnSave" data-i18n="saveButton" data-i18n-title="saveButtonTitle"></button>
       </div>
     </div>
@@ -303,6 +304,10 @@ const STRINGS = {
     en: 'Downloaded layout.cfg — move it into "{root}" to apply it.',
     ja: 'layout.cfgをダウンロードしました — 適用するには「{root}」に移動してください。',
   },
+  copyButton: { en: 'Copy', ja: 'コピー' },
+  copyButtonTitle: { en: 'Copy the full layout.cfg text to the clipboard.', ja: 'layout.cfgの内容全体をクリップボードにコピーします。' },
+  copyDone: { en: 'Copied to clipboard.', ja: 'クリップボードにコピーしました。' },
+  copyFailed: { en: 'Copy failed — select the text and copy it manually.', ja: 'コピーに失敗しました — テキストを選択して手動でコピーしてください。' },
 
   // editorFields.js field labels/hints (option arrays like Kind=bar/peak/vu
   // are literal layout.cfg values and are never translated).
@@ -884,7 +889,7 @@ cfgText.addEventListener('scroll', syncHighlightScroll);
 // step). Saving is never blocked on validity -- a plain text editor doesn't
 // refuse to save invalid text either, and the user may be mid-edit.
 const btnSave = document.getElementById('btnSave');
-const saveMsg = document.getElementById('saveMsg');
+const cfgActionMsg = document.getElementById('cfgActionMsg');
 
 async function saveLayoutCfg() {
   const text = loadedAsset.doc.toText();
@@ -897,10 +902,10 @@ async function saveLayoutCfg() {
       const writable = await handle.createWritable();
       await writable.write(text);
       await writable.close();
-      saveMsg.textContent = t('saveDone');
+      cfgActionMsg.textContent = t('saveDone');
       return;
     } catch (e) {
-      if (e && e.name === 'AbortError') { saveMsg.textContent = t('saveCancelled'); return; }
+      if (e && e.name === 'AbortError') { cfgActionMsg.textContent = t('saveCancelled'); return; }
       // Any other failure (most commonly a SecurityError under file://)
       // falls through to the download fallback below.
     }
@@ -914,10 +919,40 @@ async function saveLayoutCfg() {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  saveMsg.textContent = t('saveDownloaded', { root: loadedAsset.name });
+  cfgActionMsg.textContent = t('saveDownloaded', { root: loadedAsset.name });
 }
 
 btnSave.addEventListener('click', () => { if (loadedAsset) saveLayoutCfg(); });
+
+// Clipboard copy: tries the async Clipboard API first, and falls back to
+// the legacy execCommand('copy') (via a hidden, off-screen textarea) since
+// navigator.clipboard.writeText is unavailable or throws in some file://
+// contexts, while execCommand('copy') still works there.
+const btnCopy = document.getElementById('btnCopy');
+
+async function copyLayoutCfg() {
+  const text = loadedAsset.doc.toText();
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('unavailable');
+    await navigator.clipboard.writeText(text);
+    cfgActionMsg.textContent = t('copyDone');
+    return;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+    ta.remove();
+    cfgActionMsg.textContent = ok ? t('copyDone') : t('copyFailed');
+  }
+}
+
+btnCopy.addEventListener('click', () => { if (loadedAsset) copyLayoutCfg(); });
 
 function setFieldsEnabled(enabled) {
   fieldsPanel.querySelectorAll('input,select,button').forEach((el) => { el.disabled = !enabled; });
