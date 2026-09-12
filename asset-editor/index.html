@@ -80,6 +80,9 @@
 
 <div class="navbar bg-base-100 shadow-sm px-4 gap-3 flex-wrap shrink-0">
   <span class="text-base font-semibold">DiskLED Asset Editor</span>
+  <!-- Matches the DiskLED release this asset-editor ships with (DiskLED.dproj's
+       VerInfo_Keys FileVersion/ProductVersion) -- bump alongside that at release time. -->
+  <span class="badge badge-outline badge-sm font-mono">v3.2.0</span>
   <input id="folderInput" type="file" webkitdirectory multiple hidden />
   <button id="btnLoad" type="button" class="btn btn-primary btn-sm" data-i18n="loadButton" data-i18n-title="loadButtonTitle"></button>
   <span id="assetLabel" class="text-xs text-base-content/60"></span>
