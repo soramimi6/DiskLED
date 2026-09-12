@@ -128,7 +128,10 @@
     </div>
     <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
       <p class="text-xs text-base-content/60 mb-2" data-i18n-html="diagIntro"></p>
-      <button type="button" class="btn btn-sm" id="btnRerunDiagnostics" data-i18n="diagRerun" data-i18n-title="diagRerunTitle"></button>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-sm" id="btnRerunDiagnostics" data-i18n="diagRerun" data-i18n-title="diagRerunTitle"></button>
+        <button type="button" class="btn btn-sm" id="btnCheckAllFields" data-i18n="diagCheckAll" data-i18n-title="diagCheckAllTitle"></button>
+      </div>
       <div id="summary" class="text-xs font-semibold mt-2"></div>
       <table class="table table-sm mt-2" id="results" hidden>
         <thead><tr>
@@ -227,6 +230,16 @@ const STRINGS = {
     en: 'Re-run the round-trip check against the current text, not just the originally loaded file.',
     ja: '元ファイルではなく、現在のテキストに対して往復チェックを再実行します。',
   },
+  diagCheckAll: { en: 'Check all fields', ja: '全フィールドをチェック' },
+  diagCheckAllTitle: {
+    en: 'Round-trips every field the GUI editor recognizes, across every section currently present in the file (against the current text).',
+    ja: '現在のテキストに対して、GUIエディタが認識する全セクション・全フィールドについて往復チェックを行います。',
+  },
+  diagFullCheckSummary: {
+    en: '{total} field(s) checked across all present sections — {failed} failed.',
+    ja: '現在のセクション全体で{total}個のフィールドをチェックしました — 失敗{failed}件。',
+  },
+  diagInsertDetail: { en: "line count +{n} (insert), read back: '{v}'", ja: '行数 +{n}（挿入）、読み戻し値: \'{v}\'' },
   diagAsset: { en: 'Asset', ja: 'アセット' },
   diagEditChecked: { en: 'Edit checked', ja: '変更箇所' },
   diagResult: { en: 'Result', ja: '結果' },
@@ -451,6 +464,79 @@ document.getElementById('btnRerunDiagnostics').addEventListener('click', () => {
   if (!loadedAsset) return;
   runDiagnostics(loadedAsset.name, loadedAsset.doc.toText());
 });
+
+// Picks a value guaranteed to differ from the field's current raw value, in
+// a shape appropriate to its type -- the round-trip test below only cares
+// that it's different and reads back correctly, not that it's semantically
+// "valid" (SkinLoader validation is a separate concern from this).
+function pickTestValue(field, currentRaw) {
+  if (field.type === 'int') {
+    const n = parseInt(currentRaw, 10);
+    return String((Number.isNaN(n) ? 0 : n) + 1);
+  }
+  if (field.type === 'bool') {
+    const isTrue = currentRaw !== undefined && ['1', 'true', 'yes', 'on'].includes(currentRaw.trim().toLowerCase());
+    return isTrue ? '0' : '1';
+  }
+  if (field.type === 'enum') {
+    const idx = field.options.indexOf((currentRaw || '').trim().toLowerCase());
+    return field.options[(idx + 1) % field.options.length];
+  }
+  if (field.type === 'color') {
+    return currentRaw === '#123456' ? '#654321' : '#123456';
+  }
+  return (currentRaw || 'x') + '_chk';
+}
+
+// Round-trips one field of one section against `baseText`, on its own
+// throwaway CfgDoc (never touches loadedAsset.doc) so every field's test is
+// independent of every other's. A key already present must change in
+// exactly one line (the same guarantee checkRoundTrip spot-checks for
+// GeneralCompact/Width); a key not yet present must add exactly one line.
+function checkFieldRoundTrip(sectionName, field, baseText) {
+  const doc = new CfgDoc(baseText);
+  const before = doc.getValue(sectionName, field.key);
+  const beforeLines = baseText.split(/\r\n|\n/);
+  const testValue = pickTestValue(field, before);
+  doc.setValue(sectionName, field.key, testValue);
+  const afterLines = doc.toText().split(/\r\n|\n/);
+  const readBack = doc.getValue(sectionName, field.key);
+  const editLabel = `${field.key}: '${before === undefined ? '' : before}' -> '${testValue}'`;
+
+  if (before === undefined) {
+    const added = afterLines.length - beforeLines.length;
+    return { ok: added === 1 && readBack === testValue, editLabel, detail: t('diagInsertDetail', { n: added, v: readBack }) };
+  }
+  const changed = diffCount(beforeLines, afterLines);
+  return { ok: changed === 1 && readBack === testValue, editLabel, detail: t('diagLinesChangedDetail', { n: changed, v: readBack }) };
+}
+
+// Sweeps every section currently in the file and, for each one the GUI
+// editor recognizes (EditorFields.describeSection), round-trips every one
+// of its fields -- the comprehensive counterpart to the single hardcoded
+// GeneralCompact/Width spot-check above. Sections with no schema (Other)
+// aren't included since there's no field list to test.
+function runFullFieldCheck() {
+  if (!loadedAsset) return;
+  tbody.innerHTML = '';
+  table.hidden = false;
+  const baseText = loadedAsset.doc.toText();
+  let total = 0;
+  let failed = 0;
+  for (const section of loadedAsset.doc.sections) {
+    const desc = EditorFields.describeSection(section.name);
+    if (!desc) continue;
+    for (const field of desc.fields) {
+      total++;
+      const result = checkFieldRoundTrip(section.name, field, baseText);
+      if (!result.ok) failed++;
+      addRow(section.name, result.editLabel, result.ok, result.detail);
+    }
+  }
+  summary.textContent = t('diagFullCheckSummary', { total, failed });
+}
+
+document.getElementById('btnCheckAllFields').addEventListener('click', runFullFieldCheck);
 
 // ---- Preview ----
 
