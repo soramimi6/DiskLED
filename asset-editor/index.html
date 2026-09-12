@@ -6,8 +6,10 @@
 <style>
   body { font-family: 'Segoe UI', sans-serif; margin: 24px; color: #222; }
   h1 { font-size: 20px; }
+  h2 { font-size: 16px; margin-top: 32px; }
   p.note { color: #555; max-width: 640px; }
   button { font-size: 14px; padding: 6px 14px; cursor: pointer; }
+  select { font-size: 14px; padding: 4px; }
   table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 900px; }
   th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 13px; }
   th { background: #f0f0f0; }
@@ -15,49 +17,92 @@
   tr.fail td.status { color: #b00; font-weight: bold; }
   code { background: #f4f4f4; padding: 1px 4px; }
   #summary { margin-top: 12px; font-weight: bold; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; font-weight: bold; }
+
+  .preview-layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
+  .canvas-frame {
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+      linear-gradient(-45deg, #ccc 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #ccc 75%),
+      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #fff;
+    display: inline-block;
+    border: 1px solid #999;
+  }
+  #previewCanvas { display: block; image-rendering: pixelated; }
+  .controls { display: grid; grid-template-columns: max-content 1fr max-content; gap: 4px 10px; align-items: center; min-width: 320px; }
+  .controls .section-label { grid-column: 1 / -1; font-weight: bold; margin-top: 10px; }
+  .controls input[type="range"] { width: 100%; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; }
+  .toggles label { font-size: 13px; white-space: nowrap; }
+  .top-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  #skinError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
 </style>
 </head>
 <body>
-<h1>DiskLED Asset Editor — development status</h1>
+<h1>DiskLED Asset Editor</h1>
 <p class="note">
-  The full editor (text/GUI layout.cfg editing, live preview, validation) is
-  not built yet. This page currently proves the text&harr;GUI round-trip
-  model (<code>js/cfgModel.js</code>) against the project's own real skin
-  <code>layout.cfg</code> files, directly in your browser — the same check
-  <code>spike-roundtrip.cjs</code> runs under Node for development, shown
-  here so it can be verified without a terminal.
-</p>
-<p class="note">
-  Click the button below and select the repository's <code>assets</code>
-  folder (the one containing <code>crystal/</code>, <code>infobar/</code>,
-  <code>metalic/</code>, <code>original/</code>, <code>vintage/</code>). This
-  works even when this page is opened directly from disk
-  (<code>file://</code>), no local web server needed.
+  Pick the repository's <code>assets</code> folder (the one containing
+  <code>crystal/</code>, <code>infobar/</code>, <code>metalic/</code>,
+  <code>original/</code>, <code>vintage/</code>) to preview a skin the same
+  way DiskLED.exe draws it, or your own in-progress skin folder. Works even
+  opened directly from disk (<code>file://</code>) — no local web server
+  needed.
 </p>
 <input id="folderInput" type="file" webkitdirectory multiple hidden />
 <button id="btnLoad" type="button">Load assets folder&hellip;</button>
-<div id="summary"></div>
-<table id="results" hidden>
-  <thead>
-    <tr><th>Skin</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr>
-  </thead>
-  <tbody></tbody>
-</table>
+<div id="skinError" hidden></div>
+
+<section id="previewSection" hidden>
+  <h2>Preview</h2>
+  <div class="top-controls">
+    <label>Skin: <select id="skinSelect"></select></label>
+    <label><input type="radio" name="mode" id="modeCompact" checked /> Compact</label>
+    <label><input type="radio" name="mode" id="modeFull" /> Full</label>
+  </div>
+  <div class="preview-layout">
+    <div class="canvas-frame"><canvas id="previewCanvas"></canvas></div>
+    <div class="controls" id="controls"></div>
+  </div>
+</section>
+
+<details id="diagSection">
+  <summary>Diagnostics — text&harr;GUI round-trip self-check</summary>
+  <p class="note">
+    Runs the line-preserving cfg model (<code>js/cfgModel.js</code>) against
+    every loaded skin's real <code>layout.cfg</code>: change one existing
+    key's value and confirm exactly one text line changed. Re-run by loading
+    the folder again.
+  </p>
+  <div id="summary"></div>
+  <table id="results" hidden>
+    <thead>
+      <tr><th>Skin</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</details>
 
 <script src="js/cfgModel.js"></script>
+<script src="js/skinLoader.js"></script>
+<script src="js/renderer.js"></script>
 <script>
 // Classic scripts (not type="module"), deliberately: Chromium refuses to
 // load a module script at all when the page itself was opened as a plain
 // file:// document, which is exactly how most people will open this page.
-// js/cfgModel.js is a UMD-wrapped classic script that defines the global
-// CfgDoc used below.
 
 const btn = document.getElementById('btnLoad');
 const folderInput = document.getElementById('folderInput');
+const skinErrorEl = document.getElementById('skinError');
+
+// ---- Diagnostics (round-trip self-check), unchanged from the spike ----
+
 const table = document.getElementById('results');
 const tbody = table.querySelector('tbody');
 const summary = document.getElementById('summary');
-
 const EDIT = { section: 'GeneralCompact', key: 'Width', newValue: '999' };
 
 function addRow(skin, label, ok, detail) {
@@ -75,7 +120,7 @@ function diffCount(before, after) {
   return n;
 }
 
-function checkSkin(skin, text) {
+function checkSkinRoundTrip(skin, text) {
   const doc = new CfgDoc(text);
   const before = doc.getValue(EDIT.section, EDIT.key);
   if (before === undefined) {
@@ -84,52 +129,248 @@ function checkSkin(skin, text) {
   }
   const beforeLines = text.split(/\r\n|\n/);
   doc.setValue(EDIT.section, EDIT.key, EDIT.newValue);
-  const afterText = doc.toText();
-  const afterLines = afterText.split(/\r\n|\n/);
+  const afterLines = doc.toText().split(/\r\n|\n/);
   const changed = diffCount(beforeLines, afterLines);
   const readBack = doc.getValue(EDIT.section, EDIT.key);
   const ok = changed === 1 && readBack === EDIT.newValue;
-  addRow(
-    skin,
-    `${EDIT.section}/${EDIT.key}: '${before}' -> '${EDIT.newValue}'`,
-    ok,
-    `lines changed: ${changed}, read back: '${readBack}'`
-  );
+  addRow(skin, `${EDIT.section}/${EDIT.key}: '${before}' -> '${EDIT.newValue}'`, ok,
+    `lines changed: ${changed}, read back: '${readBack}'`);
   return ok;
 }
 
-// <input webkitdirectory> works even opened as a plain file:// page (unlike
-// the File System Access API, which Chromium blocks specifically for
-// file://) -- see PLANNED-3.2.0.md item 6's own note on this constraint.
+// ---- Preview ----
+
+const previewSection = document.getElementById('previewSection');
+const skinSelect = document.getElementById('skinSelect');
+const modeCompact = document.getElementById('modeCompact');
+const modeFull = document.getElementById('modeFull');
+const canvas = document.getElementById('previewCanvas');
+const controlsEl = document.getElementById('controls');
+
+// skinName -> { skin: <SkinLoader.loadSkin result>, images: Map<lowercased filename, HTMLImageElement> }
+let skins = new Map();
+
+// Manual test state, independent of any real metrics collector -- lets a
+// skin author sweep every meter/LED/digit/ping value by hand. Combined
+// channels (DiskIo/NetIo/DiskRW/NetActivity) are derived the same way the
+// real app derives them (see uMetricsTypes.pas's TMeterBallistics.DiskIo/
+// NetIo comments and uMeterRenderer's shared NetActivity/NetTotal draw)
+// rather than exposed as separate controls, to keep the control list small.
+const state = {
+  cpu: 0.5, mem: 0.5, swap: 0.2,
+  diskRead: 0.3, diskWrite: 0.3,
+  netIn: 0.3, netOut: 0.3,
+  audio: 0.4, audioL: 0.4, audioR: 0.4,
+  diskReadOn: true, diskWriteOn: false,
+  netInOn: true, netOutOn: false,
+  pingLevel: 3, // Normal
+};
+
+function derivedState() {
+  return {
+    ...state,
+    diskIo: Math.max(state.diskRead, state.diskWrite),
+    netIo: Math.max(state.netIn, state.netOut),
+    diskRWOn: state.diskReadOn || state.diskWriteOn,
+    netActivityOn: state.netInOn || state.netOutOn,
+  };
+}
+
+function currentLayout() {
+  const entry = skins.get(skinSelect.value);
+  if (!entry) return null;
+  const useFull = modeFull.checked && entry.skin.hasFull;
+  return { layout: useFull ? entry.skin.full : entry.skin.compact, images: entry.images };
+}
+
+function repaint() {
+  const cur = currentLayout();
+  if (!cur) return;
+  SkinRenderer.renderFrame(canvas, cur.images, cur.layout, derivedState());
+}
+
+function slider(label, key, min, max, step) {
+  const row = document.createElement('label');
+  row.textContent = label;
+  const input = document.createElement('input');
+  input.type = 'range';
+  input.min = min; input.max = max; input.step = step;
+  input.value = state[key];
+  const out = document.createElement('span');
+  out.textContent = state[key];
+  input.addEventListener('input', () => {
+    state[key] = parseFloat(input.value);
+    out.textContent = input.value;
+    repaint();
+  });
+  controlsEl.appendChild(row);
+  controlsEl.appendChild(input);
+  controlsEl.appendChild(out);
+}
+
+function sectionLabel(text) {
+  const div = document.createElement('div');
+  div.className = 'section-label';
+  div.textContent = text;
+  controlsEl.appendChild(div);
+}
+
+function toggleRow(items) {
+  const wrap = document.createElement('div');
+  wrap.className = 'toggles';
+  wrap.style.gridColumn = '1 / -1';
+  for (const [label, key] of items) {
+    const lbl = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = state[key];
+    cb.addEventListener('change', () => { state[key] = cb.checked; repaint(); });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(' ' + label));
+    wrap.appendChild(lbl);
+  }
+  controlsEl.appendChild(wrap);
+}
+
+function buildControls() {
+  controlsEl.innerHTML = '';
+  sectionLabel('Meters (0–100%)');
+  slider('CPU', 'cpu', 0, 1, 0.01);
+  slider('Memory', 'mem', 0, 1, 0.01);
+  slider('Swap', 'swap', 0, 1, 0.01);
+  slider('Disk read', 'diskRead', 0, 1, 0.01);
+  slider('Disk write', 'diskWrite', 0, 1, 0.01);
+  slider('Net in', 'netIn', 0, 1, 0.01);
+  slider('Net out', 'netOut', 0, 1, 0.01);
+  slider('Audio', 'audio', 0, 1, 0.01);
+  slider('Audio L', 'audioL', 0, 1, 0.01);
+  slider('Audio R', 'audioR', 0, 1, 0.01);
+
+  sectionLabel('LEDs');
+  toggleRow([
+    ['Disk read', 'diskReadOn'], ['Disk write', 'diskWriteOn'],
+    ['Net in', 'netInOn'], ['Net out', 'netOutOn'],
+  ]);
+
+  sectionLabel('Ping');
+  const pingWrap = document.createElement('div');
+  pingWrap.className = 'toggles';
+  pingWrap.style.gridColumn = '1 / -1';
+  ['Timeout', 'Slow', 'Fair', 'Normal'].forEach((label, idx) => {
+    const lbl = document.createElement('label');
+    const rb = document.createElement('input');
+    rb.type = 'radio';
+    rb.name = 'pingLevel';
+    rb.checked = state.pingLevel === idx;
+    rb.addEventListener('change', () => { state.pingLevel = idx; repaint(); });
+    lbl.appendChild(rb);
+    lbl.appendChild(document.createTextNode(' ' + label));
+    pingWrap.appendChild(lbl);
+  });
+  controlsEl.appendChild(pingWrap);
+}
+
+function populateSkinSelect() {
+  skinSelect.innerHTML = '';
+  for (const name of skins.keys()) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    skinSelect.appendChild(opt);
+  }
+}
+
+function onSkinChanged() {
+  const entry = skins.get(skinSelect.value);
+  modeFull.disabled = !entry || !entry.skin.hasFull;
+  if (modeFull.disabled) modeCompact.checked = true;
+  repaint();
+}
+
+skinSelect.addEventListener('change', onSkinChanged);
+modeCompact.addEventListener('change', repaint);
+modeFull.addEventListener('change', repaint);
+
+function loadImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// ---- Folder loading: builds both skins (for preview) and runs diagnostics ----
+
 btn.addEventListener('click', () => folderInput.click());
 
 folderInput.addEventListener('change', async () => {
   const files = Array.from(folderInput.files || []);
   tbody.innerHTML = '';
+  skinErrorEl.hidden = true;
+  skinErrorEl.textContent = '';
   if (files.length === 0) {
     summary.textContent = '';
+    previewSection.hidden = true;
     return;
   }
   summary.textContent = 'Loading...';
 
-  // webkitRelativePath looks like "assets/crystal/layout.cfg"; the skin name
-  // is the second-to-last path segment.
-  const cfgFiles = files.filter((f) => f.name === 'layout.cfg');
-  let allOk = true;
-  for (const file of cfgFiles) {
-    const parts = file.webkitRelativePath.split('/');
-    const skin = parts.length >= 2 ? parts[parts.length - 2] : file.webkitRelativePath;
-    const text = await file.text();
-    const ok = checkSkin(skin, text);
-    allOk = allOk && ok;
+  // Group files by their immediate parent folder (the skin name):
+  // "assets/crystal/layout.cfg" -> skin "crystal".
+  const byFolder = new Map();
+  for (const f of files) {
+    const parts = f.webkitRelativePath.split('/');
+    if (parts.length < 2) continue;
+    const folder = parts[parts.length - 2];
+    if (!byFolder.has(folder)) byFolder.set(folder, []);
+    byFolder.get(folder).push(f);
   }
-  table.hidden = cfgFiles.length === 0;
-  summary.textContent =
-    cfgFiles.length === 0
-      ? 'No layout.cfg found in any subfolder — did you pick the assets folder?'
-      : allOk
-      ? `All ${cfgFiles.length} skin(s) passed the round-trip check.`
-      : `${cfgFiles.length} skin(s) checked — some FAILED, see table.`;
+
+  skins = new Map();
+  let allOk = true;
+  let cfgCount = 0;
+  const loadErrors = [];
+
+  for (const [folder, folderFiles] of byFolder) {
+    const cfgFile = folderFiles.find((f) => f.name.toLowerCase() === 'layout.cfg');
+    if (!cfgFile) continue;
+    cfgCount++;
+    const text = await cfgFile.text();
+    allOk = checkSkinRoundTrip(folder, text) && allOk;
+
+    try {
+      const skin = SkinLoader.loadSkin(cfgFile.webkitRelativePath, text, folder);
+      const images = new Map();
+      const imageFiles = folderFiles.filter((f) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(f.name));
+      const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
+      for (const [name, img] of loaded) if (img) images.set(name, img);
+      skins.set(folder, { skin, images });
+    } catch (e) {
+      loadErrors.push(e.message || String(e));
+    }
+  }
+
+  table.hidden = cfgCount === 0;
+  summary.textContent = cfgCount === 0
+    ? 'No layout.cfg found in any subfolder — did you pick the assets folder?'
+    : allOk
+    ? `All ${cfgCount} skin(s) passed the round-trip check.`
+    : `${cfgCount} skin(s) checked — some FAILED, see table.`;
+
+  if (loadErrors.length > 0) {
+    skinErrorEl.hidden = false;
+    skinErrorEl.textContent = 'Some skins failed validation and were skipped from Preview:\n' + loadErrors.join('\n');
+  }
+
+  if (skins.size > 0) {
+    populateSkinSelect();
+    previewSection.hidden = false;
+    buildControls();
+    onSkinChanged();
+  } else {
+    previewSection.hidden = true;
+  }
 });
 </script>
 </body>
