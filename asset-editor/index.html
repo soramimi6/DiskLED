@@ -9,7 +9,6 @@
   h2 { font-size: 16px; margin-top: 32px; }
   p.note { color: #555; max-width: 640px; }
   button { font-size: 14px; padding: 6px 14px; cursor: pointer; }
-  select { font-size: 14px; padding: 4px; }
   table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 900px; }
   th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 13px; }
   th { background: #f0f0f0; }
@@ -40,26 +39,28 @@
   .toggles label { font-size: 13px; white-space: nowrap; }
   .top-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
   #skinError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
+  #assetLabel { margin-top: 8px; font-size: 13px; color: #555; }
 </style>
 </head>
 <body>
 <h1>DiskLED Asset Editor</h1>
 <p class="note">
-  Pick the repository's <code>assets</code> folder (the one containing
-  <code>crystal/</code>, <code>infobar/</code>, <code>metalic/</code>,
-  <code>original/</code>, <code>vintage/</code>) to preview a skin the same
-  way DiskLED.exe draws it, or your own in-progress skin folder. Works even
-  opened directly from disk (<code>file://</code>) — no local web server
-  needed.
+  Pick the folder of <strong>one</strong> asset (skin) you want to check or
+  edit — the folder that directly contains its <code>layout.cfg</code> and
+  images, such as this repository's <code>assets/original/</code>, or a
+  folder of your own anywhere on disk (My Documents, a USB drive, ...). This
+  tool never scans a parent <code>assets/</code> folder for you; point it at
+  the one asset you're working on. Works even opened directly from disk
+  (<code>file://</code>) — no local web server needed.
 </p>
 <input id="folderInput" type="file" webkitdirectory multiple hidden />
-<button id="btnLoad" type="button">Load assets folder&hellip;</button>
+<button id="btnLoad" type="button">Load asset folder&hellip;</button>
+<div id="assetLabel"></div>
 <div id="skinError" hidden></div>
 
 <section id="previewSection" hidden>
   <h2>Preview</h2>
   <div class="top-controls">
-    <label>Skin: <select id="skinSelect"></select></label>
     <label><input type="radio" name="mode" id="modeCompact" checked /> Compact</label>
     <label><input type="radio" name="mode" id="modeFull" /> Full</label>
   </div>
@@ -73,14 +74,14 @@
   <summary>Diagnostics — text&harr;GUI round-trip self-check</summary>
   <p class="note">
     Runs the line-preserving cfg model (<code>js/cfgModel.js</code>) against
-    every loaded skin's real <code>layout.cfg</code>: change one existing
+    the loaded asset's real <code>layout.cfg</code>: change one existing
     key's value and confirm exactly one text line changed. Re-run by loading
-    the folder again.
+    the asset again.
   </p>
   <div id="summary"></div>
   <table id="results" hidden>
     <thead>
-      <tr><th>Skin</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr>
+      <tr><th>Asset</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -97,19 +98,20 @@
 const btn = document.getElementById('btnLoad');
 const folderInput = document.getElementById('folderInput');
 const skinErrorEl = document.getElementById('skinError');
+const assetLabel = document.getElementById('assetLabel');
 
-// ---- Diagnostics (round-trip self-check), unchanged from the spike ----
+// ---- Diagnostics (round-trip self-check) ----
 
 const table = document.getElementById('results');
 const tbody = table.querySelector('tbody');
 const summary = document.getElementById('summary');
 const EDIT = { section: 'GeneralCompact', key: 'Width', newValue: '999' };
 
-function addRow(skin, label, ok, detail) {
+function addRow(label, editLabel, ok, detail) {
   const tr = document.createElement('tr');
   tr.className = ok ? 'pass' : 'fail';
   tr.innerHTML =
-    `<td>${skin}</td><td>${label}</td><td class="status">${ok ? 'PASS' : 'FAIL'}</td><td>${detail}</td>`;
+    `<td>${label}</td><td>${editLabel}</td><td class="status">${ok ? 'PASS' : 'FAIL'}</td><td>${detail}</td>`;
   tbody.appendChild(tr);
 }
 
@@ -120,11 +122,11 @@ function diffCount(before, after) {
   return n;
 }
 
-function checkSkinRoundTrip(skin, text) {
+function checkRoundTrip(label, text) {
   const doc = new CfgDoc(text);
   const before = doc.getValue(EDIT.section, EDIT.key);
   if (before === undefined) {
-    addRow(skin, `${EDIT.section}/${EDIT.key}`, false, 'key not found');
+    addRow(label, `${EDIT.section}/${EDIT.key}`, false, 'key not found');
     return false;
   }
   const beforeLines = text.split(/\r\n|\n/);
@@ -133,7 +135,7 @@ function checkSkinRoundTrip(skin, text) {
   const changed = diffCount(beforeLines, afterLines);
   const readBack = doc.getValue(EDIT.section, EDIT.key);
   const ok = changed === 1 && readBack === EDIT.newValue;
-  addRow(skin, `${EDIT.section}/${EDIT.key}: '${before}' -> '${EDIT.newValue}'`, ok,
+  addRow(label, `${EDIT.section}/${EDIT.key}: '${before}' -> '${EDIT.newValue}'`, ok,
     `lines changed: ${changed}, read back: '${readBack}'`);
   return ok;
 }
@@ -141,14 +143,14 @@ function checkSkinRoundTrip(skin, text) {
 // ---- Preview ----
 
 const previewSection = document.getElementById('previewSection');
-const skinSelect = document.getElementById('skinSelect');
 const modeCompact = document.getElementById('modeCompact');
 const modeFull = document.getElementById('modeFull');
 const canvas = document.getElementById('previewCanvas');
 const controlsEl = document.getElementById('controls');
 
-// skinName -> { skin: <SkinLoader.loadSkin result>, images: Map<lowercased filename, HTMLImageElement> }
-let skins = new Map();
+// The single currently-loaded asset: { name, skin: <SkinLoader.loadSkin
+// result>, images: Map<lowercased filename, HTMLImageElement> }, or null.
+let loadedAsset = null;
 
 // Manual test state, independent of any real metrics collector -- lets a
 // skin author sweep every meter/LED/digit/ping value by hand. Combined
@@ -177,10 +179,9 @@ function derivedState() {
 }
 
 function currentLayout() {
-  const entry = skins.get(skinSelect.value);
-  if (!entry) return null;
-  const useFull = modeFull.checked && entry.skin.hasFull;
-  return { layout: useFull ? entry.skin.full : entry.skin.compact, images: entry.images };
+  if (!loadedAsset) return null;
+  const useFull = modeFull.checked && loadedAsset.skin.hasFull;
+  return { layout: useFull ? loadedAsset.skin.full : loadedAsset.skin.compact, images: loadedAsset.images };
 }
 
 function repaint() {
@@ -270,26 +271,14 @@ function buildControls() {
   controlsEl.appendChild(pingWrap);
 }
 
-function populateSkinSelect() {
-  skinSelect.innerHTML = '';
-  for (const name of skins.keys()) {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    skinSelect.appendChild(opt);
-  }
-}
-
-function onSkinChanged() {
-  const entry = skins.get(skinSelect.value);
-  modeFull.disabled = !entry || !entry.skin.hasFull;
+function onModeChanged() {
+  modeFull.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
   if (modeFull.disabled) modeCompact.checked = true;
   repaint();
 }
 
-skinSelect.addEventListener('change', onSkinChanged);
-modeCompact.addEventListener('change', repaint);
-modeFull.addEventListener('change', repaint);
+modeCompact.addEventListener('change', onModeChanged);
+modeFull.addEventListener('change', onModeChanged);
 
 function loadImage(file) {
   return new Promise((resolve) => {
@@ -300,76 +289,60 @@ function loadImage(file) {
   });
 }
 
-// ---- Folder loading: builds both skins (for preview) and runs diagnostics ----
+// ---- Loading a single asset folder ----
+// The folder the user picks IS the asset: its layout.cfg must sit directly
+// inside it (webkitRelativePath "<pickedFolderName>/layout.cfg"), exactly
+// like assets/<id>/layout.cfg in this repo. No enumeration of sibling
+// asset folders -- deliberately, so a skin developed anywhere on disk (My
+// Documents, a USB drive, outside this repo entirely) opens the same way a
+// repo asset does.
 
 btn.addEventListener('click', () => folderInput.click());
 
 folderInput.addEventListener('change', async () => {
   const files = Array.from(folderInput.files || []);
   tbody.innerHTML = '';
+  summary.textContent = '';
+  table.hidden = true;
   skinErrorEl.hidden = true;
   skinErrorEl.textContent = '';
-  if (files.length === 0) {
-    summary.textContent = '';
-    previewSection.hidden = true;
+  assetLabel.textContent = '';
+  loadedAsset = null;
+  previewSection.hidden = true;
+  if (files.length === 0) return;
+
+  const rootName = files[0].webkitRelativePath.split('/')[0];
+  const cfgFile = files.find((f) =>
+    f.name.toLowerCase() === 'layout.cfg' && f.webkitRelativePath.split('/').length === 2);
+  if (!cfgFile) {
+    skinErrorEl.hidden = false;
+    skinErrorEl.textContent =
+      `No layout.cfg found directly inside "${rootName}". Select the asset's own folder ` +
+      `(the one that directly contains layout.cfg), not a parent folder.`;
     return;
   }
-  summary.textContent = 'Loading...';
 
-  // Group files by their immediate parent folder (the skin name):
-  // "assets/crystal/layout.cfg" -> skin "crystal".
-  const byFolder = new Map();
-  for (const f of files) {
-    const parts = f.webkitRelativePath.split('/');
-    if (parts.length < 2) continue;
-    const folder = parts[parts.length - 2];
-    if (!byFolder.has(folder)) byFolder.set(folder, []);
-    byFolder.get(folder).push(f);
-  }
+  const text = await cfgFile.text();
+  table.hidden = false;
+  checkRoundTrip(rootName, text);
+  summary.textContent = tbody.querySelector('tr.fail')
+    ? 'Round-trip check FAILED, see table.'
+    : 'Round-trip check passed.';
 
-  skins = new Map();
-  let allOk = true;
-  let cfgCount = 0;
-  const loadErrors = [];
-
-  for (const [folder, folderFiles] of byFolder) {
-    const cfgFile = folderFiles.find((f) => f.name.toLowerCase() === 'layout.cfg');
-    if (!cfgFile) continue;
-    cfgCount++;
-    const text = await cfgFile.text();
-    allOk = checkSkinRoundTrip(folder, text) && allOk;
-
-    try {
-      const skin = SkinLoader.loadSkin(cfgFile.webkitRelativePath, text, folder);
-      const images = new Map();
-      const imageFiles = folderFiles.filter((f) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(f.name));
-      const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
-      for (const [name, img] of loaded) if (img) images.set(name, img);
-      skins.set(folder, { skin, images });
-    } catch (e) {
-      loadErrors.push(e.message || String(e));
-    }
-  }
-
-  table.hidden = cfgCount === 0;
-  summary.textContent = cfgCount === 0
-    ? 'No layout.cfg found in any subfolder — did you pick the assets folder?'
-    : allOk
-    ? `All ${cfgCount} skin(s) passed the round-trip check.`
-    : `${cfgCount} skin(s) checked — some FAILED, see table.`;
-
-  if (loadErrors.length > 0) {
-    skinErrorEl.hidden = false;
-    skinErrorEl.textContent = 'Some skins failed validation and were skipped from Preview:\n' + loadErrors.join('\n');
-  }
-
-  if (skins.size > 0) {
-    populateSkinSelect();
+  try {
+    const skin = SkinLoader.loadSkin(cfgFile.webkitRelativePath, text, rootName);
+    const images = new Map();
+    const imageFiles = files.filter((f) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(f.name));
+    const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
+    for (const [name, img] of loaded) if (img) images.set(name, img);
+    loadedAsset = { name: rootName, skin, images };
+    assetLabel.textContent = `Loaded: ${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
     previewSection.hidden = false;
     buildControls();
-    onSkinChanged();
-  } else {
-    previewSection.hidden = true;
+    onModeChanged();
+  } catch (e) {
+    skinErrorEl.hidden = false;
+    skinErrorEl.textContent = `Failed to load "${rootName}": ${e.message || e}`;
   }
 });
 </script>
