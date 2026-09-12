@@ -31,9 +31,9 @@
   #previewCanvas { display: block; image-rendering: pixelated; }
 </style>
 </head>
-<body class="bg-base-200 text-base-content text-sm min-h-screen">
+<body class="bg-base-200 text-base-content text-sm h-screen flex flex-col overflow-hidden">
 
-<div class="navbar bg-base-100 shadow-sm px-4 gap-3 flex-wrap">
+<div class="navbar bg-base-100 shadow-sm px-4 gap-3 flex-wrap shrink-0">
   <span class="text-base font-semibold">DiskLED Asset Editor</span>
   <input id="folderInput" type="file" webkitdirectory multiple hidden />
   <button id="btnLoad" type="button" class="btn btn-primary btn-sm"
@@ -43,7 +43,7 @@
   <span id="assetLabel" class="text-xs text-base-content/60"></span>
 </div>
 
-<div id="previewBar" class="bg-base-100 border-b border-base-300 px-4 py-3 flex items-center gap-4 flex-wrap" hidden>
+<div id="previewBar" class="bg-base-100 border-b border-base-300 px-4 py-3 flex items-center gap-4 flex-wrap shrink-0" hidden>
   <div class="canvas-frame inline-block border border-base-300 rounded-box shadow"><canvas id="previewCanvas"></canvas></div>
   <div class="join" id="modeToggle" title="Preview and edit either the compact or the full layout.">
     <button type="button" id="modeCompactBtn" class="btn btn-sm join-item btn-active">Compact</button>
@@ -51,12 +51,12 @@
   </div>
 </div>
 
-<p id="introNote" class="text-xs text-base-content/60 px-4 pt-2 max-w-xl">
+<p id="introNote" class="text-xs text-base-content/60 px-4 pt-2 max-w-xl shrink-0">
   Point at <strong>one</strong> asset's folder — the one directly containing its <code class="bg-base-300 rounded px-1">layout.cfg</code> — anywhere on disk.
 </p>
-<div id="skinError" class="alert alert-error mx-4 mt-2 text-xs whitespace-pre-wrap" hidden></div>
+<div id="skinError" class="alert alert-error mx-4 mt-2 text-xs whitespace-pre-wrap shrink-0" hidden></div>
 
-<main class="grid grid-cols-[220px_380px_1fr] gap-px bg-base-300" id="workspace" hidden>
+<main class="grid grid-cols-[220px_380px_1fr] gap-px bg-base-300 flex-1 min-h-0" id="workspace" hidden>
   <div class="bg-base-100 p-3 overflow-y-auto">
     <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">Sections</h2>
     <ul class="menu menu-sm p-0 w-full" id="sectionTree"></ul>
@@ -75,24 +75,26 @@
   </div>
 </main>
 
-<details id="bottomDrawer" class="bg-base-100 border-t border-base-300" hidden>
+<details id="bottomDrawer" class="bg-base-100 border-t border-base-300 shrink-0" hidden>
   <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-base-content/60">Test values &amp; diagnostics</summary>
-  <div class="flex gap-1 px-4 pt-1">
-    <button type="button" class="btn btn-ghost btn-sm tab-btn btn-active" data-tab="test">Test values</button>
-    <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="diag">Diagnostics</button>
-  </div>
-  <div class="px-4 pb-4 pt-2" id="tabTest">
-    <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center max-w-lg" id="controls"></div>
-  </div>
-  <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
-    <p class="text-xs text-base-content/60 mb-2">
-      Changes one existing key's value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed.
-    </p>
-    <div id="summary" class="text-xs font-semibold"></div>
-    <table class="table table-sm mt-2" id="results" hidden>
-      <thead><tr><th>Asset</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <div class="max-h-[35vh] overflow-y-auto">
+    <div class="flex gap-1 px-4 pt-1">
+      <button type="button" class="btn btn-ghost btn-sm tab-btn btn-active" data-tab="test">Test values</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="diag">Diagnostics</button>
+    </div>
+    <div class="px-4 pb-4 pt-2" id="tabTest">
+      <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center max-w-lg" id="controls"></div>
+    </div>
+    <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
+      <p class="text-xs text-base-content/60 mb-2">
+        Changes one existing key's value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed.
+      </p>
+      <div id="summary" class="text-xs font-semibold"></div>
+      <table class="table table-sm mt-2" id="results" hidden>
+        <thead><tr><th>Asset</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 </details>
 
