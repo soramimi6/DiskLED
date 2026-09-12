@@ -7,15 +7,18 @@
 // Follows the OS light/dark preference via daisyUI's stable data-theme API
 // (rather than daisyUI's build-time --prefersdark plugin flag, which needs
 // npm/package resolution the CDN build doesn't have) -- same intent as the
-// main app's item-8 "follow OS light/dark" precedent.
+// main app's item-8 "follow OS light/dark" precedent. Named themes chosen
+// by the user: cupcake (light) / dracula (dark) -- see themes.css below,
+// needed to unlock any theme beyond the two default "light"/"dark".
 (function () {
   var mq = window.matchMedia('(prefers-color-scheme: dark)');
-  function apply() { document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light'); }
+  function apply() { document.documentElement.setAttribute('data-theme', mq.matches ? 'dracula' : 'cupcake'); }
   apply();
   mq.addEventListener('change', apply);
 })();
 </script>
 <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <style>
   /* The only thing Tailwind/daisyUI can't express: the transparent-window
@@ -49,32 +52,35 @@
   .tok-section { font-weight: 600; }
   .tok-comment { font-style: italic; }
 
-  /* Light (default): a balanced palette in the same Dracula role-mapping
-     (section/bracket/key/eq/value/comment), just re-tuned for contrast on
-     a light background -- Dracula's own pastel hues (#50fa7b, #8be9fd, ...)
-     are too washed-out to read against white. Kept vivid/saturated rather
-     than muted, per feedback that an earlier darker-but-duller pass didn't
-     stand out enough. */
-  #cfgHighlight { background: #f8f8f2; color: #282a36; }
-  #cfgText { caret-color: #282a36; }
-  #cfgText::selection { background: rgba(111, 66, 193, 0.15); }
-  .tok-section { color: #0a9c3e; }
-  .tok-bracket { color: #7c3aed; }
-  .tok-key { color: #0891b2; }
-  .tok-eq { color: #db2777; }
-  .tok-value { color: #c2410c; }
-  .tok-comment { color: #64748b; }
+  /* Light (default, cupcake theme): every token color is one of cupcake's
+     own "-content" variables -- the exact readable-text shades daisyUI
+     itself pairs with cupcake's primary/secondary/accent/info/success, not
+     independently picked colors. Values copied verbatim (as oklch()) from
+     daisyui@5/themes.css's [data-theme=cupcake] block. Background reuses
+     cupcake's own --color-base-100 so the pane sits flush with the rest of
+     the cupcake-themed page. */
+  #cfgHighlight { background: oklch(97.788% .004 56.375); color: oklch(23.574% .066 313.189); }
+  #cfgText { caret-color: oklch(23.574% .066 313.189); }
+  #cfgText::selection { background: oklch(89% .061 343.231 / 40%); } /* cupcake --color-secondary */
+  .tok-section { color: oklch(26% .051 172.552); } /* cupcake --color-success-content */
+  .tok-bracket { color: oklch(45% .187 3.815); } /* cupcake --color-secondary-content */
+  .tok-key { color: oklch(43% .078 188.216); } /* cupcake --color-primary-content */
+  .tok-eq { color: oklch(47% .157 37.304); } /* cupcake --color-accent-content */
+  .tok-value { color: oklch(29% .066 243.157); } /* cupcake --color-info-content */
+  .tok-comment { color: oklch(23.574% .066 313.189 / 55%); } /* cupcake --color-base-content, muted */
 
-  /* Dark: the actual Dracula palette (https://draculatheme.com). */
-  html[data-theme="dark"] #cfgHighlight { background: #282a36; color: #f8f8f2; }
-  html[data-theme="dark"] #cfgText { caret-color: #f8f8f2; }
-  html[data-theme="dark"] #cfgText::selection { background: rgba(189, 147, 249, 0.4); }
-  html[data-theme="dark"] .tok-section { color: #50fa7b; }
-  html[data-theme="dark"] .tok-bracket { color: #bd93f9; }
-  html[data-theme="dark"] .tok-key { color: #8be9fd; }
-  html[data-theme="dark"] .tok-eq { color: #ff79c6; }
-  html[data-theme="dark"] .tok-value { color: #f1fa8c; }
-  html[data-theme="dark"] .tok-comment { color: #6272a4; }
+  /* Dark (dracula theme): the actual Dracula palette (https://draculatheme.com)
+     -- already exact, no change needed switching the app's dark theme name
+     from daisyUI's generic "dark" to "dracula". */
+  html[data-theme="dracula"] #cfgHighlight { background: #282a36; color: #f8f8f2; }
+  html[data-theme="dracula"] #cfgText { caret-color: #f8f8f2; }
+  html[data-theme="dracula"] #cfgText::selection { background: rgba(189, 147, 249, 0.4); }
+  html[data-theme="dracula"] .tok-section { color: #50fa7b; }
+  html[data-theme="dracula"] .tok-bracket { color: #bd93f9; }
+  html[data-theme="dracula"] .tok-key { color: #8be9fd; }
+  html[data-theme="dracula"] .tok-eq { color: #ff79c6; }
+  html[data-theme="dracula"] .tok-value { color: #f1fa8c; }
+  html[data-theme="dracula"] .tok-comment { color: #6272a4; }
 </style>
 </head>
 <body class="bg-base-200 text-base-content text-sm h-screen flex flex-col overflow-hidden">
