@@ -82,8 +82,9 @@
       <button type="button" class="btn btn-ghost btn-sm tab-btn btn-active" data-tab="test">Test values</button>
       <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="diag">Diagnostics</button>
     </div>
-    <div class="px-4 pb-4 pt-2" id="tabTest">
-      <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center max-w-lg" id="controls"></div>
+    <div class="px-4 pb-4 pt-2 flex gap-8 flex-wrap" id="controls">
+      <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsMeters"></div>
+      <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsLedsPing"></div>
     </div>
     <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
       <p class="text-xs text-base-content/60 mb-2">
@@ -172,7 +173,8 @@ function checkRoundTrip(label, text) {
 const modeCompactBtn = document.getElementById('modeCompactBtn');
 const modeFullBtn = document.getElementById('modeFullBtn');
 const canvas = document.getElementById('previewCanvas');
-const controlsEl = document.getElementById('controls');
+const controlsMeters = document.getElementById('controlsMeters');
+const controlsLedsPing = document.getElementById('controlsLedsPing');
 
 let isFullMode = false;
 
@@ -248,7 +250,7 @@ function syncGraphState() {
   }
 }
 
-function slider(label, key, min, max, step) {
+function slider(container, label, key, min, max, step) {
   const row = document.createElement('label');
   row.className = 'text-xs';
   row.textContent = label;
@@ -265,19 +267,19 @@ function slider(label, key, min, max, step) {
     out.textContent = input.value;
     repaint();
   });
-  controlsEl.appendChild(row);
-  controlsEl.appendChild(input);
-  controlsEl.appendChild(out);
+  container.appendChild(row);
+  container.appendChild(input);
+  container.appendChild(out);
 }
 
-function sectionLabel(text) {
+function sectionLabel(container, text) {
   const div = document.createElement('div');
   div.className = 'col-span-3 font-semibold text-xs uppercase tracking-wide text-base-content/60 mt-2';
   div.textContent = text;
-  controlsEl.appendChild(div);
+  container.appendChild(div);
 }
 
-function toggleRow(items) {
+function toggleRow(container, items) {
   const wrap = document.createElement('div');
   wrap.className = 'col-span-3 flex flex-wrap gap-x-4 gap-y-1';
   for (const [label, key] of items) {
@@ -292,30 +294,34 @@ function toggleRow(items) {
     lbl.appendChild(document.createTextNode(label));
     wrap.appendChild(lbl);
   }
-  controlsEl.appendChild(wrap);
+  container.appendChild(wrap);
 }
 
+// Split across two side-by-side grids -- Meters on the left, LEDs/Ping on
+// the right -- rather than one long stacked column.
 function buildControls() {
-  controlsEl.innerHTML = '';
-  sectionLabel('Meters (0–100%)');
-  slider('CPU', 'cpu', 0, 1, 0.01);
-  slider('Memory', 'mem', 0, 1, 0.01);
-  slider('Swap', 'swap', 0, 1, 0.01);
-  slider('Disk read', 'diskRead', 0, 1, 0.01);
-  slider('Disk write', 'diskWrite', 0, 1, 0.01);
-  slider('Net in', 'netIn', 0, 1, 0.01);
-  slider('Net out', 'netOut', 0, 1, 0.01);
-  slider('Audio', 'audio', 0, 1, 0.01);
-  slider('Audio L', 'audioL', 0, 1, 0.01);
-  slider('Audio R', 'audioR', 0, 1, 0.01);
+  controlsMeters.innerHTML = '';
+  controlsLedsPing.innerHTML = '';
 
-  sectionLabel('LEDs');
-  toggleRow([
+  sectionLabel(controlsMeters, 'Meters (0–100%)');
+  slider(controlsMeters, 'CPU', 'cpu', 0, 1, 0.01);
+  slider(controlsMeters, 'Memory', 'mem', 0, 1, 0.01);
+  slider(controlsMeters, 'Swap', 'swap', 0, 1, 0.01);
+  slider(controlsMeters, 'Disk read', 'diskRead', 0, 1, 0.01);
+  slider(controlsMeters, 'Disk write', 'diskWrite', 0, 1, 0.01);
+  slider(controlsMeters, 'Net in', 'netIn', 0, 1, 0.01);
+  slider(controlsMeters, 'Net out', 'netOut', 0, 1, 0.01);
+  slider(controlsMeters, 'Audio', 'audio', 0, 1, 0.01);
+  slider(controlsMeters, 'Audio L', 'audioL', 0, 1, 0.01);
+  slider(controlsMeters, 'Audio R', 'audioR', 0, 1, 0.01);
+
+  sectionLabel(controlsLedsPing, 'LEDs');
+  toggleRow(controlsLedsPing, [
     ['Disk read', 'diskReadOn'], ['Disk write', 'diskWriteOn'],
     ['Net in', 'netInOn'], ['Net out', 'netOutOn'],
   ]);
 
-  sectionLabel('Ping');
+  sectionLabel(controlsLedsPing, 'Ping');
   const pingWrap = document.createElement('div');
   pingWrap.className = 'col-span-3 flex flex-wrap gap-x-4 gap-y-1';
   ['Timeout', 'Slow', 'Fair', 'Normal'].forEach((label, idx) => {
@@ -331,7 +337,7 @@ function buildControls() {
     lbl.appendChild(document.createTextNode(label));
     pingWrap.appendChild(lbl);
   });
-  controlsEl.appendChild(pingWrap);
+  controlsLedsPing.appendChild(pingWrap);
 }
 
 function onModeChanged() {
@@ -578,6 +584,17 @@ function selectSection(name) {
   sectionTree.querySelectorAll('a[data-section]').forEach((a) => {
     a.classList.toggle('menu-active', a.dataset.section === name);
   });
+  // Follow the selected section's own mode (a *Full section always belongs
+  // to the Full layout, *Compact to Compact) so the preview above always
+  // shows what this section actually affects. A suffix-less section
+  // (General) applies to both -- leave the current mode alone for those.
+  if (name.endsWith('Full') && isFullMode !== true) {
+    isFullMode = true;
+    onModeChanged();
+  } else if (name.endsWith('Compact') && isFullMode !== false) {
+    isFullMode = false;
+    onModeChanged();
+  }
   renderFieldPanel(name);
 }
 
