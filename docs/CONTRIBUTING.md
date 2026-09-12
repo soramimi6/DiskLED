@@ -107,6 +107,10 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 - PR を作らず `feature/x.y.z` へ直接コミットする軽微な修正（誤字・ドキュメントのみ等）は、Summary のみでよい。Description（JA+EN）は必須にしない
 - 過去（〜3.1.1 時点）のコミットは Summary 1 行に what+why をまとめた旧形式。今後のコミットから新形式に切り替える（過去分の書き直しはしない）
 
+## asset-editor と uSkinLoader.pas の二重実装
+
+`asset-editor/js/skinLoader.js` は `src/view/uSkinLoader.pas` の検証ロジック（`Read*` 系ヘルパー）を JS に移植したもので、実質的な二重実装になっている。**`uSkinLoader.pas` の `Read*` 系ヘルパーに変更を加えたら、`asset-editor/js/skinLoader.js` の対応するロジックも必ず追従改修すること。** CI が無いため機械照合はできず、`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md`（fixture は `tools/asset-editor-fixtures/`）を使って人力で照合する。追従を怠ると「asset-editor では通るのに実機の DiskLED.exe では弾かれる」という信頼性の欠陥を生む。
+
 ## 備考
 
 - CI が無いため、`/code-review` を通す・実機での目視確認（UI 変更時）を都度行うことが唯一の品質担保になる。省略しない

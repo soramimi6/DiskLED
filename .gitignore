@@ -4,6 +4,7 @@
 *.dsk
 *.cfg
 !assets/**/layout.cfg
+!tools/asset-editor-fixtures/**/layout.cfg
 *.dof
 *.ddp
 *.local
@@ -72,3 +73,4 @@ docs/internal/
 !docs/LISTING.md
 !docs/MAINTAINING-PUBLIC-DOCS.md
 !docs/PLANNED-*.md
+!docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md
