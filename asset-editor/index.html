@@ -1261,12 +1261,43 @@ function selectSection(name) {
   renderFieldPanel(name);
 }
 
+// Moves the text pane's caret/selection to the section's own [Header] line
+// and scrolls it into view -- only called from an actual tree click (see
+// leafItem below), never from selectSection() itself. selectSection() also
+// runs on every data-driven re-render (a GUI field edit, a debounced text
+// reparse), and those must NOT steal focus/scroll out from under whatever
+// the user is doing at the time -- only a deliberate tree click should jump
+// the text pane. A section with no line yet (unchecked "Active" in the
+// tree) has nothing to jump to.
+function jumpCfgTextToSection(name) {
+  const section = loadedAsset.doc.findSection(name);
+  if (!section) return;
+  const lines = loadedAsset.doc.lines;
+  // A <textarea>'s .value always normalizes CRLF/CR line breaks to a single
+  // LF (per the HTML spec's textarea value sanitization), regardless of the
+  // source file's own line ending (loadedAsset.doc.eol, e.g. "\r\n") -- so
+  // the offset math below must assume 1 character per line break here even
+  // when the file on disk uses CRLF.
+  let offset = 0;
+  for (let i = 0; i < section.headerLine; i++) offset += lines[i].length + 1;
+  const headerLine = lines[section.headerLine];
+
+  cfgText.focus();
+  cfgText.setSelectionRange(offset, offset + headerLine.length);
+
+  // Plain <textarea>s don't auto-scroll a programmatic selection into view,
+  // so compute it from line height and roughly center the target line.
+  const lineHeight = parseFloat(getComputedStyle(cfgText).lineHeight) || 16;
+  cfgText.scrollTop = Math.max(0, section.headerLine * lineHeight - cfgText.clientHeight / 2 + lineHeight);
+  syncHighlightScroll(); // keep the colored overlay aligned with the new scroll position
+}
+
 function leafItem(name, checkable, isPresent) {
   const li = document.createElement('li');
   const row = document.createElement('div');
   row.dataset.section = name;
   row.className = 'flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer hover:bg-base-200';
-  row.addEventListener('click', () => selectSection(name));
+  row.addEventListener('click', () => { selectSection(name); jumpCfgTextToSection(name); });
 
   const present = checkable ? isPresent(name) : true;
 
