@@ -7,7 +7,7 @@
   body { font-family: 'Segoe UI', sans-serif; margin: 24px; color: #222; }
   h1 { font-size: 20px; }
   h2 { font-size: 16px; margin-top: 32px; }
-  p.note { color: #555; max-width: 640px; }
+  p.note { color: #555; max-width: 640px; font-size: 13px; }
   button { font-size: 14px; padding: 6px 14px; cursor: pointer; }
   table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 900px; }
   th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 13px; }
@@ -19,7 +19,6 @@
   details { margin-top: 8px; }
   summary { cursor: pointer; font-weight: bold; }
 
-  .preview-layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
   .canvas-frame {
     background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
       linear-gradient(-45deg, #ccc 25%, transparent 25%),
@@ -30,90 +29,88 @@
     background-color: #fff;
     display: inline-block;
     border: 1px solid #999;
+    flex: none;
   }
   #previewCanvas { display: block; image-rendering: pixelated; }
-  .controls { display: grid; grid-template-columns: max-content 1fr max-content; gap: 4px 10px; align-items: center; min-width: 320px; }
-  .controls .section-label { grid-column: 1 / -1; font-weight: bold; margin-top: 10px; }
-  .controls input[type="range"] { width: 100%; }
-  .toggles { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; }
-  .toggles label { font-size: 13px; white-space: nowrap; }
   .top-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
   #skinError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
   #assetLabel { margin-top: 8px; font-size: 13px; color: #555; }
 
-  .edit-layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
+  /* Canvas, GUI fields, and raw text sit side by side so editing a field
+     and seeing its effect never requires scrolling past an unrelated block. */
+  .editor-layout { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-top: 12px; }
+  .edit-fields { min-width: 300px; max-width: 340px; }
   #cfgText {
     font-family: Consolas, 'Courier New', monospace; font-size: 12px;
-    width: 480px; max-width: 100%; height: 420px; box-sizing: border-box;
+    width: 420px; max-width: 100%; height: 380px; box-sizing: border-box;
   }
-  .field-form { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; min-width: 340px; }
+  .field-form { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; }
   .field-form label { font-size: 13px; }
   .field-form input[type="text"], .field-form input[type="number"] { width: 100%; box-sizing: border-box; font-size: 13px; }
   .field-form .color-cell { display: flex; gap: 6px; align-items: center; }
   .swatch { width: 16px; height: 16px; border: 1px solid #888; flex: none; }
-  #editError { color: #b00; white-space: pre-wrap; margin-top: 8px; max-width: 480px; }
+  .int-cell { display: flex; gap: 3px; align-items: center; }
+  .int-cell input { width: 64px; flex: none; }
+  .stepper-btn { width: 24px; height: 24px; padding: 0; font-size: 13px; line-height: 1; flex: none; }
+  #editError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
   #noSchemaNote { color: #555; font-size: 13px; }
+  .auto-fit-row { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+  #autoFitMsg { font-size: 12px; color: #555; }
+
+  .controls { display: grid; grid-template-columns: max-content 1fr max-content; gap: 4px 10px; align-items: center; max-width: 480px; }
+  .controls .section-label { grid-column: 1 / -1; font-weight: bold; margin-top: 10px; }
+  .controls input[type="range"] { width: 100%; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; }
+  .toggles label { font-size: 13px; white-space: nowrap; }
 </style>
 </head>
 <body>
 <h1>DiskLED Asset Editor</h1>
 <p class="note">
-  Pick the folder of <strong>one</strong> asset (skin) you want to check or
-  edit — the folder that directly contains its <code>layout.cfg</code> and
-  images, such as this repository's <code>assets/original/</code>, or a
-  folder of your own anywhere on disk (My Documents, a USB drive, ...). This
-  tool never scans a parent <code>assets/</code> folder for you; point it at
-  the one asset you're working on. Works even opened directly from disk
-  (<code>file://</code>) — no local web server needed.
+  Point at <strong>one</strong> asset's folder — the one directly containing
+  its <code>layout.cfg</code> — anywhere on disk.
 </p>
 <input id="folderInput" type="file" webkitdirectory multiple hidden />
-<button id="btnLoad" type="button">Load asset folder&hellip;</button>
+<button id="btnLoad" type="button"
+  title="Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets.">
+  Load asset folder&hellip;
+</button>
 <div id="assetLabel"></div>
 <div id="skinError" hidden></div>
 
-<section id="previewSection" hidden>
-  <h2>Preview</h2>
+<section id="editorSection" hidden>
+  <h2>Editor</h2>
   <div class="top-controls">
     <label><input type="radio" name="mode" id="modeCompact" checked /> Compact</label>
     <label><input type="radio" name="mode" id="modeFull" /> Full</label>
   </div>
-  <div class="preview-layout">
+  <div class="editor-layout">
     <div class="canvas-frame"><canvas id="previewCanvas"></canvas></div>
-    <div class="controls" id="controls"></div>
-  </div>
-</section>
 
-<section id="editSection" hidden>
-  <h2>Edit</h2>
-  <p class="note">
-    The text pane and the GUI fields below stay in sync in both directions:
-    a GUI field change rewrites only that line in the text (comments, order,
-    and untouched keys are preserved); a text edit is re-parsed after a
-    short pause and, if valid, updates the GUI fields and the Preview above.
-    While the text doesn't parse, GUI fields are disabled (so an edit can't
-    silently overwrite a change you're mid-way through typing) but the text
-    pane itself stays editable so you can fix it.
-  </p>
-  <div class="edit-layout">
-    <div>
-      <label>Section: <select id="sectionSelect"></select></label>
+    <div class="edit-fields">
+      <label>Section:
+        <select id="sectionSelect" title="Pick a layout.cfg section to edit its fields below. Only sections the editor recognizes appear here as a form; anything else, use the text pane."></select>
+      </label>
       <div id="editError" hidden></div>
-      <div id="noSchemaNote" hidden>
-        This section isn't one the GUI editor recognizes yet — edit it directly in the text pane.
-      </div>
+      <div id="noSchemaNote" hidden>Not a recognized section — edit it in the text pane.</div>
       <form class="field-form" id="fieldsPanel"></form>
     </div>
-    <textarea id="cfgText" spellcheck="false"></textarea>
+
+    <textarea id="cfgText" spellcheck="false"
+      title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
   </div>
+
+  <details id="testValuesSection">
+    <summary>Test values (drive the preview only — not saved)</summary>
+    <div class="controls" id="controls"></div>
+  </details>
 </section>
 
 <details id="diagSection">
   <summary>Diagnostics — text&harr;GUI round-trip self-check</summary>
   <p class="note">
-    Runs the line-preserving cfg model (<code>js/cfgModel.js</code>) against
-    the loaded asset's real <code>layout.cfg</code>: change one existing
-    key's value and confirm exactly one text line changed. Re-run by loading
-    the asset again.
+    Changes one existing key's value via <code>js/cfgModel.js</code> and
+    confirms exactly one text line changed. Re-run by loading the asset again.
   </p>
   <div id="summary"></div>
   <table id="results" hidden>
@@ -181,14 +178,15 @@ function checkRoundTrip(label, text) {
 
 // ---- Preview ----
 
-const previewSection = document.getElementById('previewSection');
+const editorSection = document.getElementById('editorSection');
 const modeCompact = document.getElementById('modeCompact');
 const modeFull = document.getElementById('modeFull');
 const canvas = document.getElementById('previewCanvas');
 const controlsEl = document.getElementById('controls');
 
-// The single currently-loaded asset: { name, skin: <SkinLoader.loadSkin
-// result>, images: Map<lowercased filename, HTMLImageElement> }, or null.
+// The single currently-loaded asset: { name, cfgPath, doc: <CfgDoc>,
+// skin: <SkinLoader.loadSkin result>, images: Map<lowercased filename,
+// HTMLImageElement> }, or null.
 let loadedAsset = null;
 
 // Manual test state, independent of any real metrics collector -- lets a
@@ -367,7 +365,6 @@ function loadImage(file) {
 // re-parses. Either path ends at applyDocChange(), which is the only place
 // that talks to SkinLoader and decides whether GUI fields stay enabled.
 
-const editSection = document.getElementById('editSection');
 const sectionSelect = document.getElementById('sectionSelect');
 const editError = document.getElementById('editError');
 const noSchemaNote = document.getElementById('noSchemaNote');
@@ -375,7 +372,7 @@ const fieldsPanel = document.getElementById('fieldsPanel');
 const cfgText = document.getElementById('cfgText');
 
 function setFieldsEnabled(enabled) {
-  fieldsPanel.querySelectorAll('input,select').forEach((el) => { el.disabled = !enabled; });
+  fieldsPanel.querySelectorAll('input,select,button').forEach((el) => { el.disabled = !enabled; });
 }
 
 // Same truthy rule as ReadStrictBool's accepted "true" spellings
@@ -383,6 +380,57 @@ function setFieldsEnabled(enabled) {
 function boolFromRaw(raw, def) {
   if (raw === undefined || raw.trim() === '') return def;
   return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+}
+
+function intCell(sectionName, field, raw) {
+  const cell = document.createElement('div');
+  cell.className = 'int-cell';
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.id = `f_${field.key}`;
+  input.value = raw || '';
+  input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
+
+  const step = (delta) => () => {
+    const cur = parseInt(input.value, 10);
+    onFieldChanged(sectionName, field.key, String((Number.isNaN(cur) ? 0 : cur) + delta));
+  };
+  const minus = document.createElement('button');
+  minus.type = 'button'; minus.className = 'stepper-btn'; minus.textContent = '−';
+  minus.addEventListener('click', step(-1));
+  const plus = document.createElement('button');
+  plus.type = 'button'; plus.className = 'stepper-btn'; plus.textContent = '+';
+  plus.addEventListener('click', step(1));
+
+  cell.appendChild(minus);
+  cell.appendChild(input);
+  cell.appendChild(plus);
+  return cell;
+}
+
+function autoFitButton(sectionName) {
+  const row = document.createElement('div');
+  row.className = 'auto-fit-row';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = 'Auto-fit to background image';
+  button.title = 'Read the Bg image\'s actual pixel size and fill Width/Height with it.';
+  const msg = document.createElement('span');
+  msg.id = 'autoFitMsg';
+  button.addEventListener('click', () => {
+    const bg = (loadedAsset.doc.getValue(sectionName, 'Bg') || '').trim();
+    const img = bg && loadedAsset.images.get(bg.toLowerCase());
+    if (!bg) { msg.textContent = 'Set Bg first.'; return; }
+    if (!img) { msg.textContent = `"${bg}" not found among the loaded images.`; return; }
+    loadedAsset.doc.setValue(sectionName, 'Width', String(img.naturalWidth));
+    loadedAsset.doc.setValue(sectionName, 'Height', String(img.naturalHeight));
+    cfgText.value = loadedAsset.doc.toText();
+    msg.textContent = `Set to ${img.naturalWidth}x${img.naturalHeight}.`;
+    applyDocChange();
+  });
+  row.appendChild(button);
+  row.appendChild(msg);
+  return row;
 }
 
 function renderFieldPanel(sectionName) {
@@ -439,14 +487,20 @@ function renderFieldPanel(sectionName) {
       cell.appendChild(input);
       cell.appendChild(swatch);
       fieldsPanel.appendChild(cell);
+    } else if (field.type === 'int') {
+      fieldsPanel.appendChild(intCell(sectionName, field, raw));
     } else {
       const input = document.createElement('input');
-      input.type = field.type === 'int' ? 'number' : 'text';
+      input.type = 'text';
       input.id = `f_${field.key}`;
       input.value = raw || '';
       input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
       fieldsPanel.appendChild(input);
     }
+  }
+
+  if (desc.kind === 'mode') {
+    fieldsPanel.appendChild(autoFitButton(sectionName));
   }
 }
 
@@ -506,7 +560,6 @@ sectionSelect.addEventListener('change', () => renderFieldPanel(sectionSelect.va
 function initEditor() {
   cfgText.value = loadedAsset.doc.toText();
   populateSectionSelect();
-  editSection.hidden = false;
   applyDocChange();
 }
 
@@ -529,8 +582,7 @@ folderInput.addEventListener('change', async () => {
   skinErrorEl.textContent = '';
   assetLabel.textContent = '';
   loadedAsset = null;
-  previewSection.hidden = true;
-  editSection.hidden = true;
+  editorSection.hidden = true;
   graphHistory = null;
   if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
   if (files.length === 0) return;
@@ -561,7 +613,7 @@ folderInput.addEventListener('change', async () => {
     for (const [name, img] of loaded) if (img) images.set(name, img);
     loadedAsset = { name: rootName, cfgPath: cfgFile.webkitRelativePath, doc: new CfgDoc(text), skin, images };
     assetLabel.textContent = `Loaded: ${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
-    previewSection.hidden = false;
+    editorSection.hidden = false;
     buildControls();
     onModeChanged();
     initEditor();
