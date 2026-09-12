@@ -128,7 +128,8 @@
     </div>
     <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
       <p class="text-xs text-base-content/60 mb-2" data-i18n-html="diagIntro"></p>
-      <div id="summary" class="text-xs font-semibold"></div>
+      <button type="button" class="btn btn-sm" id="btnRerunDiagnostics" data-i18n="diagRerun" data-i18n-title="diagRerunTitle"></button>
+      <div id="summary" class="text-xs font-semibold mt-2"></div>
       <table class="table table-sm mt-2" id="results" hidden>
         <thead><tr>
           <th data-i18n="diagAsset"></th><th data-i18n="diagEditChecked"></th>
@@ -218,8 +219,13 @@ const STRINGS = {
   btnInitial: { en: 'Initial', ja: '初期値' },
   btnRandom: { en: 'Random', ja: 'ランダム' },
   diagIntro: {
-    en: 'Changes one existing key\'s value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed.',
-    ja: '<code class="bg-base-300 rounded px-1">js/cfgModel.js</code>で既存キーの値を1つ変更し、テキストの変更が1行だけであることを確認します。',
+    en: 'Changes one existing key\'s value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed. Runs automatically when an asset loads (against the original file); use Re-run below to check it against the text as it stands right now.',
+    ja: '<code class="bg-base-300 rounded px-1">js/cfgModel.js</code>で既存キーの値を1つ変更し、テキストの変更が1行だけであることを確認します。アセット読み込み時に元ファイルへ対して自動実行されます。今の状態に対してチェックしたい場合は下の「再実行」を使ってください。',
+  },
+  diagRerun: { en: 'Re-run', ja: '再実行' },
+  diagRerunTitle: {
+    en: 'Re-run the round-trip check against the current text, not just the originally loaded file.',
+    ja: '元ファイルではなく、現在のテキストに対して往復チェックを再実行します。',
   },
   diagAsset: { en: 'Asset', ja: 'アセット' },
   diagEditChecked: { en: 'Edit checked', ja: '変更箇所' },
@@ -429,6 +435,22 @@ function checkRoundTrip(label, text) {
     t('diagLinesChangedDetail', { n: changed, v: readBack }));
   return ok;
 }
+
+// Runs the round-trip check against whatever text is passed in and refreshes
+// the table/summary. Used both for the initial check against the freshly
+// loaded file (folderInput's change handler) and for the Re-run button,
+// which passes the *current* doc text instead of the original file's.
+function runDiagnostics(label, text) {
+  tbody.innerHTML = '';
+  table.hidden = false;
+  checkRoundTrip(label, text);
+  summary.textContent = tbody.querySelector('.text-error') ? t('diagRoundTripFail') : t('diagRoundTripPass');
+}
+
+document.getElementById('btnRerunDiagnostics').addEventListener('click', () => {
+  if (!loadedAsset) return;
+  runDiagnostics(loadedAsset.name, loadedAsset.doc.toText());
+});
 
 // ---- Preview ----
 
@@ -1137,9 +1159,7 @@ folderInput.addEventListener('change', async () => {
   }
 
   const text = await cfgFile.text();
-  table.hidden = false;
-  checkRoundTrip(rootName, text);
-  summary.textContent = tbody.querySelector('.text-error') ? t('diagRoundTripFail') : t('diagRoundTripPass');
+  runDiagnostics(rootName, text);
 
   try {
     const skin = SkinLoader.loadSkin(cfgFile.webkitRelativePath, text, rootName);
