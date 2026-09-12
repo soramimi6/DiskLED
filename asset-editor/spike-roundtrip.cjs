@@ -1,12 +1,15 @@
 // PLANNED-3.2.0 item 6 spike: prove "GUI 1 value change -> text diff of
 // exactly 1 line" against the project's own 5 real layout.cfg files, before
-// any editor UI is built on top of CfgDoc. Run with: node spike-roundtrip.mjs
+// any editor UI is built on top of CfgDoc. Run with: node spike-roundtrip.cjs
 //
 // Not a unit test framework -- a standalone proof script, matching the
-// plan's own framing ("スパイクは最初に証明する").
+// plan's own framing ("スパイクは最初に証明する"). CommonJS (.cjs) so it can
+// `require()` js/cfgModel.js directly -- that file is a plain classic script
+// (UMD-wrapped) for index.html's sake, not an ES module.
 
-import { readFileSync } from 'node:fs';
-import { CfgDoc } from './js/cfgModel.js';
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
+const { CfgDoc } = require('./js/cfgModel.js');
 
 const skins = ['crystal', 'infobar', 'metalic', 'original', 'vintage'];
 // One representative edit per skin: an existing GeneralCompact key every
@@ -25,8 +28,8 @@ function diffLines(before, after) {
 }
 
 for (const skin of skins) {
-  const path = `../assets/${skin}/layout.cfg`;
-  const original = readFileSync(new URL(path, import.meta.url), 'utf8');
+  const cfgPath = path.join(__dirname, '..', 'assets', skin, 'layout.cfg');
+  const original = readFileSync(cfgPath, 'utf8');
   const doc = new CfgDoc(original);
 
   const before = doc.getValue(edit.section, edit.key);
@@ -66,8 +69,8 @@ for (const skin of skins) {
 // mutating what's already there.
 {
   const skin = 'original';
-  const path = `../assets/${skin}/layout.cfg`;
-  const original = readFileSync(new URL(path, import.meta.url), 'utf8');
+  const cfgPath = path.join(__dirname, '..', 'assets', skin, 'layout.cfg');
+  const original = readFileSync(cfgPath, 'utf8');
   const doc = new CfgDoc(original);
   const beforeLines = original.split(/\r\n|\n/);
 

@@ -2,12 +2,24 @@
 // section/key -> line-number index, and write back by touching only the
 // lines that actually changed. This is the foundational piece PLANNED-3.2.0
 // item 6 flags as the biggest uncertainty ("テキスト<->GUI同期はフォーマット
-// 保持"); see asset-editor/spike-roundtrip.mjs for the proof this file exists
+// 保持"); see asset-editor/spike-roundtrip.cjs for the proof this file exists
 // to support: a single GUI value change must turn into a single changed
 // text line against the project's own real layout.cfg files.
 //
-// Plain ES module, no build step, runs unmodified under Node (for the spike
-// script) and in a <script type="module"> browser context.
+// Plain classic script (no ES-module `import`/`export`) so index.html can
+// load it via <script src="js/cfgModel.js"></script> and still work when the
+// page is opened directly from disk (file://) -- Chromium blocks module
+// script loading under file://, but a classic script has no such
+// restriction. A tiny UMD wrapper also lets spike-roundtrip.cjs `require()`
+// it under Node for fast command-line re-checks during development.
+
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory();
+  } else {
+    root.CfgDoc = factory().CfgDoc;
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
 
 const SECTION_RE = /^\s*\[(.+?)\]\s*$/;
 // Captures: 1) everything up to and including '=' (leading whitespace, key,
@@ -18,15 +30,12 @@ const SECTION_RE = /^\s*\[(.+?)\]\s*$/;
 // matches the plan's "行末コメント保持" requirement defensively.
 const KEY_RE = /^(\s*([^=\s][^=]*?)\s*=\s*)([^;]*?)(\s*(?:;.*)?)$/;
 
-export class CfgDoc {
+class CfgDoc {
   constructor(text) {
     // Split on \r\n or \n, remember which line ending the file actually
     // uses so a round-trip on an unmodified line reproduces it byte-for-byte.
     this.eol = text.includes('\r\n') ? '\r\n' : '\n';
     this.lines = text.split(/\r\n|\n/);
-    // A trailing split artifact ("") from a final newline is kept as a real
-    // line only if the source had one; track that so join() doesn't add or
-    // drop a trailing newline that wasn't there.
     this._rebuildIndex();
   }
 
@@ -82,8 +91,6 @@ export class CfgDoc {
     if (!section) {
       if (this.lines.length > 0 && this.lines[this.lines.length - 1] !== '') {
         this.lines.push('');
-      } else if (this.lines.length === 0) {
-        // nothing to pad
       }
       this.lines.push(`[${sectionName}]`);
       this.lines.push(`${key}=${newValue}`);
@@ -114,3 +121,7 @@ export class CfgDoc {
     return this.lines.join(this.eol);
   }
 }
+
+return { CfgDoc };
+
+});

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DiskLED Asset Editor</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; margin: 24px; color: #222; }
+  h1 { font-size: 20px; }
+  p.note { color: #555; max-width: 640px; }
+  button { font-size: 14px; padding: 6px 14px; cursor: pointer; }
+  table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 900px; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 13px; }
+  th { background: #f0f0f0; }
+  tr.pass td.status { color: #147a14; font-weight: bold; }
+  tr.fail td.status { color: #b00; font-weight: bold; }
+  code { background: #f4f4f4; padding: 1px 4px; }
+  #summary { margin-top: 12px; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>DiskLED Asset Editor — development status</h1>
+<p class="note">
+  The full editor (text/GUI layout.cfg editing, live preview, validation) is
+  not built yet. This page currently proves the text&harr;GUI round-trip
+  model (<code>js/cfgModel.js</code>) against the project's own real skin
+  <code>layout.cfg</code> files, directly in your browser — the same check
+  <code>spike-roundtrip.cjs</code> runs under Node for development, shown
+  here so it can be verified without a terminal.
+</p>
+<p class="note">
+  Click the button below and select the repository's <code>assets</code>
+  folder (the one containing <code>crystal/</code>, <code>infobar/</code>,
+  <code>metalic/</code>, <code>original/</code>, <code>vintage/</code>). This
+  works even when this page is opened directly from disk
+  (<code>file://</code>), no local web server needed.
+</p>
+<input id="folderInput" type="file" webkitdirectory multiple hidden />
+<button id="btnLoad" type="button">Load assets folder&hellip;</button>
+<div id="summary"></div>
+<table id="results" hidden>
+  <thead>
+    <tr><th>Skin</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script src="js/cfgModel.js"></script>
+<script>
+// Classic scripts (not type="module"), deliberately: Chromium refuses to
+// load a module script at all when the page itself was opened as a plain
+// file:// document, which is exactly how most people will open this page.
+// js/cfgModel.js is a UMD-wrapped classic script that defines the global
+// CfgDoc used below.
+
+const btn = document.getElementById('btnLoad');
+const folderInput = document.getElementById('folderInput');
+const table = document.getElementById('results');
+const tbody = table.querySelector('tbody');
+const summary = document.getElementById('summary');
+
+const EDIT = { section: 'GeneralCompact', key: 'Width', newValue: '999' };
+
+function addRow(skin, label, ok, detail) {
+  const tr = document.createElement('tr');
+  tr.className = ok ? 'pass' : 'fail';
+  tr.innerHTML =
+    `<td>${skin}</td><td>${label}</td><td class="status">${ok ? 'PASS' : 'FAIL'}</td><td>${detail}</td>`;
+  tbody.appendChild(tr);
+}
+
+function diffCount(before, after) {
+  const max = Math.max(before.length, after.length);
+  let n = 0;
+  for (let i = 0; i < max; i++) if (before[i] !== after[i]) n++;
+  return n;
+}
+
+function checkSkin(skin, text) {
+  const doc = new CfgDoc(text);
+  const before = doc.getValue(EDIT.section, EDIT.key);
+  if (before === undefined) {
+    addRow(skin, `${EDIT.section}/${EDIT.key}`, false, 'key not found');
+    return false;
+  }
+  const beforeLines = text.split(/\r\n|\n/);
+  doc.setValue(EDIT.section, EDIT.key, EDIT.newValue);
+  const afterText = doc.toText();
+  const afterLines = afterText.split(/\r\n|\n/);
+  const changed = diffCount(beforeLines, afterLines);
+  const readBack = doc.getValue(EDIT.section, EDIT.key);
+  const ok = changed === 1 && readBack === EDIT.newValue;
+  addRow(
+    skin,
+    `${EDIT.section}/${EDIT.key}: '${before}' -> '${EDIT.newValue}'`,
+    ok,
+    `lines changed: ${changed}, read back: '${readBack}'`
+  );
+  return ok;
+}
+
+// <input webkitdirectory> works even opened as a plain file:// page (unlike
+// the File System Access API, which Chromium blocks specifically for
+// file://) -- see PLANNED-3.2.0.md item 6's own note on this constraint.
+btn.addEventListener('click', () => folderInput.click());
+
+folderInput.addEventListener('change', async () => {
+  const files = Array.from(folderInput.files || []);
+  tbody.innerHTML = '';
+  if (files.length === 0) {
+    summary.textContent = '';
+    return;
+  }
+  summary.textContent = 'Loading...';
+
+  // webkitRelativePath looks like "assets/crystal/layout.cfg"; the skin name
+  // is the second-to-last path segment.
+  const cfgFiles = files.filter((f) => f.name === 'layout.cfg');
+  let allOk = true;
+  for (const file of cfgFiles) {
+    const parts = file.webkitRelativePath.split('/');
+    const skin = parts.length >= 2 ? parts[parts.length - 2] : file.webkitRelativePath;
+    const text = await file.text();
+    const ok = checkSkin(skin, text);
+    allOk = allOk && ok;
+  }
+  table.hidden = cfgFiles.length === 0;
+  summary.textContent =
+    cfgFiles.length === 0
+      ? 'No layout.cfg found in any subfolder — did you pick the assets folder?'
+      : allOk
+      ? `All ${cfgFiles.length} skin(s) passed the round-trip check.`
+      : `${cfgFiles.length} skin(s) checked — some FAILED, see table.`;
+});
+</script>
+</body>
+</html>
