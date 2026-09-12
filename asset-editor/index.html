@@ -109,29 +109,7 @@
 </p>
 <div id="skinError" class="alert alert-error mx-4 mt-2 text-xs whitespace-pre-wrap shrink-0" hidden></div>
 
-<main class="grid grid-cols-[220px_380px_1fr] gap-px bg-base-300 flex-1 min-h-0" id="workspace" hidden>
-  <div class="bg-base-100 p-3 overflow-y-auto">
-    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">Sections</h2>
-    <ul class="menu menu-sm p-0 w-full" id="sectionTree"></ul>
-  </div>
-
-  <div class="bg-base-200 p-4 overflow-y-auto">
-    <div id="editError" class="alert alert-error text-xs whitespace-pre-wrap mb-3" hidden></div>
-    <div id="noSchemaNote" class="text-xs text-base-content/60 mb-3" hidden>Not a recognized section — edit it in the text pane.</div>
-    <form class="grid grid-cols-[minmax(0,1fr)_190px] gap-x-3 gap-y-2 items-start" id="fieldsPanel"></form>
-  </div>
-
-  <div class="bg-base-100 p-4 flex flex-col overflow-y-auto">
-    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">layout.cfg</h2>
-    <div class="relative flex-1 min-h-[460px] rounded-box border border-base-300 overflow-hidden">
-      <pre id="cfgHighlight" aria-hidden="true" class="cfg-editor-layer absolute inset-0 w-full h-full m-0 overflow-auto pointer-events-none"></pre>
-      <textarea id="cfgText" spellcheck="false" class="cfg-editor-layer absolute inset-0 w-full h-full resize-none outline-none overflow-auto"
-        title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
-    </div>
-  </div>
-</main>
-
-<details id="bottomDrawer" class="bg-base-100 border-t border-base-300 shrink-0" hidden>
+<details id="bottomDrawer" class="bg-base-100 border-b border-base-300 shrink-0" hidden>
   <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-base-content/60">Test values &amp; diagnostics</summary>
   <div class="max-h-[35vh] overflow-y-auto">
     <div class="flex gap-1 px-4 pt-1">
@@ -161,6 +139,28 @@
     </div>
   </div>
 </details>
+
+<main class="grid grid-cols-[220px_380px_1fr] gap-px bg-base-300 flex-1 min-h-0" id="workspace" hidden>
+  <div class="bg-base-100 p-3 overflow-y-auto">
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">Sections</h2>
+    <ul class="menu menu-sm p-0 w-full" id="sectionTree"></ul>
+  </div>
+
+  <div class="bg-base-200 p-4 overflow-y-auto">
+    <div id="editError" class="alert alert-error text-xs whitespace-pre-wrap mb-3" hidden></div>
+    <div id="noSchemaNote" class="text-xs text-base-content/60 mb-3" hidden>Not a recognized section — edit it in the text pane.</div>
+    <form class="grid grid-cols-[minmax(0,1fr)_190px] gap-x-3 gap-y-2 items-start" id="fieldsPanel"></form>
+  </div>
+
+  <div class="bg-base-100 p-4 flex flex-col overflow-y-auto">
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">layout.cfg</h2>
+    <div class="relative flex-1 min-h-[460px] rounded-box border border-base-300 overflow-hidden">
+      <pre id="cfgHighlight" aria-hidden="true" class="cfg-editor-layer absolute inset-0 w-full h-full m-0 overflow-auto pointer-events-none"></pre>
+      <textarea id="cfgText" spellcheck="false" class="cfg-editor-layer absolute inset-0 w-full h-full resize-none outline-none overflow-auto"
+        title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
+    </div>
+  </div>
+</main>
 
 <script src="js/cfgModel.js"></script>
 <script src="js/skinLoader.js"></script>
