@@ -29,6 +29,31 @@
     background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
   }
   #previewCanvas { display: block; image-rendering: pixelated; }
+
+  /* layout.cfg editor: a syntax-highlighted <pre> sits behind a
+     transparent-text <textarea> (same font metrics on both, kept in sync
+     by JS on scroll/input) -- native cursor/selection/undo stay exactly as
+     a plain textarea's, only the rendered glyphs are colored. Palette is
+     Dracula (https://draculatheme.com/contribute), always-dark regardless
+     of the page's own light/dark mode, same as most embedded code panes. */
+  .cfg-editor-layer {
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    white-space: pre;
+    tab-size: 4;
+    box-sizing: border-box;
+  }
+  #cfgHighlight { background: #282a36; color: #f8f8f2; }
+  #cfgText { color: transparent; background: transparent; caret-color: #f8f8f2; }
+  #cfgText::selection { background: rgba(189, 147, 249, 0.4); }
+  .tok-section { color: #50fa7b; font-weight: 600; }
+  .tok-bracket { color: #bd93f9; }
+  .tok-key { color: #8be9fd; }
+  .tok-eq { color: #ff79c6; }
+  .tok-value { color: #f1fa8c; }
+  .tok-comment { color: #6272a4; font-style: italic; }
 </style>
 </head>
 <body class="bg-base-200 text-base-content text-sm h-screen flex flex-col overflow-hidden">
@@ -70,8 +95,11 @@
 
   <div class="bg-base-100 p-4 flex flex-col overflow-y-auto">
     <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">layout.cfg</h2>
-    <textarea id="cfgText" spellcheck="false" class="textarea font-mono text-xs flex-1 min-h-[460px] w-full"
-      title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
+    <div class="relative flex-1 min-h-[460px] rounded-box border border-base-300 overflow-hidden">
+      <pre id="cfgHighlight" aria-hidden="true" class="cfg-editor-layer absolute inset-0 w-full h-full m-0 overflow-auto pointer-events-none"></pre>
+      <textarea id="cfgText" spellcheck="false" class="cfg-editor-layer absolute inset-0 w-full h-full resize-none outline-none overflow-auto"
+        title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
+    </div>
   </div>
 </main>
 
@@ -375,8 +403,63 @@ const editError = document.getElementById('editError');
 const noSchemaNote = document.getElementById('noSchemaNote');
 const fieldsPanel = document.getElementById('fieldsPanel');
 const cfgText = document.getElementById('cfgText');
+const cfgHighlight = document.getElementById('cfgHighlight');
 
 let selectedSection = '';
+
+// ---- Syntax highlighting overlay (trial) ----
+// Tokenizes each line loosely along the same shape cfgModel.js's own
+// SECTION_RE/KEY_RE match, purely for display -- this never touches the
+// actual text or CfgDoc, it only decides how to color a re-rendered copy
+// behind the real (transparent-text) textarea.
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlightLine(line) {
+  const comment = /^(\s*)(;.*)$/.exec(line);
+  if (comment) {
+    return escapeHtml(comment[1]) + `<span class="tok-comment">${escapeHtml(comment[2])}</span>`;
+  }
+  const section = /^(\s*)(\[)([^\]]*)(\])(\s*)$/.exec(line);
+  if (section) {
+    const [, lead, lb, name, rb, trail] = section;
+    return escapeHtml(lead) +
+      `<span class="tok-bracket">${escapeHtml(lb)}</span>` +
+      `<span class="tok-section">${escapeHtml(name)}</span>` +
+      `<span class="tok-bracket">${escapeHtml(rb)}</span>` +
+      escapeHtml(trail);
+  }
+  const kv = /^(\s*)([^=\s][^=]*?)(\s*)(=)(\s*)([^;]*?)(\s*)((?:;.*)?)$/.exec(line);
+  if (kv) {
+    const [, lead, key, sp1, eq, sp2, value, sp3, trailingComment] = kv;
+    return escapeHtml(lead) +
+      `<span class="tok-key">${escapeHtml(key)}</span>` + escapeHtml(sp1) +
+      `<span class="tok-eq">${escapeHtml(eq)}</span>` + escapeHtml(sp2) +
+      `<span class="tok-value">${escapeHtml(value)}</span>` + escapeHtml(sp3) +
+      (trailingComment ? `<span class="tok-comment">${escapeHtml(trailingComment)}</span>` : '');
+  }
+  return escapeHtml(line);
+}
+
+function updateHighlight() {
+  cfgHighlight.innerHTML = cfgText.value.split('\n').map(highlightLine).join('\n') + '\n';
+}
+
+function syncHighlightScroll() {
+  cfgHighlight.scrollTop = cfgText.scrollTop;
+  cfgHighlight.scrollLeft = cfgText.scrollLeft;
+}
+
+// The only place that writes cfgText.value -- keeps the highlight layer
+// from ever going stale relative to the real text.
+function setCfgText(text) {
+  cfgText.value = text;
+  updateHighlight();
+}
+
+cfgText.addEventListener('scroll', syncHighlightScroll);
 
 function setFieldsEnabled(enabled) {
   fieldsPanel.querySelectorAll('input,select,button').forEach((el) => { el.disabled = !enabled; });
@@ -433,7 +516,7 @@ function autoFitButton(sectionName) {
     if (!img) { msg.textContent = `"${bg}" not found among the loaded images.`; return; }
     loadedAsset.doc.setValue(sectionName, 'Width', String(img.naturalWidth));
     loadedAsset.doc.setValue(sectionName, 'Height', String(img.naturalHeight));
-    cfgText.value = loadedAsset.doc.toText();
+    setCfgText(loadedAsset.doc.toText());
     msg.textContent = `Set to ${img.naturalWidth}x${img.naturalHeight}.`;
     applyDocChange();
   });
@@ -520,7 +603,7 @@ function renderFieldPanel(sectionName) {
 
 function onFieldChanged(sectionName, key, newValue) {
   loadedAsset.doc.setValue(sectionName, key, newValue);
-  cfgText.value = loadedAsset.doc.toText();
+  setCfgText(loadedAsset.doc.toText());
   applyDocChange();
 }
 
@@ -548,6 +631,7 @@ function applyDocChange() {
 
 let cfgTextDebounce = null;
 cfgText.addEventListener('input', () => {
+  updateHighlight(); // instant, every keystroke -- coloring shouldn't wait on the reparse debounce
   if (cfgTextDebounce) clearTimeout(cfgTextDebounce);
   cfgTextDebounce = setTimeout(() => {
     loadedAsset.doc = new CfgDoc(cfgText.value);
@@ -670,7 +754,7 @@ function renderSectionTree() {
 }
 
 function initEditor() {
-  cfgText.value = loadedAsset.doc.toText();
+  setCfgText(loadedAsset.doc.toText());
   selectedSection = '';
   renderSectionTree();
   applyDocChange();
