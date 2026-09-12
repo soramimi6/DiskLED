@@ -74,6 +74,19 @@
   html[data-theme="dracula"] .tok-eq { color: #ff79c6; }
   html[data-theme="dracula"] .tok-value { color: #f1fa8c; }
   html[data-theme="dracula"] .tok-comment { color: #6272a4; }
+
+  /* Whole-page drop target for dragging an asset folder in. A pseudo-element
+     overlay (rather than a border on body itself) so it doesn't shift any
+     layout or need its own stacking context management. */
+  body.drop-target-active::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    border: 3px dashed var(--color-primary, #3b6fe0);
+    background: color-mix(in oklch, var(--color-primary, #3b6fe0) 8%, transparent);
+    pointer-events: none;
+    z-index: 50;
+  }
 </style>
 </head>
 <body class="bg-base-200 text-base-content text-sm h-screen flex flex-col overflow-hidden">
@@ -196,15 +209,19 @@
 const STRINGS = {
   loadButton: { en: 'Load asset folder…', ja: 'アセットフォルダを読み込む…' },
   loadButtonTitle: {
-    en: "Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets.",
-    ja: 'layout.cfgと画像を直接含む1つのアセットのフォルダを選択してください（例：本リポジトリのassets/original/、またはディスク上の任意のスキンフォルダ）。複数アセットをまとめて含む親フォルダはスキャンしません。',
+    en: "Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets. You can also drag the folder onto this page instead.",
+    ja: 'layout.cfgと画像を直接含む1つのアセットのフォルダを選択してください（例：本リポジトリのassets/original/、またはディスク上の任意のスキンフォルダ）。複数アセットをまとめて含む親フォルダはスキャンしません。このページへフォルダをドラッグ&ドロップしても読み込めます。',
   },
   langToggleTitle: { en: 'Editor UI language', ja: 'エディタ画面の表示言語' },
   modeToggleTitle: { en: 'Preview and edit either the compact or the full layout.', ja: 'コンパクトまたはフルのレイアウトをプレビュー・編集します。' },
   scaleToggleTitle: { en: "Preview display scale (doesn't affect the underlying pixels).", ja: 'プレビューの表示倍率（実際のピクセルデータには影響しません）。' },
   introNote: {
-    en: "Point at <strong>one</strong> asset's folder — the one directly containing its <code class=\"bg-base-300 rounded px-1\">layout.cfg</code> — anywhere on disk.",
-    ja: '<strong>1つ</strong>のアセットのフォルダ — <code class="bg-base-300 rounded px-1">layout.cfg</code>を直接含むフォルダ — を指定してください（ディスク上のどこでも可）。',
+    en: "Point at <strong>one</strong> asset's folder — the one directly containing its <code class=\"bg-base-300 rounded px-1\">layout.cfg</code> — anywhere on disk, or drag it onto this page.",
+    ja: '<strong>1つ</strong>のアセットのフォルダ — <code class="bg-base-300 rounded px-1">layout.cfg</code>を直接含むフォルダ — を指定してください（ディスク上のどこでも可）。このページへドラッグ&ドロップでも読み込めます。',
+  },
+  dropNotAFolder: {
+    en: "That wasn't a folder — drop the asset's folder itself (the one directly containing layout.cfg).",
+    ja: 'フォルダではありません — layout.cfgを直接含むアセットのフォルダ自体をドロップしてください。',
   },
   drawerSummary: { en: 'Test values & diagnostics', ja: 'テスト値＆診断' },
   tabTest: { en: 'Test values', ja: 'テスト値' },
@@ -1342,16 +1359,20 @@ function initEditor() {
 
 // ---- Loading a single asset folder ----
 // The folder the user picks IS the asset: its layout.cfg must sit directly
-// inside it (webkitRelativePath "<pickedFolderName>/layout.cfg"), exactly
-// like assets/<id>/layout.cfg in this repo. No enumeration of sibling
-// asset folders -- deliberately, so a skin developed anywhere on disk (My
-// Documents, a USB drive, outside this repo entirely) opens the same way a
-// repo asset does.
+// inside it, exactly like assets/<id>/layout.cfg in this repo. No
+// enumeration of sibling asset folders -- deliberately, so a skin developed
+// anywhere on disk (My Documents, a USB drive, outside this repo entirely)
+// opens the same way a repo asset does. Two entry points feed the same
+// loadAssetFromEntries(): the "Load asset folder..." button (<input
+// webkitdirectory>) and dragging a folder onto the page (the File System
+// Entries API). Both normalize to the same {file, relativePath} shape --
+// webkitRelativePath only exists on the <input> path's File objects, not on
+// ones read via a dropped FileSystemFileEntry, so relativePath is tracked
+// by hand instead of relying on that property anywhere below.
 
-btn.addEventListener('click', () => folderInput.click());
-
-folderInput.addEventListener('change', async () => {
-  const files = Array.from(folderInput.files || []);
+// `entries`: Array<{file: File, relativePath: string}>, relativePath rooted
+// at the picked/dropped folder's own name (e.g. "myskin/layout.cfg").
+async function loadAssetFromEntries(entries) {
   tbody.innerHTML = '';
   summary.textContent = '';
   table.hidden = true;
@@ -1364,27 +1385,27 @@ folderInput.addEventListener('change', async () => {
   bottomDrawer.hidden = true;
   graphHistory = null;
   if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
-  if (files.length === 0) return;
+  if (entries.length === 0) return;
 
-  const rootName = files[0].webkitRelativePath.split('/')[0];
-  const cfgFile = files.find((f) =>
-    f.name.toLowerCase() === 'layout.cfg' && f.webkitRelativePath.split('/').length === 2);
-  if (!cfgFile) {
+  const rootName = entries[0].relativePath.split('/')[0];
+  const cfgEntry = entries.find((e) =>
+    e.file.name.toLowerCase() === 'layout.cfg' && e.relativePath.split('/').length === 2);
+  if (!cfgEntry) {
     skinErrorEl.hidden = false;
     skinErrorEl.textContent = t('skinErrorNoLayoutCfg', { root: rootName });
     return;
   }
 
-  const text = await cfgFile.text();
+  const text = await cfgEntry.file.text();
   runDiagnostics(rootName, text);
 
   try {
-    const skin = SkinLoader.loadSkin(cfgFile.webkitRelativePath, text, rootName);
+    const skin = SkinLoader.loadSkin(cfgEntry.relativePath, text, rootName);
     const images = new Map();
-    const imageFiles = files.filter((f) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(f.name));
-    const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
+    const imageEntries = entries.filter((e) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(e.file.name));
+    const loaded = await Promise.all(imageEntries.map(async (e) => [e.file.name.toLowerCase(), await loadImage(e.file)]));
     for (const [name, img] of loaded) if (img) images.set(name, img);
-    loadedAsset = { name: rootName, cfgPath: cfgFile.webkitRelativePath, doc: new CfgDoc(text), skin, images };
+    loadedAsset = { name: rootName, cfgPath: cfgEntry.relativePath, doc: new CfgDoc(text), skin, images };
     assetLabel.textContent = `${skin.caption} (${rootName}) — ${skin.hasFull ? t('assetLabelCompactFull') : t('assetLabelCompactOnly')}`;
     introNote.hidden = true;
     workspace.hidden = false;
@@ -1397,6 +1418,82 @@ folderInput.addEventListener('change', async () => {
     skinErrorEl.hidden = false;
     skinErrorEl.textContent = t('skinErrorFailedToLoad', { root: rootName, msg: e.message || e });
   }
+}
+
+btn.addEventListener('click', () => folderInput.click());
+
+folderInput.addEventListener('change', () => {
+  const entries = Array.from(folderInput.files || []).map((file) => ({ file, relativePath: file.webkitRelativePath }));
+  loadAssetFromEntries(entries);
+});
+
+// ---- Drag & drop ----
+// The File System Entries API's readEntries() must be called repeatedly
+// until it returns an empty array (a long-standing Chromium quirk: a single
+// call isn't guaranteed to return every entry in a large directory).
+function readAllEntries(reader) {
+  return new Promise((resolve, reject) => {
+    const all = [];
+    const readBatch = () => {
+      reader.readEntries((batch) => {
+        if (batch.length === 0) { resolve(all); return; }
+        all.push(...batch);
+        readBatch();
+      }, reject);
+    };
+    readBatch();
+  });
+}
+
+async function walkEntry(entry, relativePath, out) {
+  if (entry.isFile) {
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    out.push({ file, relativePath });
+    return;
+  }
+  if (entry.isDirectory) {
+    for (const child of await readAllEntries(entry.createReader())) {
+      await walkEntry(child, `${relativePath}/${child.name}`, out);
+    }
+  }
+}
+
+let dragDepth = 0; // dragenter/dragleave fire on every child element too; only the outermost pair should toggle the highlight
+
+function isFileDrag(e) {
+  return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+}
+
+document.body.addEventListener('dragenter', (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  document.body.classList.add('drop-target-active');
+});
+document.body.addEventListener('dragover', (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault(); // required for 'drop' to fire at all
+});
+document.body.addEventListener('dragleave', () => {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) document.body.classList.remove('drop-target-active');
+});
+document.body.addEventListener('drop', async (e) => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault();
+  dragDepth = 0;
+  document.body.classList.remove('drop-target-active');
+
+  const item = e.dataTransfer.items && e.dataTransfer.items[0];
+  const entry = item && item.webkitGetAsEntry && item.webkitGetAsEntry();
+  if (!entry || !entry.isDirectory) {
+    skinErrorEl.hidden = false;
+    skinErrorEl.textContent = t('dropNotAFolder');
+    return;
+  }
+  const out = [];
+  await walkEntry(entry, entry.name, out);
+  loadAssetFromEntries(out);
 });
 </script>
 </body>
