@@ -13,6 +13,7 @@ $ExeSrc = Join-Path $Root "Win64\$Config\DiskLED.exe"
 $Stage = Join-Path $Root 'dist\DiskLED'
 $Assets = Join-Path $Root 'assets'
 $Styles = Join-Path $Root 'styles'
+$AssetEditor = Join-Path $Root 'asset-editor'
 
 if (-not (Test-Path -LiteralPath $ExeSrc)) {
     Write-Error @"
@@ -67,6 +68,19 @@ if (Test-Path -LiteralPath $Styles) {
     Copy-Item -LiteralPath $Styles -Destination (Join-Path $Stage 'styles') -Recurse -Force
 } else {
     Write-Warning "styles folder missing — Options dialog may fall back without VCL style."
+}
+
+if (Test-Path -LiteralPath $AssetEditor) {
+    Copy-Item -LiteralPath $AssetEditor -Destination (Join-Path $Stage 'asset-editor') -Recurse -Force
+    # Dev-only Node round-trip check script -- not something an end user
+    # needs or can run without Node.js; index.html itself does everything
+    # a user-facing double-click tool needs.
+    $spikeScript = Join-Path $Stage 'asset-editor\spike-roundtrip.cjs'
+    if (Test-Path -LiteralPath $spikeScript) {
+        Remove-Item -LiteralPath $spikeScript -Force
+    }
+} else {
+    Write-Warning "asset-editor folder missing — staged folder will ship without the skin editor tool."
 }
 
 # Never ship a user ini
