@@ -3,122 +3,95 @@
 <head>
 <meta charset="UTF-8" />
 <title>DiskLED Asset Editor</title>
+<script>
+// Follows the OS light/dark preference via daisyUI's stable data-theme API
+// (rather than daisyUI's build-time --prefersdark plugin flag, which needs
+// npm/package resolution the CDN build doesn't have) -- same intent as the
+// main app's item-8 "follow OS light/dark" precedent.
+(function () {
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  function apply() { document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light'); }
+  apply();
+  mq.addEventListener('change', apply);
+})();
+</script>
+<link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <style>
-  body { font-family: 'Segoe UI', sans-serif; margin: 24px; color: #222; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 16px; margin-top: 32px; }
-  p.note { color: #555; max-width: 640px; font-size: 13px; }
-  button { font-size: 14px; padding: 6px 14px; cursor: pointer; }
-  table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 900px; }
-  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 13px; }
-  th { background: #f0f0f0; }
-  tr.pass td.status { color: #147a14; font-weight: bold; }
-  tr.fail td.status { color: #b00; font-weight: bold; }
-  code { background: #f4f4f4; padding: 1px 4px; }
-  #summary { margin-top: 12px; font-weight: bold; }
-  details { margin-top: 8px; }
-  summary { cursor: pointer; font-weight: bold; }
-
+  /* The only thing Tailwind/daisyUI can't express: the transparent-window
+     checkerboard behind the preview canvas. */
   .canvas-frame {
-    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
-      linear-gradient(-45deg, #ccc 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #ccc 75%),
-      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-image: linear-gradient(45deg, #999 25%, transparent 25%),
+      linear-gradient(-45deg, #999 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #999 75%),
+      linear-gradient(-45deg, transparent 75%, #999 75%);
     background-size: 16px 16px;
     background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-    background-color: #fff;
-    display: inline-block;
-    border: 1px solid #999;
-    flex: none;
   }
   #previewCanvas { display: block; image-rendering: pixelated; }
-  .top-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-  #skinError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
-  #assetLabel { margin-top: 8px; font-size: 13px; color: #555; }
-
-  /* Canvas, GUI fields, and raw text sit side by side so editing a field
-     and seeing its effect never requires scrolling past an unrelated block. */
-  .editor-layout { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin-top: 12px; }
-  .edit-fields { min-width: 300px; max-width: 340px; }
-  #cfgText {
-    font-family: Consolas, 'Courier New', monospace; font-size: 12px;
-    width: 420px; max-width: 100%; height: 380px; box-sizing: border-box;
-  }
-  .field-form { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; }
-  .field-form label { font-size: 13px; }
-  .field-form input[type="text"], .field-form input[type="number"] { width: 100%; box-sizing: border-box; font-size: 13px; }
-  .field-form .color-cell { display: flex; gap: 6px; align-items: center; }
-  .swatch { width: 16px; height: 16px; border: 1px solid #888; flex: none; }
-  .int-cell { display: flex; gap: 3px; align-items: center; }
-  .int-cell input { width: 64px; flex: none; }
-  .stepper-btn { width: 24px; height: 24px; padding: 0; font-size: 13px; line-height: 1; flex: none; }
-  #editError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
-  #noSchemaNote { color: #555; font-size: 13px; }
-  .auto-fit-row { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; margin-top: 2px; }
-  #autoFitMsg { font-size: 12px; color: #555; }
-
-  .controls { display: grid; grid-template-columns: max-content 1fr max-content; gap: 4px 10px; align-items: center; max-width: 480px; }
-  .controls .section-label { grid-column: 1 / -1; font-weight: bold; margin-top: 10px; }
-  .controls input[type="range"] { width: 100%; }
-  .toggles { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; }
-  .toggles label { font-size: 13px; white-space: nowrap; }
 </style>
 </head>
-<body>
-<h1>DiskLED Asset Editor</h1>
-<p class="note">
-  Point at <strong>one</strong> asset's folder — the one directly containing
-  its <code>layout.cfg</code> — anywhere on disk.
-</p>
-<input id="folderInput" type="file" webkitdirectory multiple hidden />
-<button id="btnLoad" type="button"
-  title="Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets.">
-  Load asset folder&hellip;
-</button>
-<div id="assetLabel"></div>
-<div id="skinError" hidden></div>
+<body class="bg-base-200 text-base-content text-sm min-h-screen">
 
-<section id="editorSection" hidden>
-  <h2>Editor</h2>
-  <div class="top-controls">
-    <label><input type="radio" name="mode" id="modeCompact" checked /> Compact</label>
-    <label><input type="radio" name="mode" id="modeFull" /> Full</label>
+<div class="navbar bg-base-100 shadow-sm px-4 gap-3 flex-wrap">
+  <span class="text-base font-semibold">DiskLED Asset Editor</span>
+  <input id="folderInput" type="file" webkitdirectory multiple hidden />
+  <button id="btnLoad" type="button" class="btn btn-primary btn-sm"
+    title="Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets.">
+    Load asset folder&hellip;
+  </button>
+  <span id="assetLabel" class="text-xs text-base-content/60"></span>
+  <div class="flex-1"></div>
+  <div class="join" id="modeToggle" title="Preview and edit either the compact or the full layout.">
+    <button type="button" id="modeCompactBtn" class="btn btn-sm join-item btn-active">Compact</button>
+    <button type="button" id="modeFullBtn" class="btn btn-sm join-item">Full</button>
   </div>
-  <div class="editor-layout">
-    <div class="canvas-frame"><canvas id="previewCanvas"></canvas></div>
+</div>
 
-    <div class="edit-fields">
-      <label>Section:
-        <select id="sectionSelect" title="Pick a layout.cfg section to edit its fields below. Only sections the editor recognizes appear here as a form; anything else, use the text pane."></select>
-      </label>
-      <div id="editError" hidden></div>
-      <div id="noSchemaNote" hidden>Not a recognized section — edit it in the text pane.</div>
-      <form class="field-form" id="fieldsPanel"></form>
-    </div>
+<p id="introNote" class="text-xs text-base-content/60 px-4 pt-2 max-w-xl">
+  Point at <strong>one</strong> asset's folder — the one directly containing its <code class="bg-base-300 rounded px-1">layout.cfg</code> — anywhere on disk.
+</p>
+<div id="skinError" class="alert alert-error mx-4 mt-2 text-xs whitespace-pre-wrap" hidden></div>
 
-    <textarea id="cfgText" spellcheck="false"
+<main class="grid grid-cols-[220px_380px_1fr] gap-px bg-base-300" id="workspace" hidden>
+  <div class="bg-base-100 p-3 overflow-y-auto">
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">Sections</h2>
+    <ul class="menu menu-sm p-0 w-full" id="sectionTree"></ul>
+  </div>
+
+  <div class="bg-base-200 p-4 overflow-y-auto">
+    <div class="canvas-frame inline-block border border-base-300 rounded-box shadow"><canvas id="previewCanvas"></canvas></div>
+    <div id="editError" class="alert alert-error mt-3 text-xs whitespace-pre-wrap" hidden></div>
+    <div id="noSchemaNote" class="text-xs text-base-content/60 mt-3" hidden>Not a recognized section — edit it in the text pane.</div>
+    <form class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 items-center mt-3" id="fieldsPanel"></form>
+  </div>
+
+  <div class="bg-base-100 p-4 flex flex-col overflow-y-auto">
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">layout.cfg</h2>
+    <textarea id="cfgText" spellcheck="false" class="textarea font-mono text-xs flex-1 min-h-[460px] w-full"
       title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
   </div>
+</main>
 
-  <details id="testValuesSection">
-    <summary>Test values (drive the preview only — not saved)</summary>
-    <div class="controls" id="controls"></div>
-  </details>
-</section>
-
-<details id="diagSection">
-  <summary>Diagnostics — text&harr;GUI round-trip self-check</summary>
-  <p class="note">
-    Changes one existing key's value via <code>js/cfgModel.js</code> and
-    confirms exactly one text line changed. Re-run by loading the asset again.
-  </p>
-  <div id="summary"></div>
-  <table id="results" hidden>
-    <thead>
-      <tr><th>Asset</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<details id="bottomDrawer" class="bg-base-100 border-t border-base-300" hidden>
+  <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-base-content/60">Test values &amp; diagnostics</summary>
+  <div class="flex gap-1 px-4 pt-1">
+    <button type="button" class="btn btn-ghost btn-sm tab-btn btn-active" data-tab="test">Test values</button>
+    <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="diag">Diagnostics</button>
+  </div>
+  <div class="px-4 pb-4 pt-2" id="tabTest">
+    <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center max-w-lg" id="controls"></div>
+  </div>
+  <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
+    <p class="text-xs text-base-content/60 mb-2">
+      Changes one existing key's value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed.
+    </p>
+    <div id="summary" class="text-xs font-semibold"></div>
+    <table class="table table-sm mt-2" id="results" hidden>
+      <thead><tr><th>Asset</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </details>
 
 <script src="js/cfgModel.js"></script>
@@ -135,6 +108,19 @@ const btn = document.getElementById('btnLoad');
 const folderInput = document.getElementById('folderInput');
 const skinErrorEl = document.getElementById('skinError');
 const assetLabel = document.getElementById('assetLabel');
+const introNote = document.getElementById('introNote');
+const workspace = document.getElementById('workspace');
+const bottomDrawer = document.getElementById('bottomDrawer');
+
+// ---- Bottom drawer tabs ----
+
+document.querySelectorAll('.tab-btn').forEach((tabBtn) => {
+  tabBtn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('btn-active', b === tabBtn));
+    document.getElementById('tabTest').hidden = tabBtn.dataset.tab !== 'test';
+    document.getElementById('tabDiag').hidden = tabBtn.dataset.tab !== 'diag';
+  });
+});
 
 // ---- Diagnostics (round-trip self-check) ----
 
@@ -145,9 +131,9 @@ const EDIT = { section: 'GeneralCompact', key: 'Width', newValue: '999' };
 
 function addRow(label, editLabel, ok, detail) {
   const tr = document.createElement('tr');
-  tr.className = ok ? 'pass' : 'fail';
   tr.innerHTML =
-    `<td>${label}</td><td>${editLabel}</td><td class="status">${ok ? 'PASS' : 'FAIL'}</td><td>${detail}</td>`;
+    `<td>${label}</td><td>${editLabel}</td>` +
+    `<td class="${ok ? 'text-success' : 'text-error'} font-bold">${ok ? 'PASS' : 'FAIL'}</td><td>${detail}</td>`;
   tbody.appendChild(tr);
 }
 
@@ -178,11 +164,12 @@ function checkRoundTrip(label, text) {
 
 // ---- Preview ----
 
-const editorSection = document.getElementById('editorSection');
-const modeCompact = document.getElementById('modeCompact');
-const modeFull = document.getElementById('modeFull');
+const modeCompactBtn = document.getElementById('modeCompactBtn');
+const modeFullBtn = document.getElementById('modeFullBtn');
 const canvas = document.getElementById('previewCanvas');
 const controlsEl = document.getElementById('controls');
+
+let isFullMode = false;
 
 // The single currently-loaded asset: { name, cfgPath, doc: <CfgDoc>,
 // skin: <SkinLoader.loadSkin result>, images: Map<lowercased filename,
@@ -217,7 +204,7 @@ function derivedState() {
 
 function currentLayout() {
   if (!loadedAsset) return null;
-  const useFull = modeFull.checked && loadedAsset.skin.hasFull;
+  const useFull = isFullMode && loadedAsset.skin.hasFull;
   return { layout: useFull ? loadedAsset.skin.full : loadedAsset.skin.compact, images: loadedAsset.images };
 }
 
@@ -258,12 +245,15 @@ function syncGraphState() {
 
 function slider(label, key, min, max, step) {
   const row = document.createElement('label');
+  row.className = 'text-xs';
   row.textContent = label;
   const input = document.createElement('input');
   input.type = 'range';
+  input.className = 'range range-xs';
   input.min = min; input.max = max; input.step = step;
   input.value = state[key];
   const out = document.createElement('span');
+  out.className = 'text-xs tabular-nums';
   out.textContent = state[key];
   input.addEventListener('input', () => {
     state[key] = parseFloat(input.value);
@@ -277,23 +267,24 @@ function slider(label, key, min, max, step) {
 
 function sectionLabel(text) {
   const div = document.createElement('div');
-  div.className = 'section-label';
+  div.className = 'col-span-3 font-semibold text-xs uppercase tracking-wide text-base-content/60 mt-2';
   div.textContent = text;
   controlsEl.appendChild(div);
 }
 
 function toggleRow(items) {
   const wrap = document.createElement('div');
-  wrap.className = 'toggles';
-  wrap.style.gridColumn = '1 / -1';
+  wrap.className = 'col-span-3 flex flex-wrap gap-x-4 gap-y-1';
   for (const [label, key] of items) {
     const lbl = document.createElement('label');
+    lbl.className = 'flex items-center gap-1.5 text-xs whitespace-nowrap';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
+    cb.className = 'checkbox checkbox-xs';
     cb.checked = state[key];
     cb.addEventListener('change', () => { state[key] = cb.checked; repaint(); });
     lbl.appendChild(cb);
-    lbl.appendChild(document.createTextNode(' ' + label));
+    lbl.appendChild(document.createTextNode(label));
     wrap.appendChild(lbl);
   }
   controlsEl.appendChild(wrap);
@@ -321,31 +312,34 @@ function buildControls() {
 
   sectionLabel('Ping');
   const pingWrap = document.createElement('div');
-  pingWrap.className = 'toggles';
-  pingWrap.style.gridColumn = '1 / -1';
+  pingWrap.className = 'col-span-3 flex flex-wrap gap-x-4 gap-y-1';
   ['Timeout', 'Slow', 'Fair', 'Normal'].forEach((label, idx) => {
     const lbl = document.createElement('label');
+    lbl.className = 'flex items-center gap-1.5 text-xs whitespace-nowrap';
     const rb = document.createElement('input');
     rb.type = 'radio';
+    rb.className = 'radio radio-xs';
     rb.name = 'pingLevel';
     rb.checked = state.pingLevel === idx;
     rb.addEventListener('change', () => { state.pingLevel = idx; repaint(); });
     lbl.appendChild(rb);
-    lbl.appendChild(document.createTextNode(' ' + label));
+    lbl.appendChild(document.createTextNode(label));
     pingWrap.appendChild(lbl);
   });
   controlsEl.appendChild(pingWrap);
 }
 
 function onModeChanged() {
-  modeFull.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
-  if (modeFull.disabled) modeCompact.checked = true;
+  modeFullBtn.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
+  if (modeFullBtn.disabled) isFullMode = false;
+  modeCompactBtn.classList.toggle('btn-active', !isFullMode);
+  modeFullBtn.classList.toggle('btn-active', isFullMode);
   syncGraphState();
   repaint();
 }
 
-modeCompact.addEventListener('change', onModeChanged);
-modeFull.addEventListener('change', onModeChanged);
+modeCompactBtn.addEventListener('click', () => { isFullMode = false; onModeChanged(); });
+modeFullBtn.addEventListener('click', () => { isFullMode = true; onModeChanged(); });
 
 function loadImage(file) {
   return new Promise((resolve) => {
@@ -365,11 +359,13 @@ function loadImage(file) {
 // re-parses. Either path ends at applyDocChange(), which is the only place
 // that talks to SkinLoader and decides whether GUI fields stay enabled.
 
-const sectionSelect = document.getElementById('sectionSelect');
+const sectionTree = document.getElementById('sectionTree');
 const editError = document.getElementById('editError');
 const noSchemaNote = document.getElementById('noSchemaNote');
 const fieldsPanel = document.getElementById('fieldsPanel');
 const cfgText = document.getElementById('cfgText');
+
+let selectedSection = '';
 
 function setFieldsEnabled(enabled) {
   fieldsPanel.querySelectorAll('input,select,button').forEach((el) => { el.disabled = !enabled; });
@@ -384,9 +380,10 @@ function boolFromRaw(raw, def) {
 
 function intCell(sectionName, field, raw) {
   const cell = document.createElement('div');
-  cell.className = 'int-cell';
+  cell.className = 'flex items-center gap-1';
   const input = document.createElement('input');
   input.type = 'number';
+  input.className = 'input input-sm w-20';
   input.id = `f_${field.key}`;
   input.value = raw || '';
   input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
@@ -396,10 +393,10 @@ function intCell(sectionName, field, raw) {
     onFieldChanged(sectionName, field.key, String((Number.isNaN(cur) ? 0 : cur) + delta));
   };
   const minus = document.createElement('button');
-  minus.type = 'button'; minus.className = 'stepper-btn'; minus.textContent = '−';
+  minus.type = 'button'; minus.className = 'btn btn-sm btn-square'; minus.textContent = '−';
   minus.addEventListener('click', step(-1));
   const plus = document.createElement('button');
-  plus.type = 'button'; plus.className = 'stepper-btn'; plus.textContent = '+';
+  plus.type = 'button'; plus.className = 'btn btn-sm btn-square'; plus.textContent = '+';
   plus.addEventListener('click', step(1));
 
   cell.appendChild(minus);
@@ -410,13 +407,14 @@ function intCell(sectionName, field, raw) {
 
 function autoFitButton(sectionName) {
   const row = document.createElement('div');
-  row.className = 'auto-fit-row';
+  row.className = 'col-span-2 flex items-center gap-2 mt-1';
   const button = document.createElement('button');
   button.type = 'button';
+  button.className = 'btn btn-sm';
   button.textContent = 'Auto-fit to background image';
   button.title = 'Read the Bg image\'s actual pixel size and fill Width/Height with it.';
   const msg = document.createElement('span');
-  msg.id = 'autoFitMsg';
+  msg.className = 'text-xs text-base-content/60';
   button.addEventListener('click', () => {
     const bg = (loadedAsset.doc.getValue(sectionName, 'Bg') || '').trim();
     const img = bg && loadedAsset.images.get(bg.toLowerCase());
@@ -442,6 +440,7 @@ function renderFieldPanel(sectionName) {
 
   for (const field of desc.fields) {
     const label = document.createElement('label');
+    label.className = 'text-xs';
     label.textContent = field.label;
     label.htmlFor = `f_${field.key}`;
     fieldsPanel.appendChild(label);
@@ -451,12 +450,14 @@ function renderFieldPanel(sectionName) {
     if (field.type === 'bool') {
       const cb = document.createElement('input');
       cb.type = 'checkbox';
+      cb.className = 'checkbox checkbox-sm justify-self-start';
       cb.id = `f_${field.key}`;
       cb.checked = boolFromRaw(raw, false);
       cb.addEventListener('change', () => onFieldChanged(sectionName, field.key, cb.checked ? '1' : '0'));
       fieldsPanel.appendChild(cb);
     } else if (field.type === 'enum') {
       const sel = document.createElement('select');
+      sel.className = 'select select-sm w-full';
       sel.id = `f_${field.key}`;
       for (const opt of field.options) {
         const o = document.createElement('option');
@@ -469,14 +470,15 @@ function renderFieldPanel(sectionName) {
       fieldsPanel.appendChild(sel);
     } else if (field.type === 'color') {
       const cell = document.createElement('div');
-      cell.className = 'color-cell';
+      cell.className = 'flex items-center gap-2';
       const input = document.createElement('input');
       input.type = 'text';
+      input.className = 'input input-sm flex-1';
       input.id = `f_${field.key}`;
       input.value = raw || '';
       input.placeholder = '#RRGGBB or clColor';
       const swatch = document.createElement('div');
-      swatch.className = 'swatch';
+      swatch.className = 'w-4 h-4 rounded border border-base-300 shrink-0';
       const paint = () => {
         const c = SkinLoader.tryParseColor(input.value || '');
         swatch.style.background = c ? SkinLoader.colorToCss(c) : 'transparent';
@@ -492,6 +494,7 @@ function renderFieldPanel(sectionName) {
     } else {
       const input = document.createElement('input');
       input.type = 'text';
+      input.className = 'input input-sm w-full';
       input.id = `f_${field.key}`;
       input.value = raw || '';
       input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
@@ -522,14 +525,14 @@ function applyDocChange() {
     editError.hidden = true;
     editError.textContent = '';
     setFieldsEnabled(true);
-    assetLabel.textContent = `Loaded: ${skin.caption} (${loadedAsset.name}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
+    assetLabel.textContent = `${skin.caption} (${loadedAsset.name}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
     onModeChanged();
   } catch (e) {
     editError.hidden = false;
     editError.textContent = e.message || String(e);
     setFieldsEnabled(false);
   }
-  renderFieldPanel(sectionSelect.value);
+  renderFieldPanel(selectedSection);
 }
 
 let cfgTextDebounce = null;
@@ -537,29 +540,117 @@ cfgText.addEventListener('input', () => {
   if (cfgTextDebounce) clearTimeout(cfgTextDebounce);
   cfgTextDebounce = setTimeout(() => {
     loadedAsset.doc = new CfgDoc(cfgText.value);
-    populateSectionSelect(); // section list itself may have changed
+    renderSectionTree(); // section list itself may have changed
     applyDocChange();
   }, 400);
 });
 
-function populateSectionSelect() {
-  const prev = sectionSelect.value;
-  sectionSelect.innerHTML = '';
-  for (const section of loadedAsset.doc.sections) {
-    const opt = document.createElement('option');
-    opt.value = section.name;
-    opt.textContent = section.name;
-    sectionSelect.appendChild(opt);
+// ---- Section tree: groups sections by kind (per EditorFields.describeSection)
+// and by Compact/Full, so a skin with ~20-30 sections stays scannable
+// instead of one long flat list. Built as a daisyUI "menu" list with nested
+// <details>/<summary> per group (its own documented collapsible pattern).
+
+function groupSections(names) {
+  const g = {
+    general: [], compactMode: [], compactMeters: [], compactLeds: [],
+    fullMode: [], fullMeters: [], fullLeds: [], fullGraph: [], other: [],
+  };
+  for (const name of names) {
+    const desc = EditorFields.describeSection(name);
+    if (!desc) { g.other.push(name); continue; }
+    const isFull = name.endsWith('Full');
+    if (desc.kind === 'general') g.general.push(name);
+    else if (desc.kind === 'mode') (isFull ? g.fullMode : g.compactMode).push(name);
+    else if (desc.kind === 'meter') (isFull ? g.fullMeters : g.compactMeters).push(name);
+    else if (desc.kind === 'sprite') (isFull ? g.fullLeds : g.compactLeds).push(name);
+    else if (desc.kind === 'graph') g.fullGraph.push(name);
   }
-  const names = loadedAsset.doc.sections.map((s) => s.name);
-  sectionSelect.value = names.includes(prev) ? prev : (names[0] || '');
+  return g;
 }
 
-sectionSelect.addEventListener('change', () => renderFieldPanel(sectionSelect.value));
+function selectSection(name) {
+  selectedSection = name;
+  sectionTree.querySelectorAll('a[data-section]').forEach((a) => {
+    a.classList.toggle('menu-active', a.dataset.section === name);
+  });
+  renderFieldPanel(name);
+}
+
+function leafItem(name) {
+  const li = document.createElement('li');
+  const a = document.createElement('a');
+  a.href = '#';
+  a.dataset.section = name;
+  a.className = 'font-mono text-xs';
+  a.textContent = name;
+  a.addEventListener('click', (e) => { e.preventDefault(); selectSection(name); });
+  li.appendChild(a);
+  return li;
+}
+
+function subGroup(label, names) {
+  if (names.length === 0) return null;
+  const li = document.createElement('li');
+  const details = document.createElement('details');
+  details.open = true;
+  const summary = document.createElement('summary');
+  summary.textContent = label;
+  details.appendChild(summary);
+  const ul = document.createElement('ul');
+  for (const name of names) ul.appendChild(leafItem(name));
+  details.appendChild(ul);
+  li.appendChild(details);
+  return li;
+}
+
+function topGroup(label, subgroups) {
+  const any = subgroups.some(([, names]) => names.length > 0);
+  if (!any) return null;
+  const li = document.createElement('li');
+  const details = document.createElement('details');
+  details.open = true;
+  const summary = document.createElement('summary');
+  summary.textContent = label;
+  details.appendChild(summary);
+  const ul = document.createElement('ul');
+  for (const [subLabel, names] of subgroups) {
+    const sg = subGroup(subLabel, names);
+    if (sg) ul.appendChild(sg);
+  }
+  details.appendChild(ul);
+  li.appendChild(details);
+  return li;
+}
+
+function renderSectionTree() {
+  const names = loadedAsset.doc.sections.map((s) => s.name);
+  const g = groupSections(names);
+  sectionTree.innerHTML = '';
+
+  const general = subGroup('General', g.general);
+  if (general) sectionTree.appendChild(general);
+
+  const compact = topGroup('Compact', [
+    ['Mode', g.compactMode], ['Meters', g.compactMeters], ['LEDs & Ping', g.compactLeds],
+  ]);
+  if (compact) sectionTree.appendChild(compact);
+
+  const full = topGroup('Full', [
+    ['Mode', g.fullMode], ['Meters', g.fullMeters], ['LEDs & Ping', g.fullLeds], ['Graph', g.fullGraph],
+  ]);
+  if (full) sectionTree.appendChild(full);
+
+  const other = subGroup('Other', g.other);
+  if (other) sectionTree.appendChild(other);
+
+  const stillExists = names.includes(selectedSection);
+  selectSection(stillExists ? selectedSection : (names[0] || ''));
+}
 
 function initEditor() {
   cfgText.value = loadedAsset.doc.toText();
-  populateSectionSelect();
+  selectedSection = '';
+  renderSectionTree();
   applyDocChange();
 }
 
@@ -582,7 +673,8 @@ folderInput.addEventListener('change', async () => {
   skinErrorEl.textContent = '';
   assetLabel.textContent = '';
   loadedAsset = null;
-  editorSection.hidden = true;
+  workspace.hidden = true;
+  bottomDrawer.hidden = true;
   graphHistory = null;
   if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
   if (files.length === 0) return;
@@ -601,7 +693,7 @@ folderInput.addEventListener('change', async () => {
   const text = await cfgFile.text();
   table.hidden = false;
   checkRoundTrip(rootName, text);
-  summary.textContent = tbody.querySelector('tr.fail')
+  summary.textContent = tbody.querySelector('.text-error')
     ? 'Round-trip check FAILED, see table.'
     : 'Round-trip check passed.';
 
@@ -612,8 +704,10 @@ folderInput.addEventListener('change', async () => {
     const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
     for (const [name, img] of loaded) if (img) images.set(name, img);
     loadedAsset = { name: rootName, cfgPath: cfgFile.webkitRelativePath, doc: new CfgDoc(text), skin, images };
-    assetLabel.textContent = `Loaded: ${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
-    editorSection.hidden = false;
+    assetLabel.textContent = `${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
+    introNote.hidden = true;
+    workspace.hidden = false;
+    bottomDrawer.hidden = false;
     buildControls();
     onModeChanged();
     initEditor();
