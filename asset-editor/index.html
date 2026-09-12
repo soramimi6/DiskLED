@@ -41,7 +41,10 @@
     Load asset folder&hellip;
   </button>
   <span id="assetLabel" class="text-xs text-base-content/60"></span>
-  <div class="flex-1"></div>
+</div>
+
+<div id="previewBar" class="bg-base-100 border-b border-base-300 px-4 py-3 flex items-center gap-4 flex-wrap" hidden>
+  <div class="canvas-frame inline-block border border-base-300 rounded-box shadow"><canvas id="previewCanvas"></canvas></div>
   <div class="join" id="modeToggle" title="Preview and edit either the compact or the full layout.">
     <button type="button" id="modeCompactBtn" class="btn btn-sm join-item btn-active">Compact</button>
     <button type="button" id="modeFullBtn" class="btn btn-sm join-item">Full</button>
@@ -60,10 +63,9 @@
   </div>
 
   <div class="bg-base-200 p-4 overflow-y-auto">
-    <div class="canvas-frame inline-block border border-base-300 rounded-box shadow"><canvas id="previewCanvas"></canvas></div>
-    <div id="editError" class="alert alert-error mt-3 text-xs whitespace-pre-wrap" hidden></div>
-    <div id="noSchemaNote" class="text-xs text-base-content/60 mt-3" hidden>Not a recognized section — edit it in the text pane.</div>
-    <form class="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-2 items-center mt-3" id="fieldsPanel"></form>
+    <div id="editError" class="alert alert-error text-xs whitespace-pre-wrap mb-3" hidden></div>
+    <div id="noSchemaNote" class="text-xs text-base-content/60 mb-3" hidden>Not a recognized section — edit it in the text pane.</div>
+    <form class="grid grid-cols-[minmax(0,1fr)_190px] gap-x-3 gap-y-2 items-start" id="fieldsPanel"></form>
   </div>
 
   <div class="bg-base-100 p-4 flex flex-col overflow-y-auto">
@@ -110,6 +112,7 @@ const skinErrorEl = document.getElementById('skinError');
 const assetLabel = document.getElementById('assetLabel');
 const introNote = document.getElementById('introNote');
 const workspace = document.getElementById('workspace');
+const previewBar = document.getElementById('previewBar');
 const bottomDrawer = document.getElementById('bottomDrawer');
 
 // ---- Bottom drawer tabs ----
@@ -380,7 +383,7 @@ function boolFromRaw(raw, def) {
 
 function intCell(sectionName, field, raw) {
   const cell = document.createElement('div');
-  cell.className = 'flex items-center gap-1';
+  cell.className = 'flex items-center justify-end gap-1';
   const input = document.createElement('input');
   input.type = 'number';
   input.className = 'input input-sm w-20';
@@ -440,7 +443,7 @@ function renderFieldPanel(sectionName) {
 
   for (const field of desc.fields) {
     const label = document.createElement('label');
-    label.className = 'text-xs';
+    label.className = 'text-xs pt-1.5 leading-snug break-words';
     label.textContent = field.label;
     label.htmlFor = `f_${field.key}`;
     fieldsPanel.appendChild(label);
@@ -674,6 +677,7 @@ folderInput.addEventListener('change', async () => {
   assetLabel.textContent = '';
   loadedAsset = null;
   workspace.hidden = true;
+  previewBar.hidden = true;
   bottomDrawer.hidden = true;
   graphHistory = null;
   if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
@@ -707,6 +711,7 @@ folderInput.addEventListener('change', async () => {
     assetLabel.textContent = `${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
     introNote.hidden = true;
     workspace.hidden = false;
+    previewBar.hidden = false;
     bottomDrawer.hidden = false;
     buildControls();
     onModeChanged();
