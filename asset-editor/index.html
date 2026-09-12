@@ -40,6 +40,19 @@
   .top-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
   #skinError { color: #b00; white-space: pre-wrap; margin-top: 8px; }
   #assetLabel { margin-top: 8px; font-size: 13px; color: #555; }
+
+  .edit-layout { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; margin-top: 16px; }
+  #cfgText {
+    font-family: Consolas, 'Courier New', monospace; font-size: 12px;
+    width: 480px; max-width: 100%; height: 420px; box-sizing: border-box;
+  }
+  .field-form { display: grid; grid-template-columns: max-content 1fr; gap: 6px 10px; align-items: center; min-width: 340px; }
+  .field-form label { font-size: 13px; }
+  .field-form input[type="text"], .field-form input[type="number"] { width: 100%; box-sizing: border-box; font-size: 13px; }
+  .field-form .color-cell { display: flex; gap: 6px; align-items: center; }
+  .swatch { width: 16px; height: 16px; border: 1px solid #888; flex: none; }
+  #editError { color: #b00; white-space: pre-wrap; margin-top: 8px; max-width: 480px; }
+  #noSchemaNote { color: #555; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -70,6 +83,30 @@
   </div>
 </section>
 
+<section id="editSection" hidden>
+  <h2>Edit</h2>
+  <p class="note">
+    The text pane and the GUI fields below stay in sync in both directions:
+    a GUI field change rewrites only that line in the text (comments, order,
+    and untouched keys are preserved); a text edit is re-parsed after a
+    short pause and, if valid, updates the GUI fields and the Preview above.
+    While the text doesn't parse, GUI fields are disabled (so an edit can't
+    silently overwrite a change you're mid-way through typing) but the text
+    pane itself stays editable so you can fix it.
+  </p>
+  <div class="edit-layout">
+    <div>
+      <label>Section: <select id="sectionSelect"></select></label>
+      <div id="editError" hidden></div>
+      <div id="noSchemaNote" hidden>
+        This section isn't one the GUI editor recognizes yet — edit it directly in the text pane.
+      </div>
+      <form class="field-form" id="fieldsPanel"></form>
+    </div>
+    <textarea id="cfgText" spellcheck="false"></textarea>
+  </div>
+</section>
+
 <details id="diagSection">
   <summary>Diagnostics — text&harr;GUI round-trip self-check</summary>
   <p class="note">
@@ -91,6 +128,7 @@
 <script src="js/skinLoader.js"></script>
 <script src="js/historyBuffer.js"></script>
 <script src="js/renderer.js"></script>
+<script src="js/editorFields.js"></script>
 <script>
 // Classic scripts (not type="module"), deliberately: Chromium refuses to
 // load a module script at all when the page itself was opened as a plain
@@ -320,6 +358,158 @@ function loadImage(file) {
   });
 }
 
+// ---- Edit: text <-> GUI two-way sync ----
+// `loadedAsset.doc` (a CfgDoc, cfgModel.js) is the single source of truth
+// for the raw text; `loadedAsset.skin` (SkinLoader.loadSkin's result, used
+// by Preview) is rebuilt from it after every change, in both directions:
+// a GUI field write calls doc.setValue then re-renders the textarea from
+// doc.toText(), and a textarea edit rebuilds `doc` from scratch then
+// re-parses. Either path ends at applyDocChange(), which is the only place
+// that talks to SkinLoader and decides whether GUI fields stay enabled.
+
+const editSection = document.getElementById('editSection');
+const sectionSelect = document.getElementById('sectionSelect');
+const editError = document.getElementById('editError');
+const noSchemaNote = document.getElementById('noSchemaNote');
+const fieldsPanel = document.getElementById('fieldsPanel');
+const cfgText = document.getElementById('cfgText');
+
+function setFieldsEnabled(enabled) {
+  fieldsPanel.querySelectorAll('input,select').forEach((el) => { el.disabled = !enabled; });
+}
+
+// Same truthy rule as ReadStrictBool's accepted "true" spellings
+// (uSkinLoader.pas:98-111) -- a blank/missing value reads as `def`.
+function boolFromRaw(raw, def) {
+  if (raw === undefined || raw.trim() === '') return def;
+  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+}
+
+function renderFieldPanel(sectionName) {
+  fieldsPanel.innerHTML = '';
+  if (!sectionName) return;
+  const desc = EditorFields.describeSection(sectionName);
+  noSchemaNote.hidden = !!desc;
+  if (!desc) return;
+
+  for (const field of desc.fields) {
+    const label = document.createElement('label');
+    label.textContent = field.label;
+    label.htmlFor = `f_${field.key}`;
+    fieldsPanel.appendChild(label);
+
+    const raw = loadedAsset.doc.getValue(sectionName, field.key);
+
+    if (field.type === 'bool') {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = `f_${field.key}`;
+      cb.checked = boolFromRaw(raw, false);
+      cb.addEventListener('change', () => onFieldChanged(sectionName, field.key, cb.checked ? '1' : '0'));
+      fieldsPanel.appendChild(cb);
+    } else if (field.type === 'enum') {
+      const sel = document.createElement('select');
+      sel.id = `f_${field.key}`;
+      for (const opt of field.options) {
+        const o = document.createElement('option');
+        o.value = opt;
+        o.textContent = opt;
+        sel.appendChild(o);
+      }
+      sel.value = (raw || '').trim().toLowerCase() || field.options[0];
+      sel.addEventListener('change', () => onFieldChanged(sectionName, field.key, sel.value));
+      fieldsPanel.appendChild(sel);
+    } else if (field.type === 'color') {
+      const cell = document.createElement('div');
+      cell.className = 'color-cell';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = `f_${field.key}`;
+      input.value = raw || '';
+      input.placeholder = '#RRGGBB or clColor';
+      const swatch = document.createElement('div');
+      swatch.className = 'swatch';
+      const paint = () => {
+        const c = SkinLoader.tryParseColor(input.value || '');
+        swatch.style.background = c ? SkinLoader.colorToCss(c) : 'transparent';
+      };
+      paint();
+      input.addEventListener('input', paint);
+      input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
+      cell.appendChild(input);
+      cell.appendChild(swatch);
+      fieldsPanel.appendChild(cell);
+    } else {
+      const input = document.createElement('input');
+      input.type = field.type === 'int' ? 'number' : 'text';
+      input.id = `f_${field.key}`;
+      input.value = raw || '';
+      input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
+      fieldsPanel.appendChild(input);
+    }
+  }
+}
+
+function onFieldChanged(sectionName, key, newValue) {
+  loadedAsset.doc.setValue(sectionName, key, newValue);
+  cfgText.value = loadedAsset.doc.toText();
+  applyDocChange();
+}
+
+// Re-parses loadedAsset.doc's current text via SkinLoader and, on success,
+// rebuilds the Preview from it; on failure, disables GUI field edits (but
+// never the text pane) and shows the validator's own error. Called after
+// every change from either direction.
+function applyDocChange() {
+  const text = loadedAsset.doc.toText();
+  try {
+    const skin = SkinLoader.loadSkin(loadedAsset.cfgPath, text, loadedAsset.name);
+    loadedAsset.skin = skin;
+    editError.hidden = true;
+    editError.textContent = '';
+    setFieldsEnabled(true);
+    assetLabel.textContent = `Loaded: ${skin.caption} (${loadedAsset.name}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
+    onModeChanged();
+  } catch (e) {
+    editError.hidden = false;
+    editError.textContent = e.message || String(e);
+    setFieldsEnabled(false);
+  }
+  renderFieldPanel(sectionSelect.value);
+}
+
+let cfgTextDebounce = null;
+cfgText.addEventListener('input', () => {
+  if (cfgTextDebounce) clearTimeout(cfgTextDebounce);
+  cfgTextDebounce = setTimeout(() => {
+    loadedAsset.doc = new CfgDoc(cfgText.value);
+    populateSectionSelect(); // section list itself may have changed
+    applyDocChange();
+  }, 400);
+});
+
+function populateSectionSelect() {
+  const prev = sectionSelect.value;
+  sectionSelect.innerHTML = '';
+  for (const section of loadedAsset.doc.sections) {
+    const opt = document.createElement('option');
+    opt.value = section.name;
+    opt.textContent = section.name;
+    sectionSelect.appendChild(opt);
+  }
+  const names = loadedAsset.doc.sections.map((s) => s.name);
+  sectionSelect.value = names.includes(prev) ? prev : (names[0] || '');
+}
+
+sectionSelect.addEventListener('change', () => renderFieldPanel(sectionSelect.value));
+
+function initEditor() {
+  cfgText.value = loadedAsset.doc.toText();
+  populateSectionSelect();
+  editSection.hidden = false;
+  applyDocChange();
+}
+
 // ---- Loading a single asset folder ----
 // The folder the user picks IS the asset: its layout.cfg must sit directly
 // inside it (webkitRelativePath "<pickedFolderName>/layout.cfg"), exactly
@@ -340,6 +530,7 @@ folderInput.addEventListener('change', async () => {
   assetLabel.textContent = '';
   loadedAsset = null;
   previewSection.hidden = true;
+  editSection.hidden = true;
   graphHistory = null;
   if (graphTimer) { clearInterval(graphTimer); graphTimer = null; }
   if (files.length === 0) return;
@@ -368,11 +559,12 @@ folderInput.addEventListener('change', async () => {
     const imageFiles = files.filter((f) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(f.name));
     const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
     for (const [name, img] of loaded) if (img) images.set(name, img);
-    loadedAsset = { name: rootName, skin, images };
+    loadedAsset = { name: rootName, cfgPath: cfgFile.webkitRelativePath, doc: new CfgDoc(text), skin, images };
     assetLabel.textContent = `Loaded: ${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
     previewSection.hidden = false;
     buildControls();
     onModeChanged();
+    initEditor();
   } catch (e) {
     skinErrorEl.hidden = false;
     skinErrorEl.textContent = `Failed to load "${rootName}": ${e.message || e}`;
