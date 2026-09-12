@@ -142,7 +142,7 @@
       <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsMeters"></div>
       <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsLedsPing"></div>
       <div class="flex flex-col gap-1.5">
-        <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Set all meters</span>
+        <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Set all values</span>
         <button type="button" class="btn btn-sm" id="btnMetersMax">Max</button>
         <button type="button" class="btn btn-sm" id="btnMetersMin">Min</button>
         <button type="button" class="btn btn-sm" id="btnMetersInitial">Initial</button>
@@ -253,18 +253,22 @@ let loadedAsset = null;
 // NetIo comments and uMeterRenderer's shared NetActivity/NetTotal draw)
 // rather than exposed as separate controls, to keep the control list small.
 const METER_KEYS = ['cpu', 'mem', 'swap', 'diskRead', 'diskWrite', 'netIn', 'netOut', 'audio', 'audioL', 'audioR'];
+const LED_KEYS = ['diskReadOn', 'diskWriteOn', 'netInOn', 'netOutOn'];
 const INITIAL_METER_VALUES = {
   cpu: 0.5, mem: 0.5, swap: 0.2,
   diskRead: 0.3, diskWrite: 0.3,
   netIn: 0.3, netOut: 0.3,
   audio: 0.4, audioL: 0.4, audioR: 0.4,
 };
-
-const state = {
-  ...INITIAL_METER_VALUES,
+const INITIAL_LED_PING_VALUES = {
   diskReadOn: true, diskWriteOn: false,
   netInOn: true, netOutOn: false,
   pingLevel: 3, // Normal
+};
+
+const state = {
+  ...INITIAL_METER_VALUES,
+  ...INITIAL_LED_PING_VALUES,
 };
 
 function derivedState() {
@@ -426,21 +430,29 @@ function buildControls() {
   controlsLedsPing.appendChild(pingWrap);
 }
 
-// Bulk-set every meter slider at once, for quickly sweeping the preview to
-// an extreme or a fresh random spread instead of dragging each one by hand.
-// Rebuilding via buildControls() is simplest way to refresh each slider's
-// displayed input/out value from the new state, rather than tracking every
-// slider element to update individually.
-function setAllMeters(valueForKey) {
-  for (const key of METER_KEYS) state[key] = valueForKey(key);
+// Bulk-set every test-value control at once (meters, LEDs, and Ping), for
+// quickly sweeping the whole preview to an extreme or a fresh random spread
+// instead of dragging/clicking each one by hand. Rebuilding via
+// buildControls() is the simplest way to refresh every control's displayed
+// value from the new state, rather than tracking each element individually.
+function setAllValues(meterValueForKey, ledValueForKey, pingLevel) {
+  for (const key of METER_KEYS) state[key] = meterValueForKey(key);
+  for (const key of LED_KEYS) state[key] = ledValueForKey(key);
+  state.pingLevel = pingLevel;
   buildControls();
   repaint();
 }
 
-document.getElementById('btnMetersMax').addEventListener('click', () => setAllMeters(() => 1));
-document.getElementById('btnMetersMin').addEventListener('click', () => setAllMeters(() => 0));
-document.getElementById('btnMetersInitial').addEventListener('click', () => setAllMeters((key) => INITIAL_METER_VALUES[key]));
-document.getElementById('btnMetersRandom').addEventListener('click', () => setAllMeters(() => Math.round(Math.random() * 100) / 100));
+const round2 = (v) => Math.round(v * 100) / 100;
+
+document.getElementById('btnMetersMax').addEventListener('click', () =>
+  setAllValues(() => 1, () => true, 3 /* Normal */));
+document.getElementById('btnMetersMin').addEventListener('click', () =>
+  setAllValues(() => 0, () => false, 0 /* Timeout */));
+document.getElementById('btnMetersInitial').addEventListener('click', () =>
+  setAllValues((key) => INITIAL_METER_VALUES[key], (key) => INITIAL_LED_PING_VALUES[key], INITIAL_LED_PING_VALUES.pingLevel));
+document.getElementById('btnMetersRandom').addEventListener('click', () =>
+  setAllValues(() => round2(Math.random()), () => Math.random() < 0.5, Math.floor(Math.random() * 4)));
 
 function onModeChanged() {
   modeFullBtn.disabled = !loadedAsset || !loadedAsset.skin.hasFull;
