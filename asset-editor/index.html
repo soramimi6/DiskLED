@@ -36,9 +36,7 @@
   /* layout.cfg editor: a syntax-highlighted <pre> sits behind a
      transparent-text <textarea> (same font metrics on both, kept in sync
      by JS on scroll/input) -- native cursor/selection/undo stay exactly as
-     a plain textarea's, only the rendered glyphs are colored. Palette is
-     Dracula (https://draculatheme.com/contribute), always-dark regardless
-     of the page's own light/dark mode, same as most embedded code panes. */
+     a plain textarea's, only the rendered glyphs are colored. */
   .cfg-editor-layer {
     font-family: Consolas, 'Courier New', monospace;
     font-size: 12px;
@@ -52,26 +50,21 @@
   .tok-section { font-weight: 600; }
   .tok-comment { font-style: italic; }
 
-  /* Light (default, cupcake theme): every token color is one of cupcake's
-     own "-content" variables -- the exact readable-text shades daisyUI
-     itself pairs with cupcake's primary/secondary/accent/info/success, not
-     independently picked colors. Values copied verbatim (as oklch()) from
-     daisyui@5/themes.css's [data-theme=cupcake] block. Background reuses
-     cupcake's own --color-base-100 so the pane sits flush with the rest of
-     the cupcake-themed page. */
-  #cfgHighlight { background: oklch(97.788% .004 56.375); color: oklch(23.574% .066 313.189); }
-  #cfgText { caret-color: oklch(23.574% .066 313.189); }
-  #cfgText::selection { background: oklch(89% .061 343.231 / 40%); } /* cupcake --color-secondary */
-  .tok-section { color: oklch(26% .051 172.552); } /* cupcake --color-success-content */
-  .tok-bracket { color: oklch(45% .187 3.815); } /* cupcake --color-secondary-content */
-  .tok-key { color: oklch(43% .078 188.216); } /* cupcake --color-primary-content */
-  .tok-eq { color: oklch(47% .157 37.304); } /* cupcake --color-accent-content */
-  .tok-value { color: oklch(29% .066 243.157); } /* cupcake --color-info-content */
-  .tok-comment { color: oklch(23.574% .066 313.189 / 55%); } /* cupcake --color-base-content, muted */
+  /* Light: a vivid, high-contrast palette in the same role-mapping
+     (section/bracket/key/eq/value/comment) as the dark side below --
+     independently chosen for legibility, not tied to the cupcake theme's
+     own (much lighter) accent colors. */
+  #cfgHighlight { background: #f8f8f2; color: #282a36; }
+  #cfgText { caret-color: #282a36; }
+  #cfgText::selection { background: rgba(111, 66, 193, 0.15); }
+  .tok-section { color: #0a9c3e; }
+  .tok-bracket { color: #7c3aed; }
+  .tok-key { color: #0891b2; }
+  .tok-eq { color: #db2777; }
+  .tok-value { color: #c2410c; }
+  .tok-comment { color: #64748b; }
 
-  /* Dark (dracula theme): the actual Dracula palette (https://draculatheme.com)
-     -- already exact, no change needed switching the app's dark theme name
-     from daisyUI's generic "dark" to "dracula". */
+  /* Dark: the actual Dracula palette (https://draculatheme.com). */
   html[data-theme="dracula"] #cfgHighlight { background: #282a36; color: #f8f8f2; }
   html[data-theme="dracula"] #cfgText { caret-color: #f8f8f2; }
   html[data-theme="dracula"] #cfgText::selection { background: rgba(189, 147, 249, 0.4); }
@@ -88,21 +81,23 @@
 <div class="navbar bg-base-100 shadow-sm px-4 gap-3 flex-wrap shrink-0">
   <span class="text-base font-semibold">DiskLED Asset Editor</span>
   <input id="folderInput" type="file" webkitdirectory multiple hidden />
-  <button id="btnLoad" type="button" class="btn btn-primary btn-sm"
-    title="Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets.">
-    Load asset folder&hellip;
-  </button>
+  <button id="btnLoad" type="button" class="btn btn-primary btn-sm" data-i18n="loadButton" data-i18n-title="loadButtonTitle"></button>
   <span id="assetLabel" class="text-xs text-base-content/60"></span>
+  <div class="grow"></div>
+  <div class="join" id="langToggle" data-i18n-title="langToggleTitle">
+    <button type="button" id="langEnBtn" class="btn btn-sm join-item btn-active">EN</button>
+    <button type="button" id="langJaBtn" class="btn btn-sm join-item">JA</button>
+  </div>
 </div>
 
 <div id="previewBar" class="bg-base-100 border-b border-base-300 px-4 py-3 flex flex-col items-start gap-3 shrink-0" hidden>
   <div class="canvas-frame inline-block border border-base-300 rounded-box shadow"><canvas id="previewCanvas"></canvas></div>
   <div class="flex items-center gap-4 flex-wrap">
-    <div class="join" id="modeToggle" title="Preview and edit either the compact or the full layout.">
+    <div class="join" id="modeToggle" data-i18n-title="modeToggleTitle">
       <button type="button" id="modeCompactBtn" class="btn btn-sm join-item btn-active">Compact</button>
       <button type="button" id="modeFullBtn" class="btn btn-sm join-item">Full</button>
     </div>
-    <div class="join" id="scaleToggle" title="Preview display scale (doesn't affect the underlying pixels).">
+    <div class="join" id="scaleToggle" data-i18n-title="scaleToggleTitle">
       <button type="button" id="scale1Btn" class="btn btn-sm join-item btn-active">x1</button>
       <button type="button" id="scale2Btn" class="btn btn-sm join-item">x2</button>
       <button type="button" id="scale5Btn" class="btn btn-sm join-item">x5</button>
@@ -110,36 +105,35 @@
   </div>
 </div>
 
-<p id="introNote" class="text-xs text-base-content/60 px-4 pt-2 max-w-xl shrink-0">
-  Point at <strong>one</strong> asset's folder — the one directly containing its <code class="bg-base-300 rounded px-1">layout.cfg</code> — anywhere on disk.
-</p>
+<p id="introNote" class="text-xs text-base-content/60 px-4 pt-2 max-w-xl shrink-0" data-i18n-html="introNote"></p>
 <div id="skinError" class="alert alert-error mx-4 mt-2 text-xs whitespace-pre-wrap shrink-0" hidden></div>
 
 <details id="bottomDrawer" class="bg-base-100 border-b border-base-300 shrink-0" hidden>
-  <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-base-content/60">Test values &amp; diagnostics</summary>
+  <summary class="cursor-pointer px-4 py-2 text-xs font-semibold text-base-content/60" data-i18n="drawerSummary"></summary>
   <div class="max-h-[35vh] overflow-y-auto">
     <div class="flex gap-1 px-4 pt-1">
-      <button type="button" class="btn btn-ghost btn-sm tab-btn btn-active" data-tab="test">Test values</button>
-      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="diag">Diagnostics</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn btn-active" data-tab="test" data-i18n="tabTest"></button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="diag" data-i18n="tabDiag"></button>
     </div>
     <div class="px-4 pb-4 pt-2 flex gap-8 flex-wrap" id="tabTest">
       <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsMeters"></div>
       <div class="grid grid-cols-[max-content_1fr_max-content] gap-x-3 gap-y-1 items-center w-72" id="controlsLedsPing"></div>
       <div class="flex flex-col gap-1.5">
-        <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60">Set all values</span>
-        <button type="button" class="btn btn-sm" id="btnMetersMax">Max</button>
-        <button type="button" class="btn btn-sm" id="btnMetersMin">Min</button>
-        <button type="button" class="btn btn-sm" id="btnMetersInitial">Initial</button>
-        <button type="button" class="btn btn-sm" id="btnMetersRandom">Random</button>
+        <span class="text-xs font-semibold uppercase tracking-wide text-base-content/60" data-i18n="setAllValuesHeading"></span>
+        <button type="button" class="btn btn-sm" id="btnMetersMax"></button>
+        <button type="button" class="btn btn-sm" id="btnMetersMin"></button>
+        <button type="button" class="btn btn-sm" id="btnMetersInitial"></button>
+        <button type="button" class="btn btn-sm" id="btnMetersRandom"></button>
       </div>
     </div>
     <div class="px-4 pb-4 pt-2" id="tabDiag" hidden>
-      <p class="text-xs text-base-content/60 mb-2">
-        Changes one existing key's value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed.
-      </p>
+      <p class="text-xs text-base-content/60 mb-2" data-i18n-html="diagIntro"></p>
       <div id="summary" class="text-xs font-semibold"></div>
       <table class="table table-sm mt-2" id="results" hidden>
-        <thead><tr><th>Asset</th><th>Edit checked</th><th>Result</th><th>Detail</th></tr></thead>
+        <thead><tr>
+          <th data-i18n="diagAsset"></th><th data-i18n="diagEditChecked"></th>
+          <th data-i18n="diagResult"></th><th data-i18n="diagDetail"></th>
+        </tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -148,13 +142,13 @@
 
 <main class="grid grid-cols-[220px_380px_1fr] gap-px bg-base-300 flex-1 min-h-0" id="workspace" hidden>
   <div class="bg-base-100 p-3 overflow-y-auto">
-    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2">Sections</h2>
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-base-content/60 mb-2" data-i18n="sectionsHeading"></h2>
     <ul class="menu menu-sm p-0 w-full" id="sectionTree"></ul>
   </div>
 
   <div class="bg-base-200 p-4 overflow-y-auto">
     <div id="editError" class="alert alert-error text-xs whitespace-pre-wrap mb-3" hidden></div>
-    <div id="noSchemaNote" class="text-xs text-base-content/60 mb-3" hidden>Not a recognized section — edit it in the text pane.</div>
+    <div id="noSchemaNote" class="text-xs text-base-content/60 mb-3" hidden data-i18n="noSchemaNote"></div>
     <form class="grid grid-cols-[minmax(0,1fr)_190px] gap-x-3 gap-y-2 items-start" id="fieldsPanel"></form>
   </div>
 
@@ -163,7 +157,7 @@
     <div class="relative flex-1 min-h-[460px] rounded-box border border-base-300 overflow-hidden">
       <pre id="cfgHighlight" aria-hidden="true" class="cfg-editor-layer absolute inset-0 w-full h-full m-0 overflow-auto pointer-events-none"></pre>
       <textarea id="cfgText" spellcheck="false" class="cfg-editor-layer absolute inset-0 w-full h-full resize-none outline-none overflow-auto"
-        title="Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview."></textarea>
+        data-i18n-title="cfgTextTitle"></textarea>
     </div>
   </div>
 </main>
@@ -178,6 +172,203 @@
 // load a module script at all when the page itself was opened as a plain
 // file:// document, which is exactly how most people will open this page.
 
+// ---- i18n ----
+// Every user-facing string lives here, keyed by a short id, with an en/ja
+// pair. editorFields.js's field `label`/`hint` are themselves i18n keys
+// (that module has no UI language of its own) resolved through t() below.
+// Not covered: validation error text thrown by skinLoader.js (it mirrors
+// uSkinLoader.pas's own English exception messages 1:1 and isn't
+// translated here) -- everything else in the page is.
+const STRINGS = {
+  loadButton: { en: 'Load asset folder…', ja: 'アセットフォルダを読み込む…' },
+  loadButtonTitle: {
+    en: "Select the folder that directly contains one asset's layout.cfg and images — e.g. this repo's assets/original/, or a skin folder anywhere else on disk (My Documents, a USB drive, ...). This never scans a parent folder for multiple assets.",
+    ja: 'layout.cfgと画像を直接含む1つのアセットのフォルダを選択してください（例：本リポジトリのassets/original/、またはディスク上の任意のスキンフォルダ）。複数アセットをまとめて含む親フォルダはスキャンしません。',
+  },
+  langToggleTitle: { en: 'Editor UI language', ja: 'エディタ画面の表示言語' },
+  modeToggleTitle: { en: 'Preview and edit either the compact or the full layout.', ja: 'コンパクトまたはフルのレイアウトをプレビュー・編集します。' },
+  scaleToggleTitle: { en: "Preview display scale (doesn't affect the underlying pixels).", ja: 'プレビューの表示倍率（実際のピクセルデータには影響しません）。' },
+  introNote: {
+    en: "Point at <strong>one</strong> asset's folder — the one directly containing its <code class=\"bg-base-300 rounded px-1\">layout.cfg</code> — anywhere on disk.",
+    ja: '<strong>1つ</strong>のアセットのフォルダ — <code class="bg-base-300 rounded px-1">layout.cfg</code>を直接含むフォルダ — を指定してください（ディスク上のどこでも可）。',
+  },
+  drawerSummary: { en: 'Test values & diagnostics', ja: 'テスト値＆診断' },
+  tabTest: { en: 'Test values', ja: 'テスト値' },
+  tabDiag: { en: 'Diagnostics', ja: '診断' },
+  metersHeading: { en: 'Meters (0–100%)', ja: 'メーター（0～100%）' },
+  meterCpu: { en: 'CPU', ja: 'CPU' },
+  meterMemory: { en: 'Memory', ja: 'メモリ' },
+  meterSwap: { en: 'Swap', ja: 'スワップ' },
+  meterDiskRead: { en: 'Disk read', ja: 'ディスク読み込み' },
+  meterDiskWrite: { en: 'Disk write', ja: 'ディスク書き込み' },
+  meterNetIn: { en: 'Net in', ja: 'ネット受信' },
+  meterNetOut: { en: 'Net out', ja: 'ネット送信' },
+  meterAudio: { en: 'Audio', ja: 'オーディオ' },
+  meterAudioL: { en: 'Audio L', ja: 'オーディオL' },
+  meterAudioR: { en: 'Audio R', ja: 'オーディオR' },
+  ledsHeading: { en: 'LEDs', ja: 'LED' },
+  pingHeading: { en: 'Ping', ja: 'Ping' },
+  pingTimeout: { en: 'Timeout', ja: 'タイムアウト' },
+  pingSlow: { en: 'Slow', ja: '低速' },
+  pingFair: { en: 'Fair', ja: '普通' },
+  pingNormal: { en: 'Normal', ja: '良好' },
+  setAllValuesHeading: { en: 'Set all values', ja: '全値を設定' },
+  btnMax: { en: 'Max', ja: '最大' },
+  btnMin: { en: 'Min', ja: '最小' },
+  btnInitial: { en: 'Initial', ja: '初期値' },
+  btnRandom: { en: 'Random', ja: 'ランダム' },
+  diagIntro: {
+    en: 'Changes one existing key\'s value via <code class="bg-base-300 rounded px-1">js/cfgModel.js</code> and confirms exactly one text line changed.',
+    ja: '<code class="bg-base-300 rounded px-1">js/cfgModel.js</code>で既存キーの値を1つ変更し、テキストの変更が1行だけであることを確認します。',
+  },
+  diagAsset: { en: 'Asset', ja: 'アセット' },
+  diagEditChecked: { en: 'Edit checked', ja: '変更箇所' },
+  diagResult: { en: 'Result', ja: '結果' },
+  diagDetail: { en: 'Detail', ja: '詳細' },
+  diagPass: { en: 'PASS', ja: '成功' },
+  diagFail: { en: 'FAIL', ja: '失敗' },
+  diagRoundTripFail: { en: 'Round-trip check FAILED, see table.', ja: '往復チェックが失敗しました。表を確認してください。' },
+  diagRoundTripPass: { en: 'Round-trip check passed.', ja: '往復チェックに成功しました。' },
+  diagKeyNotFound: { en: 'key not found', ja: 'キーが見つかりません' },
+  diagLinesChangedDetail: {
+    en: "lines changed: {n}, read back: '{v}'",
+    ja: '変更行数: {n}、読み戻し値: \'{v}\'',
+  },
+  sectionsHeading: { en: 'Sections', ja: 'セクション' },
+  groupGeneral: { en: 'General', ja: '全般' },
+  groupCompact: { en: 'Compact', ja: 'Compact' },
+  groupFull: { en: 'Full', ja: 'Full' },
+  groupMode: { en: 'Mode', ja: 'モード' },
+  groupMeters: { en: 'Meters', ja: 'メーター' },
+  groupLedsPing: { en: 'LEDs & Ping', ja: 'LED・Ping' },
+  groupGraph: { en: 'Graph', ja: 'グラフ' },
+  groupOther: { en: 'Other', ja: 'その他' },
+  sectionAddTitle: { en: 'Check to add this section to layout.cfg', ja: 'チェックするとlayout.cfgにこのセクションを追加します' },
+  sectionRemoveTitle: { en: 'Uncheck to remove this section from layout.cfg', ja: 'チェックを外すとlayout.cfgからこのセクションを削除します' },
+  noSchemaNote: { en: "Not a recognized section — edit it in the text pane.", ja: '認識されないセクションです。テキスト欄で編集してください。' },
+  cfgTextTitle: {
+    en: 'Raw layout.cfg text. Edits here re-parse after a short pause and update the fields and preview.',
+    ja: 'layout.cfgの生テキストです。編集すると少し間を置いて再解析され、フィールドとプレビューに反映されます。',
+  },
+  autoFitButton: { en: 'Auto-fit to background image', ja: '背景画像に合わせて自動調整' },
+  autoFitButtonTitle: {
+    en: "Read the Bg image's actual pixel size and fill Width/Height with it.",
+    ja: '背景画像の実際のピクセルサイズを読み取り、幅と高さに入力します。',
+  },
+  autoFitSetBgFirst: { en: 'Set Bg first.', ja: '先に背景画像（Bg）を設定してください。' },
+  autoFitNotFound: { en: '"{file}" not found among the loaded images.', ja: '「{file}」は読み込んだ画像の中に見つかりません。' },
+  autoFitSetTo: { en: 'Set to {w}x{h}.', ja: '{w}x{h} に設定しました。' },
+  fileMissingTitle: { en: '"{file}" not found among the loaded images.', ja: '「{file}」は読み込んだ画像の中に見つかりません。' },
+  colorPlaceholder: { en: '#RRGGBB or clColor', ja: '#RRGGBB または clColor' },
+  skinErrorNoLayoutCfg: {
+    en: 'No layout.cfg found directly inside "{root}". Select the asset\'s own folder (the one that directly contains layout.cfg), not a parent folder.',
+    ja: '「{root}」の直下にlayout.cfgが見つかりません。親フォルダではなく、layout.cfgを直接含むアセット自身のフォルダを選択してください。',
+  },
+  skinErrorFailedToLoad: { en: 'Failed to load "{root}": {msg}', ja: '「{root}」の読み込みに失敗しました: {msg}' },
+  assetLabelCompactFull: { en: 'compact + full', ja: 'コンパクト＋フル' },
+  assetLabelCompactOnly: { en: 'compact only', ja: 'コンパクトのみ' },
+
+  // editorFields.js field labels/hints (option arrays like Kind=bar/peak/vu
+  // are literal layout.cfg values and are never translated).
+  'field.file': { en: 'Image file', ja: '画像ファイル' },
+  'hint.file': { en: "Sprite sheet image file, relative to this asset's folder.", ja: 'このアセットのフォルダ内にあるスプライトシート画像ファイル名。' },
+  'field.x': { en: 'X', ja: 'X' },
+  'hint.x': { en: 'Horizontal position, in pixels, within the background image.', ja: '背景画像内での水平位置（ピクセル）。' },
+  'field.y': { en: 'Y', ja: 'Y' },
+  'hint.y': { en: 'Vertical position, in pixels, within the background image.', ja: '背景画像内での垂直位置（ピクセル）。' },
+  'field.frames': { en: 'Frames', ja: 'コマ数' },
+  'hint.frames': { en: 'Number of frames in the strip. The current value selects which frame is drawn.', ja: 'ストリップ内のコマ数。現在の値に応じて描画するコマが選ばれます。' },
+  'field.transparent': { en: 'Transparent', ja: '透過' },
+  'hint.transparent': { en: 'When on, pixels matching Mask color are drawn transparent.', ja: 'オンにすると、マスク色に一致するピクセルが透過して描画されます。' },
+  'field.maskColor': { en: 'Mask color', ja: 'マスク色' },
+  'hint.maskColor': { en: 'The color treated as transparent when Transparent is on (#RRGGBB or a Delphi clXxx name).', ja: '透過がオンのとき透明として扱われる色（#RRGGBB形式またはDelphiのclXxx名）。' },
+  'field.ballisticKind': { en: 'Ballistic kind', ja: '追従方式' },
+  'hint.ballisticKind': { en: 'How this meter responds to a changing value: bar (linear), peak (holds peaks), vu (VU-meter-like).', ja: 'このメーターが値の変化にどう追従するか：bar（直線的）、peak（ピークを保持）、vu（VUメーター風）。' },
+  'field.ballisticStrength': { en: 'Ballistic strength (0-100)', ja: '追従の強さ（0～100）' },
+  'hint.ballisticStrength': { en: 'Response tightness, 0-100; fall speed depends on Ballistic kind.', ja: '追従の速さ（0～100）。値が下がる速度は追従方式によって決まります。' },
+  'field.digitEnabled': { en: 'Digit readout enabled', ja: '数値表示を有効化' },
+  'hint.digitEnabled': { en: 'Turns the digit readout on or off for this part.', ja: 'このパーツの数値表示のオン/オフ。' },
+  'field.digitStyle': { en: 'Digit style', ja: '数値の描画方式' },
+  'hint.digitStyle': { en: 'bitmap = draw digits from a font sheet image; system = draw with a system font.', ja: 'bitmap＝フォント画像から描画、system＝システムフォントで描画。' },
+  'field.digitX': { en: 'Digit X', ja: '数値 X' },
+  'hint.digitX': { en: 'Digit readout position, in pixels (X).', ja: '数値表示の位置（ピクセル、X座標）。' },
+  'field.digitY': { en: 'Digit Y', ja: '数値 Y' },
+  'hint.digitY': { en: 'Digit readout position, in pixels (Y).', ja: '数値表示の位置（ピクセル、Y座標）。' },
+  'field.digitCount': { en: 'Digit count', ja: '桁数' },
+  'hint.digitCount': { en: 'Number of digits shown; extra leading digits are dropped.', ja: '表示する桁数。超過した上位桁は切り捨てられます。' },
+  'field.zeroFill': { en: 'Zero-fill', ja: 'ゼロ埋め' },
+  'hint.zeroFill': { en: 'Pad with leading zeros instead of spaces when shorter than Digit count.', ja: '桁数に満たない場合、空白の代わりに先頭を0で埋めます。' },
+  'field.bitmapFontFile': { en: 'Bitmap font file (style=bitmap)', ja: 'ビットマップフォントファイル（style=bitmap時）' },
+  'hint.bitmapFontFile': { en: 'Font sheet image (11 glyphs: 0-9 and a blank, side by side), used when Digit style = bitmap.', ja: '横に並んだ11個のグリフ（0～9＋空白）を持つフォント画像。数値の描画方式がbitmapのときに使用。' },
+  'field.bitmapFontMaskColor': { en: 'Bitmap font mask color (blank = opaque)', ja: 'ビットマップフォントのマスク色（空欄で不透過）' },
+  'hint.bitmapFontMaskColor': { en: 'Mask color for the bitmap font; leave blank to draw it opaquely.', ja: 'ビットマップフォントのマスク色。空欄のままだと不透過で描画されます。' },
+  'field.systemFontName': { en: 'System font name (style=system)', ja: 'システムフォント名（style=system時）' },
+  'hint.systemFontName': { en: 'System font name, used when Digit style = system.', ja: '数値の描画方式がsystemのときに使うフォント名。' },
+  'field.systemFontSize': { en: 'System font size', ja: 'システムフォントサイズ' },
+  'hint.systemFontSize': { en: 'System font point size, used when Digit style = system.', ja: 'systemスタイル時のフォントサイズ（ポイント）。' },
+  'field.systemFontColor': { en: 'System font color', ja: 'システムフォントの色' },
+  'hint.systemFontColor': { en: 'System font color, used when Digit style = system.', ja: 'systemスタイル時のフォント色。' },
+  'field.systemFontBold': { en: 'System font bold', ja: 'システムフォントを太字に' },
+  'hint.systemFontBold': { en: 'Bold system font, used when Digit style = system.', ja: 'systemスタイル時にフォントを太字にします。' },
+  'field.id': { en: 'Id', ja: 'ID' },
+  'hint.id': { en: 'Internal skin identifier; defaults to the folder name if omitted.', ja: 'スキンの内部識別子。省略時はフォルダ名が使われます。' },
+  'field.caption': { en: 'Caption', ja: '表示名' },
+  'hint.caption': { en: 'Display name shown to the user in the skin picker.', ja: 'スキン選択画面でユーザーに表示される名前。' },
+  'field.order': { en: 'Order', ja: '表示順' },
+  'hint.order': { en: 'Sort order among skins in the picker; lower shows earlier.', ja: 'スキン選択画面での並び順。値が小さいほど先に表示されます。' },
+  'field.defaultSkin': { en: 'Default skin', ja: '既定のスキン' },
+  'hint.defaultSkin': { en: "Marks this skin as the application's default.", ja: 'このスキンをアプリの既定スキンとして設定します。' },
+  'field.width': { en: 'Width', ja: '幅' },
+  'hint.width': { en: 'Window width, in pixels, for this mode.', ja: 'このモードのウィンドウ幅（ピクセル）。' },
+  'field.height': { en: 'Height', ja: '高さ' },
+  'hint.height': { en: 'Window height, in pixels, for this mode.', ja: 'このモードのウィンドウ高さ（ピクセル）。' },
+  'field.bg': { en: 'Background image file', ja: '背景画像ファイル' },
+  'hint.bg': { en: 'Background image file for this mode.', ja: 'このモードの背景画像ファイル。' },
+  'hint.transparentMode': { en: 'When on, pixels matching Mask color make the whole window transparent there.', ja: 'オンにすると、マスク色に一致する部分がウィンドウごと透過します。' },
+  'hint.maskColorMode': { en: 'The color treated as transparent for the whole window when Transparent is on.', ja: '透過がオンのとき、ウィンドウ全体で透明として扱われる色。' },
+  'field.graphStyle': { en: 'Style', ja: '描画スタイル' },
+  'hint.graphStyle': { en: 'line or bar rendering, applied to every graph lane.', ja: '全てのグラフレーンに適用される描画方式（line＝線、bar＝棒）。' },
+  'field.graphLaneCoord': { en: '{lane} (X,Y,W,H — blank = disabled)', ja: '{lane}（X,Y,W,H — 空欄で無効）' },
+  'hint.graphLaneCoord': { en: 'Position and size, in pixels, as X,Y,W,H. Leave blank to disable this lane.', ja: '位置とサイズ（ピクセル）をX,Y,W,Hで指定。空欄でこのレーンを無効化します。' },
+  'field.graphLaneColor': { en: '{lane} color', ja: '{lane}の色' },
+  'hint.graphLaneColor': { en: 'Line/bar color for this lane.', ja: 'このレーンの線／棒の色。' },
+};
+
+let currentLang = 'en';
+try { currentLang = localStorage.getItem('assetEditorLang') || 'en'; } catch (e) { /* file:// storage can be unavailable */ }
+
+function t(key, vars) {
+  const entry = STRINGS[key];
+  let s = entry ? (entry[currentLang] || entry.en) : key;
+  if (vars) for (const k in vars) s = s.split('{' + k + '}').join(vars[k]);
+  return s;
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
+}
+
+const langEnBtn = document.getElementById('langEnBtn');
+const langJaBtn = document.getElementById('langJaBtn');
+
+function setLang(lang) {
+  currentLang = lang;
+  try { localStorage.setItem('assetEditorLang', lang); } catch (e) { /* ignore */ }
+  langEnBtn.classList.toggle('btn-active', lang === 'en');
+  langJaBtn.classList.toggle('btn-active', lang === 'ja');
+  applyTranslations();
+  if (loadedAsset) {
+    buildControls();
+    renderSectionTree(); // also re-renders the field panel, via selectSection
+  }
+}
+langEnBtn.addEventListener('click', () => setLang('en'));
+langJaBtn.addEventListener('click', () => setLang('ja'));
+langEnBtn.classList.toggle('btn-active', currentLang === 'en');
+langJaBtn.classList.toggle('btn-active', currentLang === 'ja');
+
 const btn = document.getElementById('btnLoad');
 const folderInput = document.getElementById('folderInput');
 const skinErrorEl = document.getElementById('skinError');
@@ -186,6 +377,8 @@ const introNote = document.getElementById('introNote');
 const workspace = document.getElementById('workspace');
 const previewBar = document.getElementById('previewBar');
 const bottomDrawer = document.getElementById('bottomDrawer');
+
+applyTranslations();
 
 // ---- Bottom drawer tabs ----
 
@@ -208,7 +401,7 @@ function addRow(label, editLabel, ok, detail) {
   const tr = document.createElement('tr');
   tr.innerHTML =
     `<td>${label}</td><td>${editLabel}</td>` +
-    `<td class="${ok ? 'text-success' : 'text-error'} font-bold">${ok ? 'PASS' : 'FAIL'}</td><td>${detail}</td>`;
+    `<td class="${ok ? 'text-success' : 'text-error'} font-bold">${ok ? t('diagPass') : t('diagFail')}</td><td>${detail}</td>`;
   tbody.appendChild(tr);
 }
 
@@ -223,7 +416,7 @@ function checkRoundTrip(label, text) {
   const doc = new CfgDoc(text);
   const before = doc.getValue(EDIT.section, EDIT.key);
   if (before === undefined) {
-    addRow(label, `${EDIT.section}/${EDIT.key}`, false, 'key not found');
+    addRow(label, `${EDIT.section}/${EDIT.key}`, false, t('diagKeyNotFound'));
     return false;
   }
   const beforeLines = text.split(/\r\n|\n/);
@@ -233,7 +426,7 @@ function checkRoundTrip(label, text) {
   const readBack = doc.getValue(EDIT.section, EDIT.key);
   const ok = changed === 1 && readBack === EDIT.newValue;
   addRow(label, `${EDIT.section}/${EDIT.key}: '${before}' -> '${EDIT.newValue}'`, ok,
-    `lines changed: ${changed}, read back: '${readBack}'`);
+    t('diagLinesChangedDetail', { n: changed, v: readBack }));
   return ok;
 }
 
@@ -311,7 +504,7 @@ const scaleButtons = { 1: document.getElementById('scale1Btn'), 2: document.getE
 for (const [scale, el] of Object.entries(scaleButtons)) {
   el.addEventListener('click', () => {
     previewScale = Number(scale);
-    for (const btn of Object.values(scaleButtons)) btn.classList.remove('btn-active');
+    for (const b of Object.values(scaleButtons)) b.classList.remove('btn-active');
     el.classList.add('btn-active');
     repaint();
   });
@@ -346,10 +539,10 @@ function syncGraphState() {
   }
 }
 
-function slider(container, label, key, min, max, step) {
+function slider(container, labelKey, key, min, max, step) {
   const row = document.createElement('label');
   row.className = 'text-xs';
-  row.textContent = label;
+  row.textContent = t(labelKey);
   const input = document.createElement('input');
   input.type = 'range';
   input.className = 'range range-xs';
@@ -368,17 +561,17 @@ function slider(container, label, key, min, max, step) {
   container.appendChild(out);
 }
 
-function sectionLabel(container, text) {
+function sectionLabel(container, textKey) {
   const div = document.createElement('div');
   div.className = 'col-span-3 font-semibold text-xs uppercase tracking-wide text-base-content/60 mt-2';
-  div.textContent = text;
+  div.textContent = t(textKey);
   container.appendChild(div);
 }
 
 function toggleRow(container, items) {
   const wrap = document.createElement('div');
   wrap.className = 'col-span-3 flex flex-wrap gap-x-4 gap-y-1';
-  for (const [label, key] of items) {
+  for (const [labelKey, key] of items) {
     const lbl = document.createElement('label');
     lbl.className = 'flex items-center gap-1.5 text-xs whitespace-nowrap';
     const cb = document.createElement('input');
@@ -387,7 +580,7 @@ function toggleRow(container, items) {
     cb.checked = state[key];
     cb.addEventListener('change', () => { state[key] = cb.checked; repaint(); });
     lbl.appendChild(cb);
-    lbl.appendChild(document.createTextNode(label));
+    lbl.appendChild(document.createTextNode(t(labelKey)));
     wrap.appendChild(lbl);
   }
   container.appendChild(wrap);
@@ -399,28 +592,28 @@ function buildControls() {
   controlsMeters.innerHTML = '';
   controlsLedsPing.innerHTML = '';
 
-  sectionLabel(controlsMeters, 'Meters (0–100%)');
-  slider(controlsMeters, 'CPU', 'cpu', 0, 1, 0.01);
-  slider(controlsMeters, 'Memory', 'mem', 0, 1, 0.01);
-  slider(controlsMeters, 'Swap', 'swap', 0, 1, 0.01);
-  slider(controlsMeters, 'Disk read', 'diskRead', 0, 1, 0.01);
-  slider(controlsMeters, 'Disk write', 'diskWrite', 0, 1, 0.01);
-  slider(controlsMeters, 'Net in', 'netIn', 0, 1, 0.01);
-  slider(controlsMeters, 'Net out', 'netOut', 0, 1, 0.01);
-  slider(controlsMeters, 'Audio', 'audio', 0, 1, 0.01);
-  slider(controlsMeters, 'Audio L', 'audioL', 0, 1, 0.01);
-  slider(controlsMeters, 'Audio R', 'audioR', 0, 1, 0.01);
+  sectionLabel(controlsMeters, 'metersHeading');
+  slider(controlsMeters, 'meterCpu', 'cpu', 0, 1, 0.01);
+  slider(controlsMeters, 'meterMemory', 'mem', 0, 1, 0.01);
+  slider(controlsMeters, 'meterSwap', 'swap', 0, 1, 0.01);
+  slider(controlsMeters, 'meterDiskRead', 'diskRead', 0, 1, 0.01);
+  slider(controlsMeters, 'meterDiskWrite', 'diskWrite', 0, 1, 0.01);
+  slider(controlsMeters, 'meterNetIn', 'netIn', 0, 1, 0.01);
+  slider(controlsMeters, 'meterNetOut', 'netOut', 0, 1, 0.01);
+  slider(controlsMeters, 'meterAudio', 'audio', 0, 1, 0.01);
+  slider(controlsMeters, 'meterAudioL', 'audioL', 0, 1, 0.01);
+  slider(controlsMeters, 'meterAudioR', 'audioR', 0, 1, 0.01);
 
-  sectionLabel(controlsLedsPing, 'LEDs');
+  sectionLabel(controlsLedsPing, 'ledsHeading');
   toggleRow(controlsLedsPing, [
-    ['Disk read', 'diskReadOn'], ['Disk write', 'diskWriteOn'],
-    ['Net in', 'netInOn'], ['Net out', 'netOutOn'],
+    ['meterDiskRead', 'diskReadOn'], ['meterDiskWrite', 'diskWriteOn'],
+    ['meterNetIn', 'netInOn'], ['meterNetOut', 'netOutOn'],
   ]);
 
-  sectionLabel(controlsLedsPing, 'Ping');
+  sectionLabel(controlsLedsPing, 'pingHeading');
   const pingWrap = document.createElement('div');
   pingWrap.className = 'col-span-3 flex flex-wrap gap-x-4 gap-y-1';
-  ['Timeout', 'Slow', 'Fair', 'Normal'].forEach((label, idx) => {
+  ['pingTimeout', 'pingSlow', 'pingFair', 'pingNormal'].forEach((labelKey, idx) => {
     const lbl = document.createElement('label');
     lbl.className = 'flex items-center gap-1.5 text-xs whitespace-nowrap';
     const rb = document.createElement('input');
@@ -430,7 +623,7 @@ function buildControls() {
     rb.checked = state.pingLevel === idx;
     rb.addEventListener('change', () => { state.pingLevel = idx; repaint(); });
     lbl.appendChild(rb);
-    lbl.appendChild(document.createTextNode(label));
+    lbl.appendChild(document.createTextNode(t(labelKey)));
     pingWrap.appendChild(lbl);
   });
   controlsLedsPing.appendChild(pingWrap);
@@ -488,7 +681,8 @@ function loadImage(file) {
 // a GUI field write calls doc.setValue then re-renders the textarea from
 // doc.toText(), and a textarea edit rebuilds `doc` from scratch then
 // re-parses. Either path ends at applyDocChange(), which is the only place
-// that talks to SkinLoader and decides whether GUI fields stay enabled.
+// that talks to SkinLoader, rebuilds the section tree, and decides whether
+// GUI fields stay enabled.
 
 const sectionTree = document.getElementById('sectionTree');
 const editError = document.getElementById('editError');
@@ -499,7 +693,7 @@ const cfgHighlight = document.getElementById('cfgHighlight');
 
 let selectedSection = '';
 
-// ---- Syntax highlighting overlay (trial) ----
+// ---- Syntax highlighting overlay ----
 // Tokenizes each line loosely along the same shape cfgModel.js's own
 // SECTION_RE/KEY_RE match, purely for display -- this never touches the
 // actual text or CfgDoc, it only decides how to color a re-rendered copy
@@ -597,24 +791,31 @@ function autoFitButton(sectionName) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'btn btn-sm';
-  button.textContent = 'Auto-fit to background image';
-  button.title = 'Read the Bg image\'s actual pixel size and fill Width/Height with it.';
+  button.textContent = t('autoFitButton');
+  button.title = t('autoFitButtonTitle');
   const msg = document.createElement('span');
   msg.className = 'text-xs text-base-content/60';
   button.addEventListener('click', () => {
     const bg = (loadedAsset.doc.getValue(sectionName, 'Bg') || '').trim();
     const img = bg && loadedAsset.images.get(bg.toLowerCase());
-    if (!bg) { msg.textContent = 'Set Bg first.'; return; }
-    if (!img) { msg.textContent = `"${bg}" not found among the loaded images.`; return; }
+    if (!bg) { msg.textContent = t('autoFitSetBgFirst'); return; }
+    if (!img) { msg.textContent = t('autoFitNotFound', { file: bg }); return; }
     loadedAsset.doc.setValue(sectionName, 'Width', String(img.naturalWidth));
     loadedAsset.doc.setValue(sectionName, 'Height', String(img.naturalHeight));
     setCfgText(loadedAsset.doc.toText());
-    msg.textContent = `Set to ${img.naturalWidth}x${img.naturalHeight}.`;
+    msg.textContent = t('autoFitSetTo', { w: img.naturalWidth, h: img.naturalHeight });
     applyDocChange();
   });
   row.appendChild(button);
   row.appendChild(msg);
   return row;
+}
+
+// Resolves a field's translated label, interpolating {lane} for the
+// per-lane graph fields (field.lane carries the raw, untranslated lane
+// name, e.g. "DiskRead").
+function fieldText(key, field) {
+  return field.lane ? t(key, { lane: field.lane }) : t(key);
 }
 
 function renderFieldPanel(sectionName) {
@@ -627,7 +828,8 @@ function renderFieldPanel(sectionName) {
   for (const field of desc.fields) {
     const label = document.createElement('label');
     label.className = 'text-xs pt-1.5 leading-snug break-words';
-    label.textContent = field.label;
+    label.textContent = fieldText(field.label, field);
+    label.title = fieldText(field.hint, field);
     label.htmlFor = `f_${field.key}`;
     fieldsPanel.appendChild(label);
 
@@ -638,6 +840,7 @@ function renderFieldPanel(sectionName) {
       cb.type = 'checkbox';
       cb.className = 'checkbox checkbox-sm justify-self-start';
       cb.id = `f_${field.key}`;
+      cb.title = fieldText(field.hint, field);
       cb.checked = boolFromRaw(raw, false);
       cb.addEventListener('change', () => onFieldChanged(sectionName, field.key, cb.checked ? '1' : '0'));
       fieldsPanel.appendChild(cb);
@@ -645,10 +848,11 @@ function renderFieldPanel(sectionName) {
       const sel = document.createElement('select');
       sel.className = 'select select-sm w-full';
       sel.id = `f_${field.key}`;
+      sel.title = fieldText(field.hint, field);
       for (const opt of field.options) {
         const o = document.createElement('option');
         o.value = opt;
-        o.textContent = opt;
+        o.textContent = opt; // literal layout.cfg value, not translated
         sel.appendChild(o);
       }
       sel.value = (raw || '').trim().toLowerCase() || field.options[0];
@@ -661,8 +865,9 @@ function renderFieldPanel(sectionName) {
       input.type = 'text';
       input.className = 'input input-sm flex-1';
       input.id = `f_${field.key}`;
+      input.title = fieldText(field.hint, field);
       input.value = raw || '';
-      input.placeholder = '#RRGGBB or clColor';
+      input.placeholder = t('colorPlaceholder');
       const swatch = document.createElement('div');
       swatch.className = 'w-4 h-4 rounded border border-base-300 shrink-0';
       const paint = () => {
@@ -676,19 +881,22 @@ function renderFieldPanel(sectionName) {
       cell.appendChild(swatch);
       fieldsPanel.appendChild(cell);
     } else if (field.type === 'int') {
-      fieldsPanel.appendChild(intCell(sectionName, field, raw));
+      const cell = intCell(sectionName, field, raw);
+      cell.title = fieldText(field.hint, field);
+      fieldsPanel.appendChild(cell);
     } else {
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'input input-sm w-full';
       input.id = `f_${field.key}`;
+      input.title = fieldText(field.hint, field);
       input.value = raw || '';
       input.addEventListener('change', () => onFieldChanged(sectionName, field.key, input.value));
       if (field.fileRef) {
         const trimmed = (raw || '').trim();
         const missing = trimmed !== '' && !loadedAsset.images.has(trimmed.toLowerCase());
         input.classList.toggle('input-error', missing);
-        input.title = missing ? `"${trimmed}" not found among the loaded images.` : '';
+        if (missing) input.title = t('fileMissingTitle', { file: trimmed });
       }
       fieldsPanel.appendChild(input);
     }
@@ -697,6 +905,11 @@ function renderFieldPanel(sectionName) {
   if (desc.kind === 'mode') {
     fieldsPanel.appendChild(autoFitButton(sectionName));
   }
+  // A section that only exists as a "potential" entry (unchecked in the
+  // tree) has no lines to read, so every field above renders blank --
+  // still shown and editable, since filling in any field here creates the
+  // section on the fly (CfgDoc.setValue's own "section doesn't exist yet"
+  // branch), matching the checkbox's own add/remove semantics.
 }
 
 function onFieldChanged(sectionName, key, newValue) {
@@ -707,9 +920,13 @@ function onFieldChanged(sectionName, key, newValue) {
 
 // Re-parses loadedAsset.doc's current text via SkinLoader and, on success,
 // rebuilds the Preview from it; on failure, disables GUI field edits (but
-// never the text pane) and shows the validator's own error. Called after
-// every change from either direction.
+// never the text pane) and shows the validator's own error (untranslated --
+// it mirrors uSkinLoader.pas's own English exception text 1:1). Rebuilds
+// the section tree first so an Active-checkbox toggle or a raw text edit
+// that adds/removes a section is always reflected, before the validity
+// check decides whether the freshly-rendered fields stay enabled.
 function applyDocChange() {
+  renderSectionTree();
   const text = loadedAsset.doc.toText();
   try {
     const skin = SkinLoader.loadSkin(loadedAsset.cfgPath, text, loadedAsset.name);
@@ -717,14 +934,13 @@ function applyDocChange() {
     editError.hidden = true;
     editError.textContent = '';
     setFieldsEnabled(true);
-    assetLabel.textContent = `${skin.caption} (${loadedAsset.name}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
+    assetLabel.textContent = `${skin.caption} (${loadedAsset.name}) — ${skin.hasFull ? t('assetLabelCompactFull') : t('assetLabelCompactOnly')}`;
     onModeChanged();
   } catch (e) {
     editError.hidden = false;
     editError.textContent = e.message || String(e);
     setFieldsEnabled(false);
   }
-  renderFieldPanel(selectedSection);
 }
 
 let cfgTextDebounce = null;
@@ -733,38 +949,47 @@ cfgText.addEventListener('input', () => {
   if (cfgTextDebounce) clearTimeout(cfgTextDebounce);
   cfgTextDebounce = setTimeout(() => {
     loadedAsset.doc = new CfgDoc(cfgText.value);
-    renderSectionTree(); // section list itself may have changed
     applyDocChange();
   }, 400);
 });
 
-// ---- Section tree: groups sections by kind (per EditorFields.describeSection)
-// and by Compact/Full, so a skin with ~20-30 sections stays scannable
-// instead of one long flat list. Built as a daisyUI "menu" list with nested
-// <details>/<summary> per group (its own documented collapsible pattern).
+// ---- Section tree ----
+// Shows every section the skin engine could use for this suffix (Compact/
+// Full), not just the ones actually present in layout.cfg -- grouped by
+// kind (per EditorFields.describeSection) so a skin with ~20-30 present
+// sections plus ~20 more potential ones per mode stays scannable. Each
+// toggleable leaf carries an "Active" checkbox: checked = present in the
+// file, and checking/unchecking calls CfgDoc.addSection/removeSection to
+// add or remove the whole section. General (required, not "addable") and
+// Other (unrecognized sections actually found in the text) are exempt --
+// they only ever show what's already present, no checkbox.
 
-function groupSections(names) {
-  const g = {
-    general: [], compactMode: [], compactMeters: [], compactLeds: [],
-    fullMode: [], fullMeters: [], fullLeds: [], fullGraph: [], other: [],
-  };
-  for (const name of names) {
-    const desc = EditorFields.describeSection(name);
-    if (!desc) { g.other.push(name); continue; }
-    const isFull = name.endsWith('Full');
-    if (desc.kind === 'general') g.general.push(name);
-    else if (desc.kind === 'mode') (isFull ? g.fullMode : g.compactMode).push(name);
-    else if (desc.kind === 'meter') (isFull ? g.fullMeters : g.compactMeters).push(name);
-    else if (desc.kind === 'sprite') (isFull ? g.fullLeds : g.compactLeds).push(name);
-    else if (desc.kind === 'graph') g.fullGraph.push(name);
-  }
-  return g;
+function canonicalSectionNames(presentNames) {
+  const compactMode = ['GeneralCompact'];
+  const compactMeters = EditorFields.METER_BASES.map((b) => b + 'Compact');
+  const compactLeds = EditorFields.SPRITE_BASES.map((b) => b + 'Compact');
+  const fullMode = ['GeneralFull'];
+  const fullMeters = EditorFields.METER_BASES.map((b) => b + 'Full');
+  const fullLeds = EditorFields.SPRITE_BASES.map((b) => b + 'Full');
+  const fullGraph = ['GraphFull'];
+  const general = presentNames.filter((n) => EditorFields.describeSection(n)?.kind === 'general');
+  const other = presentNames.filter((n) => !EditorFields.describeSection(n));
+  return { general, compactMode, compactMeters, compactLeds, fullMode, fullMeters, fullLeds, fullGraph, other };
+}
+
+function toggleSectionActive(name, active) {
+  if (active) loadedAsset.doc.addSection(name);
+  else loadedAsset.doc.removeSection(name);
+  selectedSection = name;
+  setCfgText(loadedAsset.doc.toText());
+  applyDocChange();
 }
 
 function selectSection(name) {
   selectedSection = name;
-  sectionTree.querySelectorAll('a[data-section]').forEach((a) => {
-    a.classList.toggle('menu-active', a.dataset.section === name);
+  sectionTree.querySelectorAll('[data-section]').forEach((el) => {
+    el.classList.toggle('bg-primary', el.dataset.section === name);
+    el.classList.toggle('text-primary-content', el.dataset.section === name);
   });
   // Follow the selected section's own mode (a *Full section always belongs
   // to the Full layout, *Compact to Compact) so the preview above always
@@ -780,45 +1005,59 @@ function selectSection(name) {
   renderFieldPanel(name);
 }
 
-function leafItem(name) {
+function leafItem(name, checkable, isPresent) {
   const li = document.createElement('li');
-  const a = document.createElement('a');
-  a.href = '#';
-  a.dataset.section = name;
-  a.className = 'font-mono text-xs';
-  a.textContent = name;
-  a.addEventListener('click', (e) => { e.preventDefault(); selectSection(name); });
-  li.appendChild(a);
+  const row = document.createElement('div');
+  row.dataset.section = name;
+  row.className = 'flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer hover:bg-base-200';
+  row.addEventListener('click', () => selectSection(name));
+
+  const present = checkable ? isPresent(name) : true;
+
+  if (checkable) {
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'checkbox checkbox-xs';
+    cb.checked = present;
+    cb.title = present ? t('sectionRemoveTitle') : t('sectionAddTitle');
+    cb.addEventListener('click', (e) => { e.stopPropagation(); toggleSectionActive(name, cb.checked); });
+    row.appendChild(cb);
+  }
+
+  const text = document.createElement('span');
+  text.className = 'font-mono text-xs' + (present ? '' : ' opacity-50 italic');
+  text.textContent = name;
+  row.appendChild(text);
+
+  li.appendChild(row);
   return li;
 }
 
-function subGroup(label, names) {
+function subGroup(labelKey, names, checkable, isPresent) {
   if (names.length === 0) return null;
   const li = document.createElement('li');
   const details = document.createElement('details');
   details.open = true;
   const summary = document.createElement('summary');
-  summary.textContent = label;
+  summary.textContent = t(labelKey);
   details.appendChild(summary);
   const ul = document.createElement('ul');
-  for (const name of names) ul.appendChild(leafItem(name));
+  for (const name of names) ul.appendChild(leafItem(name, checkable, isPresent));
   details.appendChild(ul);
   li.appendChild(details);
   return li;
 }
 
-function topGroup(label, subgroups) {
-  const any = subgroups.some(([, names]) => names.length > 0);
-  if (!any) return null;
+function topGroup(labelKey, subgroups, checkable, isPresent) {
   const li = document.createElement('li');
   const details = document.createElement('details');
   details.open = true;
   const summary = document.createElement('summary');
-  summary.textContent = label;
+  summary.textContent = t(labelKey);
   details.appendChild(summary);
   const ul = document.createElement('ul');
-  for (const [subLabel, names] of subgroups) {
-    const sg = subGroup(subLabel, names);
+  for (const [subLabelKey, names] of subgroups) {
+    const sg = subGroup(subLabelKey, names, checkable, isPresent);
     if (sg) ul.appendChild(sg);
   }
   details.appendChild(ul);
@@ -827,34 +1066,38 @@ function topGroup(label, subgroups) {
 }
 
 function renderSectionTree() {
-  const names = loadedAsset.doc.sections.map((s) => s.name);
-  const g = groupSections(names);
+  const fileOrderNames = loadedAsset.doc.sections.map((s) => s.name);
+  const presentLower = new Set(fileOrderNames.map((n) => n.toLowerCase()));
+  const isPresent = (name) => presentLower.has(name.toLowerCase());
+
+  const c = canonicalSectionNames(fileOrderNames);
   sectionTree.innerHTML = '';
 
-  const general = subGroup('General', g.general);
+  const general = subGroup('groupGeneral', c.general, false, isPresent);
   if (general) sectionTree.appendChild(general);
 
-  const compact = topGroup('Compact', [
-    ['Mode', g.compactMode], ['Meters', g.compactMeters], ['LEDs & Ping', g.compactLeds],
-  ]);
-  if (compact) sectionTree.appendChild(compact);
+  sectionTree.appendChild(topGroup('groupCompact', [
+    ['groupMode', c.compactMode], ['groupMeters', c.compactMeters], ['groupLedsPing', c.compactLeds],
+  ], true, isPresent));
 
-  const full = topGroup('Full', [
-    ['Mode', g.fullMode], ['Meters', g.fullMeters], ['LEDs & Ping', g.fullLeds], ['Graph', g.fullGraph],
-  ]);
-  if (full) sectionTree.appendChild(full);
+  sectionTree.appendChild(topGroup('groupFull', [
+    ['groupMode', c.fullMode], ['groupMeters', c.fullMeters], ['groupLedsPing', c.fullLeds], ['groupGraph', c.fullGraph],
+  ], true, isPresent));
 
-  const other = subGroup('Other', g.other);
+  const other = subGroup('groupOther', c.other, false, isPresent);
   if (other) sectionTree.appendChild(other);
 
-  const stillExists = names.includes(selectedSection);
-  selectSection(stillExists ? selectedSection : (names[0] || ''));
+  const allNames = [
+    ...c.general, ...c.compactMode, ...c.compactMeters, ...c.compactLeds,
+    ...c.fullMode, ...c.fullMeters, ...c.fullLeds, ...c.fullGraph, ...c.other,
+  ];
+  const keepSelection = selectedSection && allNames.includes(selectedSection);
+  selectSection(keepSelection ? selectedSection : (fileOrderNames[0] || c.compactMode[0]));
 }
 
 function initEditor() {
   setCfgText(loadedAsset.doc.toText());
   selectedSection = '';
-  renderSectionTree();
   applyDocChange();
 }
 
@@ -889,18 +1132,14 @@ folderInput.addEventListener('change', async () => {
     f.name.toLowerCase() === 'layout.cfg' && f.webkitRelativePath.split('/').length === 2);
   if (!cfgFile) {
     skinErrorEl.hidden = false;
-    skinErrorEl.textContent =
-      `No layout.cfg found directly inside "${rootName}". Select the asset's own folder ` +
-      `(the one that directly contains layout.cfg), not a parent folder.`;
+    skinErrorEl.textContent = t('skinErrorNoLayoutCfg', { root: rootName });
     return;
   }
 
   const text = await cfgFile.text();
   table.hidden = false;
   checkRoundTrip(rootName, text);
-  summary.textContent = tbody.querySelector('.text-error')
-    ? 'Round-trip check FAILED, see table.'
-    : 'Round-trip check passed.';
+  summary.textContent = tbody.querySelector('.text-error') ? t('diagRoundTripFail') : t('diagRoundTripPass');
 
   try {
     const skin = SkinLoader.loadSkin(cfgFile.webkitRelativePath, text, rootName);
@@ -909,7 +1148,7 @@ folderInput.addEventListener('change', async () => {
     const loaded = await Promise.all(imageFiles.map(async (f) => [f.name.toLowerCase(), await loadImage(f)]));
     for (const [name, img] of loaded) if (img) images.set(name, img);
     loadedAsset = { name: rootName, cfgPath: cfgFile.webkitRelativePath, doc: new CfgDoc(text), skin, images };
-    assetLabel.textContent = `${skin.caption} (${rootName}) — ${skin.hasFull ? 'compact + full' : 'compact only'}`;
+    assetLabel.textContent = `${skin.caption} (${rootName}) — ${skin.hasFull ? t('assetLabelCompactFull') : t('assetLabelCompactOnly')}`;
     introNote.hidden = true;
     workspace.hidden = false;
     previewBar.hidden = false;
@@ -919,7 +1158,7 @@ folderInput.addEventListener('change', async () => {
     initEditor();
   } catch (e) {
     skinErrorEl.hidden = false;
-    skinErrorEl.textContent = `Failed to load "${rootName}": ${e.message || e}`;
+    skinErrorEl.textContent = t('skinErrorFailedToLoad', { root: rootName, msg: e.message || e });
   }
 });
 </script>

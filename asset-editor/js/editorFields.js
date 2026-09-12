@@ -7,6 +7,12 @@
 // section name, mirroring src/view/uSkinLoader.pas's own per-part key sets
 // (ReadSprite/ReadMeterSprite/ReadDigitValue/ReadGraphLane).
 //
+// `label`/`hint` are i18n keys (looked up via index.html's STRINGS/t()),
+// not literal text -- this module has no UI language of its own. `options`
+// arrays are the opposite: literal values written into layout.cfg itself
+// (Kind=bar/peak/vu, ValStyle=bitmap/system, Style=line/bar), so they must
+// never be translated.
+//
 // Classic UMD script, no ES-module import/export -- see cfgModel.js's header
 // comment for why (Chromium blocks module scripts under file://).
 
@@ -20,60 +26,62 @@
 
 // Field types: 'text', 'int', 'bool', 'color', 'enum' (needs `options`).
 const SPRITE_FIELDS = [
-  { key: 'File', label: 'Image file', type: 'text', fileRef: true },
-  { key: 'X', label: 'X', type: 'int' },
-  { key: 'Y', label: 'Y', type: 'int' },
-  { key: 'Frames', label: 'Frames', type: 'int' },
-  { key: 'Transparent', label: 'Transparent', type: 'bool' },
-  { key: 'MaskColor', label: 'Mask color', type: 'color' },
+  { key: 'File', label: 'field.file', hint: 'hint.file', type: 'text', fileRef: true },
+  { key: 'X', label: 'field.x', hint: 'hint.x', type: 'int' },
+  { key: 'Y', label: 'field.y', hint: 'hint.y', type: 'int' },
+  { key: 'Frames', label: 'field.frames', hint: 'hint.frames', type: 'int' },
+  { key: 'Transparent', label: 'field.transparent', hint: 'hint.transparent', type: 'bool' },
+  { key: 'MaskColor', label: 'field.maskColor', hint: 'hint.maskColor', type: 'color' },
 ];
 
 const BALLISTIC_FIELDS = [
-  { key: 'Kind', label: 'Ballistic kind', type: 'enum', options: ['bar', 'peak', 'vu'] },
-  { key: 'Strength', label: 'Ballistic strength (0-100)', type: 'int' },
+  { key: 'Kind', label: 'field.ballisticKind', hint: 'hint.ballisticKind', type: 'enum', options: ['bar', 'peak', 'vu'] },
+  { key: 'Strength', label: 'field.ballisticStrength', hint: 'hint.ballisticStrength', type: 'int' },
 ];
 
 const DIGIT_FIELDS = [
-  { key: 'ValSW', label: 'Digit readout enabled', type: 'bool' },
-  { key: 'ValStyle', label: 'Digit style', type: 'enum', options: ['bitmap', 'system'] },
-  { key: 'ValX', label: 'Digit X', type: 'int' },
-  { key: 'ValY', label: 'Digit Y', type: 'int' },
-  { key: 'ValB', label: 'Digit count', type: 'int' },
-  { key: 'ValFZ', label: 'Zero-fill', type: 'bool' },
-  { key: 'ValFontFile', label: 'Bitmap font file (style=bitmap)', type: 'text', fileRef: true },
-  { key: 'ValFontMaskColor', label: 'Bitmap font mask color (blank = opaque)', type: 'color' },
-  { key: 'ValFont', label: 'System font name (style=system)', type: 'text' },
-  { key: 'ValFontSize', label: 'System font size', type: 'int' },
-  { key: 'ValColor', label: 'System font color', type: 'color' },
-  { key: 'ValBold', label: 'System font bold', type: 'bool' },
+  { key: 'ValSW', label: 'field.digitEnabled', hint: 'hint.digitEnabled', type: 'bool' },
+  { key: 'ValStyle', label: 'field.digitStyle', hint: 'hint.digitStyle', type: 'enum', options: ['bitmap', 'system'] },
+  { key: 'ValX', label: 'field.digitX', hint: 'hint.digitX', type: 'int' },
+  { key: 'ValY', label: 'field.digitY', hint: 'hint.digitY', type: 'int' },
+  { key: 'ValB', label: 'field.digitCount', hint: 'hint.digitCount', type: 'int' },
+  { key: 'ValFZ', label: 'field.zeroFill', hint: 'hint.zeroFill', type: 'bool' },
+  { key: 'ValFontFile', label: 'field.bitmapFontFile', hint: 'hint.bitmapFontFile', type: 'text', fileRef: true },
+  { key: 'ValFontMaskColor', label: 'field.bitmapFontMaskColor', hint: 'hint.bitmapFontMaskColor', type: 'color' },
+  { key: 'ValFont', label: 'field.systemFontName', hint: 'hint.systemFontName', type: 'text' },
+  { key: 'ValFontSize', label: 'field.systemFontSize', hint: 'hint.systemFontSize', type: 'int' },
+  { key: 'ValColor', label: 'field.systemFontColor', hint: 'hint.systemFontColor', type: 'color' },
+  { key: 'ValBold', label: 'field.systemFontBold', hint: 'hint.systemFontBold', type: 'bool' },
 ];
 
 const GENERAL_FIELDS = [
-  { key: 'Id', label: 'Id', type: 'text' },
-  { key: 'Caption', label: 'Caption', type: 'text' },
-  { key: 'Order', label: 'Order', type: 'int' },
-  { key: 'Default', label: 'Default skin', type: 'bool' },
+  { key: 'Id', label: 'field.id', hint: 'hint.id', type: 'text' },
+  { key: 'Caption', label: 'field.caption', hint: 'hint.caption', type: 'text' },
+  { key: 'Order', label: 'field.order', hint: 'hint.order', type: 'int' },
+  { key: 'Default', label: 'field.defaultSkin', hint: 'hint.defaultSkin', type: 'bool' },
 ];
 
 const MODE_FIELDS = [
-  { key: 'Width', label: 'Width', type: 'int' },
-  { key: 'Height', label: 'Height', type: 'int' },
-  { key: 'Bg', label: 'Background image file', type: 'text', fileRef: true },
-  { key: 'Transparent', label: 'Transparent', type: 'bool' },
-  { key: 'MaskColor', label: 'Mask color', type: 'color' },
+  { key: 'Width', label: 'field.width', hint: 'hint.width', type: 'int' },
+  { key: 'Height', label: 'field.height', hint: 'hint.height', type: 'int' },
+  { key: 'Bg', label: 'field.bg', hint: 'hint.bg', type: 'text', fileRef: true },
+  { key: 'Transparent', label: 'field.transparent', hint: 'hint.transparentMode', type: 'bool' },
+  { key: 'MaskColor', label: 'field.maskColor', hint: 'hint.maskColorMode', type: 'color' },
 ];
 
 // [GraphFull]: Style plus one "X,Y,W,H" + Color pair per lane. The combined
 // coordinate string is edited as one text field, matching ReadGraphLane's
 // own "X,Y,W,H" parsing (uSkinLoader.pas:277-300) rather than 4 separate
-// int fields, since the four numbers have no meaning split apart.
+// int fields, since the four numbers have no meaning split apart. `lane`
+// carries the raw lane name (Cpu/Mem/...) for the caller to interpolate
+// into the translated label (e.g. "{lane} (X,Y,W,H — blank = disabled)").
 const GRAPH_LANE_KEYS = ['Cpu', 'Mem', 'Swap', 'DiskRead', 'DiskWrite', 'NetIn', 'NetOut'];
 
 function graphFields() {
-  const fields = [{ key: 'Style', label: 'Style', type: 'enum', options: ['line', 'bar'] }];
+  const fields = [{ key: 'Style', label: 'field.graphStyle', hint: 'hint.graphStyle', type: 'enum', options: ['line', 'bar'] }];
   for (const lane of GRAPH_LANE_KEYS) {
-    fields.push({ key: lane, label: `${lane} (X,Y,W,H — blank = disabled)`, type: 'text' });
-    fields.push({ key: `${lane}Color`, label: `${lane} color`, type: 'color' });
+    fields.push({ key: lane, label: 'field.graphLaneCoord', hint: 'hint.graphLaneCoord', lane, type: 'text' });
+    fields.push({ key: `${lane}Color`, label: 'field.graphLaneColor', hint: 'hint.graphLaneColor', lane, type: 'color' });
   }
   return fields;
 }
@@ -123,10 +131,6 @@ function describeSection(name) {
   return null;
 }
 
-// All section names a fresh part could be added as, grouped for a
-// "new section" picker -- suffix-less; the caller appends Compact/Full.
-const KNOWN_PART_BASES = [...new Set([...METER_BASES, ...SPRITE_BASES])];
-
-return { describeSection, KNOWN_PART_BASES };
+return { describeSection, METER_BASES, SPRITE_BASES };
 
 });

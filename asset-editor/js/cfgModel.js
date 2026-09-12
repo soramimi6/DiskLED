@@ -117,6 +117,32 @@ class CfgDoc {
     this._rebuildIndex();
   }
 
+  // Appends a new, empty section (just its header line) at EOF, blank-line
+  // separated -- the same "section doesn't exist" placement setValue uses,
+  // just without requiring an initial key. No-op if the section is already
+  // there. Used by the asset-editor's "Active" checkbox: checking a section
+  // that isn't in the file yet adds it with nothing in it, ready for the
+  // GUI fields to fill in (which themselves call setValue as usual).
+  addSection(sectionName) {
+    if (this.findSection(sectionName)) return;
+    if (this.lines.length > 0 && this.lines[this.lines.length - 1] !== '') {
+      this.lines.push('');
+    }
+    this.lines.push(`[${sectionName}]`);
+    this._rebuildIndex();
+  }
+
+  // Removes a section's header line and every line through its recorded
+  // endLine (its own content plus any blank separator line before the next
+  // section or EOF) -- the inverse of addSection, and the other half of the
+  // "Active" checkbox. No-op if the section isn't present.
+  removeSection(sectionName) {
+    const section = this.findSection(sectionName);
+    if (!section) return;
+    this.lines.splice(section.headerLine, section.endLine - section.headerLine + 1);
+    this._rebuildIndex();
+  }
+
   toText() {
     return this.lines.join(this.eol);
   }
