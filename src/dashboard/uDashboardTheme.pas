@@ -228,7 +228,7 @@ begin
   Result.BodySize := ScalePx(10, ADpi);
   Result.MonoSize := ScalePx(10, ADpi);
   Result.AxisSize := ScalePx(8, ADpi);
-  Result.QueueDigitSize := ScalePx(28, ADpi);
+  Result.QueueDigitSize := ScalePx(22, ADpi);
   Result.PingHeroSize := ScalePx(14, ADpi);
   Result.GraphPenWidth := ScalePx(2, ADpi);
   Result.HeaderTitleSize := ScalePx(12, ADpi);

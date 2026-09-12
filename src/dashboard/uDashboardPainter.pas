@@ -570,7 +570,9 @@ begin
   QX := ARect.Left + AMetrics.Margin;
   HalfW := (ARect.Right - ARect.Left - AMetrics.Margin * 2 - AMetrics.CardPad) div 2;
   LX := QX + HalfW + AMetrics.CardPad;
-  TopY := QY - Dip(AMetrics, 2) - AMetrics.BodySize;
+  { Nudged down ~0.2 line from the digit row's own top-alignment gap, per
+    user feedback that the caption sat a touch too high above the digits. }
+  TopY := QY - Dip(AMetrics, 2) - AMetrics.BodySize + (AMetrics.BodySize div 5);
 
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.BodySize;
