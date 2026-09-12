@@ -22,12 +22,13 @@
 | `NOTES.md` | `EN/NOTES.md` |
 | `CREDITS.md` | `EN/CREDITS.md` |
 | `CHANGELOG.md` | `EN/CHANGELOG.md` |
+| `SKIN_GUIDE.md` | `EN/SKIN_GUIDE.md` |
 
 ## 文書の役割
 
 | パス | 読者 | 書いてよいこと |
 |------|------|----------------|
-| `public_docs/*.md` / `EN/*.md` | 利用者 | 機能・使い方・制限・クレジット。内部モジュール名は最小限 |
+| `public_docs/*.md` / `EN/*.md` | 利用者 | 機能・使い方・制限・クレジット・スキン自作（asset-editor）。内部モジュール名は最小限 |
 | `README.md`（リポジトリ根） | 開発者 | 確定方針・MVP 表（前半日本語・後半英語。日本語を変えたら英訳も同じ変更で更新） |
 | `docs/DESIGN.md` | 開発者 | モジュール・API・フェーズ |
 | `docs/PLANNED-x.y.z.md` | 開発者 | 各バージョンの未実装予定。リリース後は見出しをリリース状態（済／中）に更新し実装記録としても残す。公開ドキュメントには書かない |
@@ -45,6 +46,7 @@
 | メニュー項目・オプション・ini キーのユーザー影響 | `USAGE` |
 | 非対応機能・注意・プライバシー | `NOTES` |
 | クレジット・スキン由来 | `CREDITS` |
+| asset-editor の画面・操作・layout.cfg 仕様の変更 | `SKIN_GUIDE` |
 | リリース版の確定 | `CHANGELOG`（実装済み／未実装を整理し、版番号を切る） |
 
 実装が設計より遅れている場合は、`CHANGELOG` の「実装済み／未実装」と `USAGE` のメニュー表を**実装に合わせて正直に**書く。製品ビジョン（MVP）は FEATURES に、現状は CHANGELOG / USAGE に分ける。
