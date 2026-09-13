@@ -45,6 +45,9 @@ type
     CardTrayLed: TPanel;
     LblSecTrayLedColor: TLabel;
     LblSecTrayLedInfo: TLabel;
+    ImgLedGreen: TImage;
+    ImgLedBlue: TImage;
+    ImgLedRed: TImage;
     RbLedGreen: TRadioButton;
     RbLedBlue: TRadioButton;
     RbLedRed: TRadioButton;
@@ -82,6 +85,7 @@ type
     FSettings: TAppSettings;
     procedure ApplyCaptions;
     procedure LoadFromSettings;
+    procedure LoadLedPreviewIcons;
     procedure SyncPingControlsEnabled;
     function TryParseInt(const S: string; out AValue: Integer): Boolean;
     function ValidateInputs(out AInterval, AFair, ASlow, ATimeout: Integer): Boolean;
@@ -101,11 +105,13 @@ implementation
 uses
   System.SysUtils,
   Winapi.Windows,
+  Winapi.CommCtrl,
   uAppStrings,
   uStartup,
   uPackaging,
   uMetricsTypes,
-  uDashboardTheme;
+  uDashboardTheme,
+  uAssetStore;
 
 const
   CDefaultFairMs = 200;
@@ -124,6 +130,52 @@ begin
     is False. Accessing Handle forces the window handle to exist. }
   ApplyHudTitleBar(Handle);
   SyncPingControlsEnabled;
+  LoadLedPreviewIcons;
+end;
+
+function LoadPreviewIcon(const APath: string): TIcon;
+var
+  H: HICON;
+begin
+  Result := TIcon.Create;
+  if (APath = '') or (not FileExists(APath)) then
+    Exit;
+  H := 0;
+  { LIM_LARGE (not LIM_SMALL, as uMainForm's tray icon uses): this is a
+    decorative color swatch in a dialog, not the actual tray icon, so it
+    should look as sharp as possible at its own fixed on-screen size rather
+    than matching the system tray's small-icon DPI metric. }
+  if Succeeded(LoadIconMetric(0, PChar(APath), LIM_LARGE, H)) and (H <> 0) then
+    Result.Handle := H
+  else
+  try
+    Result.LoadFromFile(APath);
+  except
+  end;
+end;
+
+procedure TOptionsForm.LoadLedPreviewIcons;
+var
+  Root: string;
+  Icon: TIcon;
+
+  procedure Load(AImg: TImage; const AColor: string);
+  begin
+    Icon := LoadPreviewIcon(Root + IncludeTrailingPathDelimiter(AColor) + 'diskOn.ico');
+    try
+      AImg.Picture.Assign(Icon);
+    finally
+      Icon.Free;
+    end;
+  end;
+
+begin
+  Root := IncludeTrailingPathDelimiter(TAssetStore.LocateRoot) + IncludeTrailingPathDelimiter('tray');
+  { diskOn (the plain lit sphere, no glyph) is the clearest color swatch --
+    the net glyph would only distract from the color being previewed. }
+  Load(ImgLedGreen, 'green');
+  Load(ImgLedBlue, 'blue');
+  Load(ImgLedRed, 'red');
 end;
 
 procedure TOptionsForm.BindSettings(ASettings: TAppSettings);

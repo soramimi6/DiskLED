@@ -17,7 +17,11 @@ param(
 Add-Type -AssemblyName System.Drawing
 
 $MasterSize = 256
-$Sizes = @(16, 32, 48)
+# Covers SM_CXSMICON at the common Windows scale factors: 16=100%, 20=125%,
+# 24=150%, 28=175%, 32=200%, 40=250%, 48=300%. Without a frame at the exact
+# size LoadIconMetric(LIM_SMALL) needs, Windows stretches the nearest one
+# and the tray icon looks visibly soft at every scale except 100/200/300%.
+$Sizes = @(16, 20, 24, 28, 32, 40, 48)
 
 function New-Color([int]$r, [int]$g, [int]$b, [int]$a = 255) {
   [System.Drawing.Color]::FromArgb($a, $r, $g, $b)
@@ -28,20 +32,22 @@ function New-Color([int]$r, [int]$g, [int]$b, [int]$a = 255) {
 # Red's Off is kept very dark so an idle LED does not read as a warning.
 $Palette = @{
   green = @{
-    OffCore = New-Color 39 70 44;    OffEdge = New-Color 18 32 21
-    OnCore  = New-Color 224 255 232; OnEdge  = New-Color 95 230 140
+    OffCore = New-Color 30 79 38;    OffEdge = New-Color 10 26 14
+    OnCore  = New-Color 184 255 202; OnEdge  = New-Color 6 228 80
   }
   blue = @{
-    OffCore = New-Color 33 65 72;    OffEdge = New-Color 16 32 36
-    OnCore  = New-Color 218 255 255; OnEdge  = New-Color 80 215 245
+    OffCore = New-Color 21 73 84;    OffEdge = New-Color 7 26 30
+    OnCore  = New-Color 184 255 255; OnEdge  = New-Color 6 187 228
   }
   red = @{
-    OffCore = New-Color 32 16 14;    OffEdge = New-Color 14 7 6
-    OnCore  = New-Color 255 220 195; OnEdge  = New-Color 240 105 78
+    OffCore = New-Color 37 12 9;     OffEdge = New-Color 12 4 3
+    OnCore  = New-Color 255 213 184; OnEdge  = New-Color 223 42 6
   }
 }
 $RingColor = New-Color 18 18 18
 $HighlightColor = New-Color 255 255 255 245
+$BezelBright = New-Color 250 250 252
+$BezelDark = New-Color 110 112 116
 
 function Draw-Orb {
   param($Gfx, [float]$Cx, [float]$Cy, [float]$D, $CoreColor, $EdgeColor, [bool]$On)
@@ -52,7 +58,25 @@ function Draw-Orb {
   $Gfx.FillEllipse($ringBrush, $outer)
   $ringBrush.Dispose()
 
-  $innerD = $D - 2 * $ringT
+  # A thin chrome-like bezel between the black outer ring and the sphere
+  # (matching the per-skin TrayOn/Off.ico look from before the 3.2.0
+  # skin-independent generator replaced them).
+  $afterRingD = $D - 2 * $ringT
+  $bezelT = $D * 0.035
+  $bezelInnerD = $afterRingD - 2 * $bezelT
+  $bezelPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
+  $bezelPath.FillMode = [System.Drawing.Drawing2D.FillMode]::Alternate
+  $bezelPath.AddEllipse(($Cx - $afterRingD/2), ($Cy - $afterRingD/2), $afterRingD, $afterRingD)
+  $bezelPath.AddEllipse(($Cx - $bezelInnerD/2), ($Cy - $bezelInnerD/2), $bezelInnerD, $bezelInnerD)
+  $bezelGrad = [System.Drawing.Drawing2D.PathGradientBrush]::new($bezelPath)
+  $bezelGrad.CenterColor = $BezelBright
+  $bezelGrad.SurroundColors = @($BezelDark)
+  $bezelGrad.CenterPoint = [System.Drawing.PointF]::new($Cx, ($Cy - $afterRingD * 0.30))
+  $Gfx.FillPath($bezelGrad, $bezelPath)
+  $bezelGrad.Dispose()
+  $bezelPath.Dispose()
+
+  $innerD = $bezelInnerD
   $innerRect = [System.Drawing.RectangleF]::new(($Cx - $innerD/2), ($Cy - $innerD/2), $innerD, $innerD)
   $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
   $path.AddEllipse($innerRect)
@@ -89,54 +113,35 @@ function Draw-Orb {
 function Draw-Glyph {
   param($Gfx, [float]$Cx, [float]$Cy, [float]$InnerD, [string]$Glyph, [bool]$On)
 
+  # disk: no glyph -- the plain lit/unlit sphere is the whole story.
+  if ($Glyph -eq 'disk') { return }
+
+  # net: a standard Wi-Fi style signal mark -- base dot + three rising arcs,
+  # each spanning ~76 degrees (within the usual 60-90 degree range) centered
+  # straight up, instead of the earlier wide two-arc sweep.
   # On: black glyph for contrast against the now-brighter sphere. Off: unchanged pale glyph.
   if ($On) {
     $fillColor = [System.Drawing.Color]::FromArgb(235, 8, 8, 8)
-    $strokeColor = [System.Drawing.Color]::FromArgb(200, 0, 0, 0)
   } else {
     $fillColor = [System.Drawing.Color]::FromArgb(130, 255, 255, 255)
-    $strokeColor = [System.Drawing.Color]::FromArgb(90, 10, 10, 10)
   }
   $fill = [System.Drawing.SolidBrush]::new($fillColor)
-  $stroke = [System.Drawing.Pen]::new($strokeColor, [Math]::Max(1.0, $InnerD * 0.02))
-  $stroke.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
 
-  if ($Glyph -eq 'disk') {
-    $barW = $InnerD * 0.56; $barH = $InnerD * 0.13; $gap = $InnerD * 0.14
-    foreach ($dy in @(-($gap/2 + $barH/2), ($gap/2 + $barH/2))) {
-      $r = [System.Drawing.RectangleF]::new(($Cx - $barW/2), ($Cy + $dy - $barH/2), $barW, $barH)
-      $rad = $barH / 2
-      $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
-      $path.AddArc($r.X, $r.Y, $barH, $barH, 90, 180)
-      $path.AddArc(($r.X + $r.Width - $barH), $r.Y, $barH, $barH, 270, 180)
-      $path.CloseFigure()
-      $Gfx.FillPath($fill, $path)
-      $Gfx.DrawPath($stroke, $path)
-      $path.Dispose()
-    }
-  } else {
-    $triW = $InnerD * 0.5; $triH = $InnerD * 0.30; $gap = $InnerD * 0.08
-    # Up triangle (top half)
-    $topCy = $Cy - $gap/2 - $triH/2
-    $up = @(
-      [System.Drawing.PointF]::new($Cx, ($topCy - $triH/2)),
-      [System.Drawing.PointF]::new(($Cx - $triW/2), ($topCy + $triH/2)),
-      [System.Drawing.PointF]::new(($Cx + $triW/2), ($topCy + $triH/2))
-    )
-    $Gfx.FillPolygon($fill, $up)
-    $Gfx.DrawPolygon($stroke, $up)
-    # Down triangle (bottom half)
-    $botCy = $Cy + $gap/2 + $triH/2
-    $down = @(
-      [System.Drawing.PointF]::new($Cx, ($botCy + $triH/2)),
-      [System.Drawing.PointF]::new(($Cx - $triW/2), ($botCy - $triH/2)),
-      [System.Drawing.PointF]::new(($Cx + $triW/2), ($botCy - $triH/2))
-    )
-    $Gfx.FillPolygon($fill, $down)
-    $Gfx.DrawPolygon($stroke, $down)
+  $baseY = $Cy + $InnerD * 0.19
+  $dotD = $InnerD * 0.13
+  $Gfx.FillEllipse($fill, ($Cx - $dotD/2), ($baseY - $dotD/2), $dotD, $dotD)
+
+  $arcSpan = 76
+  $arcStart = 270 - $arcSpan / 2
+  $arcPen = [System.Drawing.Pen]::new($fillColor, [Math]::Max(1.0, $InnerD * 0.095))
+  $arcPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+  $arcPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+  foreach ($arcD in @(($InnerD * 0.39), ($InnerD * 0.64), ($InnerD * 0.90))) {
+    $rect = [System.Drawing.RectangleF]::new(($Cx - $arcD/2), ($baseY - $arcD/2), $arcD, $arcD)
+    $Gfx.DrawArc($arcPen, $rect, $arcStart, $arcSpan)
   }
+  $arcPen.Dispose()
   $fill.Dispose()
-  $stroke.Dispose()
 }
 
 function New-MasterBitmap([string]$ColorKey, [string]$Glyph, [bool]$On) {

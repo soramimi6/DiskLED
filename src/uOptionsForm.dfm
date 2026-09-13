@@ -23,6 +23,8 @@ object OptionsForm: TOptionsForm
     ActivePage = TsGeneral
     Align = alClient
     TabOrder = 0
+    ExplicitWidth = 458
+    ExplicitHeight = 406
     object TsGeneral: TTabSheet
       Caption = 'General'
       object CardWindow: TPanel
@@ -285,7 +287,7 @@ object OptionsForm: TOptionsForm
         end
         object LblSecTrayLedInfo: TLabel
           Left = 20
-          Top = 112
+          Top = 140
           Width = 83
           Height = 17
           Caption = 'Tray LED Info'
@@ -296,9 +298,39 @@ object OptionsForm: TOptionsForm
           Font.Style = [fsBold]
           ParentFont = False
         end
+        object ImgLedGreen: TImage
+          Left = 36
+          Top = 74
+          Width = 48
+          Height = 48
+          Center = True
+          Proportional = True
+          Stretch = True
+          Transparent = True
+        end
+        object ImgLedBlue: TImage
+          Left = 152
+          Top = 74
+          Width = 48
+          Height = 48
+          Center = True
+          Proportional = True
+          Stretch = True
+          Transparent = True
+        end
+        object ImgLedRed: TImage
+          Left = 268
+          Top = 74
+          Width = 48
+          Height = 48
+          Center = True
+          Proportional = True
+          Stretch = True
+          Transparent = True
+        end
         object RbLedGreen: TRadioButton
           Left = 20
-          Top = 48
+          Top = 47
           Width = 110
           Height = 21
           Caption = 'Green'
@@ -308,7 +340,7 @@ object OptionsForm: TOptionsForm
         end
         object RbLedBlue: TRadioButton
           Left = 136
-          Top = 48
+          Top = 47
           Width = 110
           Height = 21
           Caption = 'Blue'
@@ -316,7 +348,7 @@ object OptionsForm: TOptionsForm
         end
         object RbLedRed: TRadioButton
           Left = 252
-          Top = 48
+          Top = 47
           Width = 110
           Height = 21
           Caption = 'Red'
@@ -324,7 +356,7 @@ object OptionsForm: TOptionsForm
         end
         object ChkLedDisk: TCheckBox
           Left = 20
-          Top = 151
+          Top = 179
           Width = 120
           Height = 21
           Caption = 'Disk'
@@ -335,7 +367,7 @@ object OptionsForm: TOptionsForm
         end
         object ChkLedNet: TCheckBox
           Left = 136
-          Top = 151
+          Top = 179
           Width = 120
           Height = 21
           Caption = 'Network'
@@ -498,6 +530,8 @@ object OptionsForm: TOptionsForm
     BevelOuter = bvNone
     Color = clWhite
     TabOrder = 1
+    ExplicitTop = 406
+    ExplicitWidth = 458
     object ShpButtonTop: TShape
       Left = 0
       Top = 0
