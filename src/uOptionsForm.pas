@@ -379,8 +379,21 @@ begin
     RbLedRed.Checked := True
   else
     RbLedGreen.Checked := True;
-  ChkLedDisk.Checked := FSettings.TrayLedDisk;
-  ChkLedNet.Checked := FSettings.TrayLedNet;
+  { OnClick, not just user clicks: TCustomCheckBox.SetState (Vcl.StdCtrls)
+    fires Click on every programmatic Checked assignment too. Loading
+    Disk=False/Net=True straight into the two checkboxes would trip
+    ChkLedDiskClick's "keep at least one on" guard against the *other*
+    checkbox's still-stale value (False, mid-assignment) and silently flip
+    Disk back to True. Detach the handlers for this pair of assignments. }
+  ChkLedDisk.OnClick := nil;
+  ChkLedNet.OnClick := nil;
+  try
+    ChkLedDisk.Checked := FSettings.TrayLedDisk;
+    ChkLedNet.Checked := FSettings.TrayLedNet;
+  finally
+    ChkLedDisk.OnClick := ChkLedDiskClick;
+    ChkLedNet.OnClick := ChkLedNetClick;
+  end;
   ChkPingEnabled.Checked := FSettings.PingEnabled;
   ChkAutoGw.Checked := FSettings.PingAutoGateway;
   EdHost.Text := FSettings.PingHost;
