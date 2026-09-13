@@ -14,8 +14,6 @@ object OptionsForm: TOptionsForm
   Font.Style = []
   Position = poScreenCenter
   OnCreate = FormCreate
-  Scaled = True
-  PixelsPerInch = 96
   TextHeight = 15
   object PageControl1: TPageControl
     Left = 0
@@ -31,10 +29,9 @@ object OptionsForm: TOptionsForm
         Left = 16
         Top = 16
         Width = 400
-        Height = 158
+        Height = 305
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = True
         TabOrder = 0
         object LblSecWindow: TLabel
           Left = 20
@@ -51,14 +48,14 @@ object OptionsForm: TOptionsForm
         end
         object LblLanguage: TLabel
           Left = 20
-          Top = 134
+          Top = 150
           Width = 52
           Height = 15
           Caption = 'Language'
         end
         object LblLanguageHint: TLabel
           Left = 234
-          Top = 134
+          Top = 150
           Width = 146
           Height = 15
           AutoSize = False
@@ -72,7 +69,7 @@ object OptionsForm: TOptionsForm
         end
         object LblStartupBlocked: TLabel
           Left = 38
-          Top = 90
+          Top = 106
           Width = 344
           Height = 30
           AutoSize = False
@@ -88,7 +85,7 @@ object OptionsForm: TOptionsForm
         end
         object CbLanguage: TComboBox
           Left = 90
-          Top = 130
+          Top = 146
           Width = 136
           Height = 23
           Style = csDropDownList
@@ -100,7 +97,7 @@ object OptionsForm: TOptionsForm
         end
         object ChkStayOnTop: TCheckBox
           Left = 20
-          Top = 40
+          Top = 48
           Width = 360
           Height = 21
           Caption = 'Always on top'
@@ -108,7 +105,7 @@ object OptionsForm: TOptionsForm
         end
         object ChkStartup: TCheckBox
           Left = 20
-          Top = 66
+          Top = 82
           Width = 360
           Height = 21
           Caption = 'Run at Windows startup'
@@ -116,7 +113,7 @@ object OptionsForm: TOptionsForm
         end
         object ChkUpdateCheck: TCheckBox
           Left = 20
-          Top = 92
+          Top = 119
           Width = 360
           Height = 21
           Caption = 'Check for a new version at startup'
@@ -133,7 +130,6 @@ object OptionsForm: TOptionsForm
         Height = 128
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = True
         TabOrder = 1
         object LblSecFps: TLabel
           Left = 20
@@ -150,7 +146,7 @@ object OptionsForm: TOptionsForm
         end
         object LblSecGraph: TLabel
           Left = 20
-          Top = 72
+          Top = 87
           Width = 114
           Height = 17
           Caption = 'Graph update (Hz)'
@@ -163,7 +159,7 @@ object OptionsForm: TOptionsForm
         end
         object RbFps10: TRadioButton
           Left = 20
-          Top = 40
+          Top = 35
           Width = 72
           Height = 21
           Caption = '10'
@@ -171,7 +167,7 @@ object OptionsForm: TOptionsForm
         end
         object RbFps15: TRadioButton
           Left = 108
-          Top = 40
+          Top = 35
           Width = 72
           Height = 21
           Caption = '15'
@@ -181,7 +177,7 @@ object OptionsForm: TOptionsForm
         end
         object RbFps20: TRadioButton
           Left = 196
-          Top = 40
+          Top = 35
           Width = 72
           Height = 21
           Caption = '20'
@@ -189,12 +185,11 @@ object OptionsForm: TOptionsForm
         end
         object PnlGraphRates: TPanel
           Left = 12
-          Top = 90
+          Top = 106
           Width = 376
           Height = 32
           BevelOuter = bvNone
           Color = clWhite
-          ParentBackground = True
           TabOrder = 3
           object RbGraph2: TRadioButton
             Left = 8
@@ -231,7 +226,6 @@ object OptionsForm: TOptionsForm
         Height = 96
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = True
         TabOrder = 0
         object LblSecScale: TLabel
           Left = 20
@@ -272,10 +266,9 @@ object OptionsForm: TOptionsForm
         Left = 16
         Top = 16
         Width = 400
-        Height = 128
+        Height = 305
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = True
         TabOrder = 0
         object LblSecTrayLedColor: TLabel
           Left = 20
@@ -292,7 +285,7 @@ object OptionsForm: TOptionsForm
         end
         object LblSecTrayLedInfo: TLabel
           Left = 20
-          Top = 72
+          Top = 112
           Width = 83
           Height = 17
           Caption = 'Tray LED Info'
@@ -305,7 +298,7 @@ object OptionsForm: TOptionsForm
         end
         object RbLedGreen: TRadioButton
           Left = 20
-          Top = 40
+          Top = 48
           Width = 110
           Height = 21
           Caption = 'Green'
@@ -314,16 +307,16 @@ object OptionsForm: TOptionsForm
           TabStop = True
         end
         object RbLedBlue: TRadioButton
-          Left = 140
-          Top = 40
+          Left = 136
+          Top = 48
           Width = 110
           Height = 21
           Caption = 'Blue'
           TabOrder = 1
         end
         object RbLedRed: TRadioButton
-          Left = 260
-          Top = 40
+          Left = 252
+          Top = 48
           Width = 110
           Height = 21
           Caption = 'Red'
@@ -331,7 +324,7 @@ object OptionsForm: TOptionsForm
         end
         object ChkLedDisk: TCheckBox
           Left = 20
-          Top = 96
+          Top = 151
           Width = 120
           Height = 21
           Caption = 'Disk'
@@ -341,8 +334,8 @@ object OptionsForm: TOptionsForm
           OnClick = ChkLedDiskClick
         end
         object ChkLedNet: TCheckBox
-          Left = 150
-          Top = 96
+          Left = 136
+          Top = 151
           Width = 120
           Height = 21
           Caption = 'Network'
@@ -357,10 +350,9 @@ object OptionsForm: TOptionsForm
         Left = 16
         Top = 16
         Width = 400
-        Height = 328
+        Height = 345
         BevelOuter = bvNone
         Color = clWhite
-        ParentBackground = True
         TabOrder = 0
         object LblSecPing: TLabel
           Left = 20
@@ -422,13 +414,12 @@ object OptionsForm: TOptionsForm
           TabOrder = 3
         end
         object CardThresholds: TPanel
-          Left = 16
-          Top = 200
+          Left = 20
+          Top = 216
           Width = 368
           Height = 121
           BevelOuter = bvNone
           Color = 15921906
-          ParentBackground = True
           TabOrder = 4
           object LblSecThresholds: TLabel
             Left = 12
@@ -506,7 +497,6 @@ object OptionsForm: TOptionsForm
     Align = alBottom
     BevelOuter = bvNone
     Color = clWhite
-    ParentBackground = True
     TabOrder = 1
     object ShpButtonTop: TShape
       Left = 0
