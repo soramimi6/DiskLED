@@ -276,15 +276,23 @@ function drawGraph(ctx, graph, history) {
 // window-level color-key cutout (see drawBackground's comment) so the
 // caller's canvas shows exactly what the real transparent gadget window
 // would show through to the desktop -- painted here as a checkerboard.
-function renderFrame(canvas, images, layout, state, history) {
+//
+// `opts.partsAlpha` (default 1) is a preview-only aid for spotting part
+// overlap/placement against the background: everything except the
+// background itself (meters/LEDs/ping/digits/graph) is drawn at that alpha.
+// It has no effect on the real app, which never composites parts this way.
+function renderFrame(canvas, images, layout, state, history, opts) {
+  const partsAlpha = (opts && typeof opts.partsAlpha === 'number') ? opts.partsAlpha : 1;
   canvas.width = layout.width;
   canvas.height = layout.height;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   drawBackground(ctx, images, layout);
+  ctx.globalAlpha = partsAlpha;
   drawMeters(ctx, images, layout, state);
   if (layout.graph) drawGraph(ctx, layout.graph, history);
+  ctx.globalAlpha = 1;
 
   if (layout.transparent) {
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);

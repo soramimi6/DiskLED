@@ -204,13 +204,14 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 
 ## 6. asset-editor（ブラウザ版スキン編集ツール）
 
-ブラウザ上で動く JavaScript ベースのスキン編集エディタを、`assets/` とは別の新規トップレベルフォルダ `asset-editor/` に同梱する。layout.cfg のテキスト編集と GUI 編集（両者リアルタイム同期）、同階層の画像取り込み、DiskLED.exe と同じ表示エンジンでの組み立てシミュレーション、CPU/ディスク/ネット等の値を画面上で指定して表示の変化を確認できるプレビュー、記述ミスのアラート表示、PC ローカルの cfg・画像の読み書きを持つ。あわせてエンドユーザー向けの assets リファレンス／自作マニュアルも同梱する。
+ブラウザ上で動く JavaScript ベースのスキン編集エディタを、`assets/` とは別の新規トップレベルフォルダ `asset-editor/` に同梱する。layout.cfg のテキスト編集と GUI 編集（両者リアルタイム同期）、同階層の画像取り込み、DiskLED.exe と同じ表示エンジンでの組み立てシミュレーション、CPU/ディスク/ネット等の値を画面上で指定して表示の変化を確認できるプレビュー（背景以外の各パーツを50%透過にする重なり確認用トグルを含む）、記述ミスのアラート表示、PC ローカルの cfg・画像の読み込みと layout.cfg 全文のクリップボードコピーを持つ（ファイルへの保存機能は持たず、書き戻しはユーザーに委ねる）。あわせてエンドユーザー向けの assets リファレンス／自作マニュアルも同梱する。
 
 **3.2.0 で完成版を出す（項目内で最大規模。開発に時間をかけてよい）。** リリース前に開発者自身がこのエディタで既存スキンの追加・修正を行う予定＝ドッグフーディングが品質ゲート。
 
 ### スコープ確定事項
 
-- **3.2.0 = 完成版**: テキスト編集 ＋ GUI 編集（リアルタイム同期。片方先行はしない）／コンパクト・フルの**両モードをトグルで切替えて両方チェック**（compact/full は同じ layout.cfg 内の独立セクション集合で、扱う設定量に差が少ないため片方だけの MVP にしない）／プレビュー（メーター・LED・数値readout・推移グラフ・Ping）／バリデーション（記述ミスのアラート）／ローカル cfg・画像の読み書き。
+- **3.2.0 = 完成版**: テキスト編集 ＋ GUI 編集（リアルタイム同期。片方先行はしない）／コンパクト・フルの**両モードをトグルで切替えて両方チェック**（compact/full は同じ layout.cfg 内の独立セクション集合で、扱う設定量に差が少ないため片方だけの MVP にしない）／プレビュー（メーター・LED・数値readout・推移グラフ・Ping・パーツ半透明トグル）／バリデーション（記述ミスのアラート）／ローカル cfg・画像の読み込みと layout.cfg のクリップボードコピー。
+- **ファイルへの保存機能は持たない**。エディタは `layout.cfg` をディスクへ書き戻さず、**Copy**（クリップボードへコピー）のみを提供する。アセットフォルダの `layout.cfg` へ反映するのはユーザー自身の作業とする。
 - **エディタ画面の UI 言語は英語のみ**（アプリ本体の多言語対応＝項目3 とは別。エディタは英語で統一）。
 - **同梱ドキュメント（`public_docs/` に `SKIN_GUIDE.md` の JA+EN 新規ペア）はエディタ本体と同時に 3.2.0 で出す**。`docs/MAINTAINING-PUBLIC-DOCS.md` の文書表も更新。
 - **2 重実装の扱い**: Delphi 側（`uSkinLoader.pas`）変更時に asset-editor の JS パーサ／バリデータを追従改修する運用を受容。`docs/CONTRIBUTING.md` に明記し、あわせて layout.cfg fixture ＋ 期待バリデーション結果の**人力チェックリスト**を用意する（CI は無いので機械照合はしない）。
@@ -233,9 +234,9 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 - PNG/BMP はブラウザの `<img>`/`createImageBitmap` がネイティブ対応済みで自前デコーダ不要。ICO（トレイ用途、今回対象外）のみブラウザ間の対応が不安定
 - バリスティックを対象外にしたことで、`uDisplayPipeline.pas` の時間ベースイージング（指数上昇・定速下降）を移植する必要が無くなり、実装量が大きく減る
 
-**ローカルファイル入出力**:
-- Chromium 系ブラウザの File System Access API（`showOpenFilePicker`/`showDirectoryPicker`）でフォルダの直接読み書きが可能
-- ただし Chromium は `file://` から開かれたページに対してこの API を明示的にブロックする（Secure Context 判定とは別の file:// 固有の制限）。**この制約は影響範囲が限定的で回避コストも低い**: 読み込みは `<input type="file" webkitdirectory>` やドラッグ&ドロップで代替でき、これらは `file://` でも制限なく動作する。保存側も `<a download>` の Blob ダウンロードにフォールバックすれば機能は完全に維持できる（配置場所を手動で `assets/<skin>/` に戻す一手間が増えるだけ）。実装は「File System Access API が使えるときは使い、使えなければ input/drag&drop＋ダウンロードにフォールバック」という定型パターンで数十行程度
+**ローカルファイル入力・書き戻し**:
+- 読み込みは `<input type="file" webkitdirectory>` およびドラッグ&ドロップで行う。Chromium は `file://` から開かれたページに対して File System Access API（`showOpenFilePicker`/`showDirectoryPicker`/`showSaveFilePicker`）を明示的にブロックする（Secure Context 判定とは別の file:// 固有の制限）ため、これらのフォールバック不要な標準 API のみを使う。
+- **保存機能は持たない**。`layout.cfg` の書き戻しはクリップボードコピー（**Copy** ボタン、`navigator.clipboard.writeText` が使えない環境では `execCommand('copy')` にフォールバック）のみで、ユーザーがアセットフォルダの `layout.cfg` へ自分で貼り戻す。ネイティブ保存ダイアログ・ダウンロードのフォールバックは持たない。
 
 **配置場所（`assets/` でも `tools/` でもなく新規 `asset-editor/`）**:
 - `uDisplayModes.LoadDisplayModes`（[uDisplayModes.pas:75-135](../src/view/uDisplayModes.pas#L75-L135)）は `assets/` 直下の**サブフォルダ全部**を表示モード候補として走査し、`layout.cfg` が無ければ `Continue` で黙ってスキップする。`docs/PLANNED-3.1.2.md` 項目3（assets 読み込みの堅牢化、3.1.2 で実装済み）が**まさに同じ読み込み経路の事前検証を厳格化した**ため、「layout.cfg の無いサブフォルダをどう扱うか」の判断が今後変わる余地がある。エディタを `assets/` の外に出せば、この結合を構造的に無くせる
@@ -258,7 +259,7 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 - 推移グラフのプレビュー（`uGraphRenderer` 相当＋ローリングバッファ mock。`[GraphFull]` は full のみ）: 数日
 - テキスト↔GUI 両編集のリアルタイム同期: 未検証（最大の不確実要素）
 - バリデーション移植（`uSkinLoader.pas` の `Read*` ルールを写す）＋人力チェックリスト作成
-- ファイル入出力（File System Access API＋`<input webkitdirectory>`／ドラッグ&ドロップ／`<a download>` フォールバック）: 1〜2 日
+- ファイル入力（`<input webkitdirectory>`／ドラッグ&ドロップ）＋クリップボードコピー: 1〜2 日
 - `asset-editor/` 新設＋`stage-dist.ps1` 1 行＋MSIX レイアウト追記: 小規模
 - `public_docs/SKIN_GUIDE.md` JA+EN ＋ `docs/MAINTAINING-PUBLIC-DOCS.md` 更新
 - `docs/CONTRIBUTING.md` に「`uSkinLoader.pas` 変更時は asset-editor の JS を追従」を追記

@@ -42,10 +42,10 @@ Bg=MyBase.png
 | Area | Contents |
 |---|---|
 | Header | Load a folder, switch the editor's own display language (EN/JA) |
-| Preview (top) | The actual look. Compact/Full toggle, display scale (x1/x2/x5) |
+| Preview (top) | The actual look. Compact/Full toggle, display scale (x1/x2/x5), semi-transparent parts preview (draws every part except the background at 50% opacity so you can spot overlap) |
 | Sections (left) | Every part this skin could use. Ones already in use show normally; unused ones show dimmed with a checkbox |
 | Field editor (center) | Edit the selected section's contents as a GUI form. Hover any field for an explanation |
-| layout.cfg (right) | The raw text editor (with syntax coloring), always in sync with the GUI. **Copy** copies the whole text; **Save** writes it out |
+| layout.cfg (right) | The raw text editor (with syntax coloring), always in sync with the GUI. **Copy** copies the whole text for you to paste back into the asset's `layout.cfg` yourself (the tool itself never writes to disk) |
 | Test values & diagnostics (bottom) | Manually set CPU/memory/etc. values to see the preview react, and self-check layout.cfg's consistency |
 
 Changing a value in the GUI rewrites only that line in the text; editing the text directly re-parses after a short pause and updates the GUI and preview. Either direction works.
@@ -59,7 +59,7 @@ Changing a value in the GUI rewrites only that line in the text; editing the tex
 5. Check the parts you want to use (e.g. `Cpu`) to enable them, then set `File` (image), `X`/`Y` (position), `Frames` (frame count), and so on
 6. Use the Test values sliders/LEDs at the bottom to sweep through values and check the preview
 7. To also add a Full display, check **Full > Mode** (`GeneralFull`) and set it up the same way (Full becomes active once `Width`/`Height`/`Bg` are all set)
-8. Click **Save** to write `layout.cfg`. In a browser that supports it, you can pick the save location directly; otherwise (the common case when opened via `file://`) the file downloads and you move it into the original folder yourself
+8. Click **Copy** to copy the whole `layout.cfg` text, then paste it back into `layout.cfg` in the asset's folder yourself
 9. Place the finished folder under DiskLED's `assets/` folder and pick it from the right-click menu's display mode list to check it for real
 
 ## 6. Compact and Full are independent
@@ -139,5 +139,5 @@ Asset Editor flags mistakes as you go.
 ## 13. If something isn't working
 
 - **Check all fields** in "Test values & diagnostics" round-trips every section and field currently loaded, to confirm the text/GUI sync is behaving correctly across the board
-- To undo a change you're trying out, either edit the text back by hand, or reload the page before saving (unsaved changes are discarded)
+- To undo a change you're trying out, either edit the text back by hand, or reload the page before you paste it back into the asset's `layout.cfg` (everything in the page is discarded)
 - If something isn't showing up, first check whether that part's section is actually checked (Active) in the tree
