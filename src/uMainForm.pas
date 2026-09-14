@@ -682,6 +682,10 @@ begin
   FMiTrayOnly.OnClick := miTrayOnlyClick;
   FPopup.Items.Add(FMiTrayOnly);
 
+  Sep := TMenuItem.Create(FPopup);
+  Sep.Caption := '-';
+  FPopup.Items.Add(Sep);
+
   FMiScale := TMenuItem.Create(FPopup);
   FMiScale.Caption := S('menu.scale');
   FPopup.Items.Add(FMiScale);
@@ -691,10 +695,6 @@ begin
   AddScaleMenuItem('100%', 100);
   AddScaleMenuItem('150%', 150);
   AddScaleMenuItem('200%', 200);
-
-  Sep := TMenuItem.Create(FPopup);
-  Sep.Caption := '-';
-  FPopup.Items.Add(Sep);
 
   miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.dashboard');

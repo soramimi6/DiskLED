@@ -30,10 +30,10 @@ The window is a tool window and usually does not appear on the taskbar (resident
 | Original / Crystal / Metalic / Info Bar / Vintage | Switch display mode (exclusive) |
 | Compact / コンパクト | Compact view (always available) |
 | Full / フル | Full view (enabled only when the mode defines full layout) |
-| Display Scale / 表示倍率 | Submenu: exclusive choice of Auto (default) / 100% / 150% / 200%. Only affects the gadget's own zoom; the dashboard is unaffected |
 | Window Only / ウィンドウのみ | Shows the main window; the tray LED stays off (one of a 3-way exclusive choice — see [Task Tray](#task-tray)) |
 | Window + Tray LED / ウィンドウ＋トレイ LED | Shows the main window while the tray LED also lights up |
 | Tray LED Only / トレイ LED のみ | Hides the main window and lights up only the tray LED (the old "Task Tray") |
+| Display Scale / 表示倍率 | Submenu: exclusive choice of Auto (default) / 100% / 150% / 200%. Only affects the gadget's own zoom; the dashboard is unaffected |
 | Dashboard / ダッシュボード | Separate window with left and right columns. Remembers position, size, and maximized state. Reopens on next launch if it was open at exit |
 | View Trace Route / Ping 結果表示 | Show the route (Tracert) results in a dedicated window. See [View Trace Route](#view-trace-route) |
 | Options / オプション | Always-on-top, startup, UI language, check for a new version at startup, fps, graph rate, network speed response (linear / log), tray LED color/info, Ping settings. Four tabs: General / Display / Tray LED / Ping & Network |
