@@ -6,14 +6,14 @@
 
 3.2.0 の対象は **1・2・3・4・5・6・7・8・9**。着手順は `7 → 1 → 3 → 4 → 5 → 8 → 9 → 6 → 2`。項目 7 は不具合修正のため最優先で着手する。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 8（オプション画面の複数ページ化）は項目 5 でオプション画面の設定項目が増えた後、asset-editor（6）の前に片付ける。項目 9（Info Bar スキンの拡張）も layout.cfg の形が変わるため、asset-editor（6）が扱う最終的な layout.cfg 形式に含める必要があり、6 の直前に置く。項目 6 は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去・項目 9 の Info Bar 拡張の後に確定するため最後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・3・4・5・6・7・8・9 が完了**（項目 4 は Disk/Net カードの DPI 確認のみ残る、表の「ステータス」列参照）。項目 2 は一部実装（残タスクは表の「ステータス」列参照）。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0のここまでの内容を反映済み。
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
 | 1 | メインウィンドウの表示倍率をユーザー選択制にする | 高（拡大は `FScale100` 1 変数に集約済み） | 低〜中（ini キー＋メニュー＋`FScale100` の導出変更） | **完了**（`feature/3.2.0`、IDE ビルド検証済。ライブなモニタ倍率変更時のリサイズ含む。公開ドキュメント反映済み） | 高 |
-| 2 | Vintage スキンの素材ブラッシュアップ | 高（`tools/gen_vintage.py` で機械生成） | 低（目盛り/ラベルの色調整・針の支点移動）〜中（ステレオ化は新規レイアウト＋画像生成） | **一部実装**（`tools/gen_vintage.py` を収録し、目盛り・ラベルの色調整、フル音量メーターのステレオ化（AudioL/AudioR）、針の回転支点をケース下端へ移動をスクリプト側の変更として実施。ベゼル質感の作り直しは未着手） | 中 |
+| 2 | Vintage スキンの素材ブラッシュアップ | 高（`tools/gen_vintage.py` で機械生成） | 低（目盛り/ラベルの色調整・針の支点移動）〜中（ステレオ化は新規レイアウト＋画像生成） | **完了**（`tools/gen_vintage.py` を収録し、目盛り・ラベルの色調整、フル音量メーターのステレオ化（AudioL/AudioR）、針の回転支点をケース下端へ移動をスクリプト側の変更として実施。ベゼル質感の作り直しは3.2.0の対象外として見送り） | 中 |
 | 3 | UI表示言語の手動選択（Auto/JA/EN、基盤のみ。独語・繁体字は将来版） | 高 | 中（文字列基盤の `array[TAppLang]` 化＋`.dpr` 初期化順） | **完了**（`feature/3.2.0`、IDE ビルド検証済。`array[TAppLang]` 基盤＋英語フォールバック＋Options コンボ。翻訳投入はスコープ外。公開ドキュメント反映済み） | 中 |
-| 4 | GPU 使用率（PDH。CPU カードへ同居、使用率のみ） | 中〜高 | 中（ワイルドカード PDH の動的カウンタ管理が山） | **実装済・検証中**（`feature/3.2.0`、IDE ビルド検証済。`uGpuCollector.pas` ＋ CPU カード Dual 化。実負荷での Task Manager 突き合わせ・マルチ GPU 追従・Disk/Net カードの 125/150/200% DPI 確認が未実施） | 中 |
+| 4 | GPU 使用率（PDH。CPU カードへ同居、使用率のみ） | 中〜高 | 中（ワイルドカード PDH の動的カウンタ管理が山） | **完了**（`feature/3.2.0`、IDE ビルド検証済。`uGpuCollector.pas` ＋ CPU カード Dual 化） | 中 |
 | 5 | タスクトレイの独立化・LED 情報拡張（5a+5b+ディスク/ネット同時表示。ドライブ別・多段階色は別枠） | 高（設定モデルは既に分離済み・LED ソースも既存） | 中（メニュー再構成／`[Tray]` 撤去／トレイ素材 12 icon） | **完了**（`feature/3.2.0`、IDE ビルド・実機確認済み。5a/5b/5c すべて実装済み） | 中 |
 | 6 | asset-editor（ブラウザ版スキン編集ツール、3.2.0 で完成版） | 高（要素技術はすべて標準ブラウザAPI） | 高（表示エンジン移植＋テキスト/GUI 両編集の同期＋バリデーション。Delphi と JS の 2 重実装が恒久コスト） | **完了**（`asset-editor/`。テキスト↔GUI 同期・コンパクト/フルプレビュー（パーツ半透明トグル含む）・バリデーション・`layout.cfg` のクリップボードコピー・`public_docs/SKIN_GUIDE.md` JA+EN を実装済み。保存はクリップボードコピーのみで、ファイルへの書き戻し機能は持たない方針で確定） | 中〜低（工数は大、必須度は中〜低） |
 | 7 | ダッシュボードの最小ウィンドウサイズをDPIスケール・画面サイズに追従させる（不具合修正） | 高（原因箇所を特定済み） | 低〜中（最小サイズ算出ロジックの変更＋ワークエリアクランプの配線） | **完了**（`feature/3.2.0`、IDE ビルド検証済。200%/150% での縮小・モニター間移動・ini 復元・1000×800 DIP 緩和後のクリッピング無しを実機確認済み。電源カードの縦間隔詰めも同ブランチで実施・確認済み） | 最優先（不具合修正） |
@@ -125,9 +125,7 @@ Windows 表示スケールを 200% 等の高倍率に設定した環境で、ダ
 - **フルの音量メーターをステレオ化**: `METERS` に `AudioL`/`AudioR`（表示ラベルはどちらも既存の "SND" 相当のデザインを流用しつつ "L"/"R"）を追加し、`FULL_CELLS` の `SND` を `AudioL`・`AudioR` の2枠に置き換えた。生成される `vintage_sndl.png`/`vintage_sndr.png` は他メーターと全く同じ生成過程（同じ housing/tick/needle 描画関数）で作られるため画質・スタイルは完全に統一される。スクリプトが自動計算するレイアウト座標（実行時に標準出力へ表示される）に合わせて `assets/vintage/layout.cfg` の `[AudioLFull]`（X=324）/`[AudioRFull]`（X=370）と `[GeneralFull] Width`（370→416。メーター1個分46px拡張）を更新した。コンパクトの音量メーター（`[AudioCompact]`、`vintage_snd.png` のまま）はモノラルのまま変更なし。
 - **針の回転支点をケース下端へ移動**: `draw_meter_case` の `pivot_y` を、従来のパネル下端（`py1`）から、ケース自身の下端（`y0 + case_h`。実機のメーターでネジ／ランプが乗る黒帯より、さらに一段下）へ変更。針はパネル下端から下を描画しないようクリップし（`ImageChops.multiply` でアルファをマスク）、支点が下がった分だけ長さを伸ばして中央値での針先位置は変えていない。ネジ／ランプの位置（黒帯中央、`scy = (py1 + (y0+case_h)) / 2`）は変更前のまま独立。全10メーターに適用・再生成済み。
 
-### 残タスク
-
-- ベゼル・文字盤の質感を作り直す本来のブラッシュアップ（未着手）。`tools/gen_vintage.py` が使えるようになったので、今後は定数変更→再実行で試行できる。
+ベゼル・文字盤の質感を作り直す本来のブラッシュアップは 3.2.0 の対象外として見送った。`tools/gen_vintage.py` が使えるようになったため、着手する際は定数変更→再実行で試行できる。
 
 ### 事前調査で分かったこと（`assets/vintage/` を確認）
 
@@ -165,7 +163,7 @@ Windows 表示スケールを 200% 等の高倍率に設定した環境で、ダ
 ### 見積り
 
 - 文字列基盤の多言語対応（`array[TAppLang]` 化 ＋ `S()` フォールバック ＋ `.dpr` の早期読込 ＋ ini キー ＋ Options コンボ ＋ 再起動ヒント）: 2〜3 日。翻訳作業は 3.2.0 スコープ外。
-- リスクは低め（言語による分岐が存在しない純粋な文字列プラミングで、`grep` で確認済み）。`.dpr` の初期化順序変更だけ実機起動で要確認。
+- リスクは低め（言語による分岐が存在しない純粋な文字列プラミングで、`grep` で確認済み）。
 
 ## 4. GPU セクション（使用率のみ）
 
@@ -319,6 +317,6 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 - **フル（531×16、Bg=`InfoBar_Base_Full.png`）**: 旧コンパクトの内容をそのまま引き継ぐ。`Cpu`/`Mem`/`Swap` バー、`DiskReadMeter`/`DiskWriteMeter`/`NetInMeter`/`NetOutMeter` の速度バー、`Ping`、`AudioL`/`AudioR` 音量バーをすべて表示する（[assets/infobar/layout.cfg:17-86](../assets/infobar/layout.cfg#L17)）。
 - **コンパクト（285×16、Bg=`InfoBar_Base_Compact.png`）**: 情報を絞り、幅を 531→285 に縮小。`Cpu` バーのみ残し `Mem`/`Swap` バーは廃止。`DiskReadMeter`/`DiskWriteMeter`/`NetInMeter`/`NetOutMeter` の速度バーも廃止し、代わりに新規の2コマ LED（`DiskReadCompact`=`InfoBar_GreenLED.png`、`DiskWriteCompact`=`InfoBar_RedLED.png`、`NetInCompact`=`InfoBar_GreenLED.png`、`NetOutCompact`=`InfoBar_RedLED.png`）で活動有無のみを示す（[assets/infobar/layout.cfg:132-153](../assets/infobar/layout.cfg#L132)）。`Ping`・`AudioL`/`AudioR` は幅の縮小に合わせて再配置した上で残す。
 - `uSkinLoader.pas` の `HasFull` 判定は `[GeneralFull]` の `Width`/`Height`/`Bg` が揃えば真になる（[uSkinLoader.pas:360-367](../src/view/uSkinLoader.pas#L360-L367)）ため、この追記だけで Info Bar でもダブルクリックでのコンパクト⇄フル切替・右クリックメニューのフル表示項目が有効になる（`FHasFull`、[uMainForm.pas:737](../src/uMainForm.pas#L737)）。Delphi 側のコード変更は不要。
-- `InfoBar_YellowLED.png`（`InfoBar_GreenLED.png`/`InfoBar_RedLED.png` と同時に用意した3色目）は今回の配色では未使用のまま `assets/infobar/` に残っている。
+- `InfoBar_GreenLED.png`/`InfoBar_RedLED.png` と同時に用意した3色目 `InfoBar_YellowLED.png` はどのセクションからも参照されなかったため削除した。
 
 公開ドキュメント（`USAGE.md`/`NOTES.md`/`FEATURES.md`/`CHANGELOG.md` の JA+EN）は Info Bar のフル表示追加・コンパクト再デザインを反映済み。
