@@ -14,6 +14,8 @@ object OptionsForm: TOptionsForm
   Font.Style = []
   Position = poScreenCenter
   OnCreate = FormCreate
+  Scaled = True
+  PixelsPerInch = 96
   TextHeight = 15
   object PageControl1: TPageControl
     Left = 0

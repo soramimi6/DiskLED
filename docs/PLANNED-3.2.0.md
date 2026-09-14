@@ -6,7 +6,9 @@
 
 3.2.0 の対象は **1・2・3・4・5・6・7・8・9**。着手順は `7 → 1 → 3 → 4 → 5 → 8 → 9 → 6 → 2`。項目 7 は不具合修正のため最優先で着手する。小規模で自己完結する 1 で 3.2.0 の作業フローを慣らし、文字列基盤（3）・動的 PDH カウンタ（4）という基盤性のある項目を先に据えてから重い項目へ進む。項目 8（オプション画面の複数ページ化）は項目 5 でオプション画面の設定項目が増えた後、asset-editor（6）の前に片付ける。項目 9（Info Bar スキンの拡張）も layout.cfg の形が変わるため、asset-editor（6）が扱う最終的な layout.cfg 形式に含める必要があり、6 の直前に置く。項目 6 は 3.2.0 最大の成果物で、layout.cfg 形式が項目 5 の `[Tray]` 撤去・項目 9 の Info Bar 拡張の後に確定するため最後に置く。各項目の相対的な優先度は表の「優先度」列を参照。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
+項目 **10〜15** は機能項目ではなく、蓄積した変更に対する `/code-review` バッチレビューで見つかった保守性・整合性の指摘を個別タスク化したもの（優先度は低〜中）。着手順・3.2.0 出荷の必須条件には含めない。
+
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **10〜15 は未着手**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -19,6 +21,12 @@
 | 7 | ダッシュボードの最小ウィンドウサイズをDPIスケール・画面サイズに追従させる（不具合修正） | 高（原因箇所を特定済み） | 低〜中（最小サイズ算出ロジックの変更＋ワークエリアクランプの配線） | **完了**（`feature/3.2.0`、IDE ビルド検証済。200%/150% での縮小・モニター間移動・ini 復元・1000×800 DIP 緩和後のクリッピング無しを実機確認済み。電源カードの縦間隔詰めも同ブランチで実施・確認済み） | 最優先（不具合修正） |
 | 8 | オプション画面を複数ページ化し、OS のライト/ダーク設定に追従させる | 高（標準 VCL 部品のみで実現） | 低〜中（`TPageControl`/`TTabSheet` への再配置＋アプリ全体への VCL スタイル適用） | **完了**（`feature/3.2.0`、IDE ビルド・実機確認済み。既存コントロールの再配置のみでロジック変更なし。ライト/ダーク切替のライブ追従を含め動作確認済み） | 中 |
 | 9 | Info Bar スキンの拡張（フル表示の追加＋コンパクトの絞り込み） | 高（`layout.cfg` 追記のみで既存コードは無改修） | 低〜中（新規 LED 画像素材を追加） | **完了**（`assets/infobar/layout.cfg`。フルは旧コンパクトの内容をそのまま継承、コンパクトは Cpu バー＋ Ping ＋音量バー＋ディスク/ネット LED4個に絞ったデザインへ作り替え済み） | 中 |
+| 10 | トレイアイコン読み込みロジックの重複解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低 |
+| 11 | asset-editor 内の重複コードの整理 | 高 | 低〜中 | **未着手**（`/code-review` で発見） | 低 |
+| 12 | asset-editor の Blob URL 未解放（メモリリーク）を解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低〜中 |
+| 13 | asset-editor の検証ロジックと uSkinLoader.pas の細かい食い違いを解消 | 高 | 低〜中 | **未着手**（`/code-review` で発見） | 中 |
+| 14 | tools/gen_vintage.py のハウジング毎フレーム再描画を解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低 |
+| 15 | layout.cfg の重複キー処理方針を JS/Delphi 間で確定する | 中（実機での `TMemIniFile` 挙動確認が必要） | 低 | **未着手**（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` に既知事項として記録済み、`/code-review` でも再確認） | 中 |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
@@ -121,9 +129,9 @@ Windows 表示スケールを 200% 等の高倍率に設定した環境で、ダ
 
 ### 実施内容
 
-- **目盛り・ラベルの色調整**: `tools/gen_vintage.py` の `TICK_COL`/`LABEL_COL` を、素の `INK_COL`（(30,26,20)）から面の地色 `CREAM_HI` へ 35%（`INK_FADE`）ブレンドした色に変更（赤針・赤ゾーン目盛り `RED_COL` は対象外、従来どおり）。針の視認性が上がる分だけ目盛り・ラベルは薄くなる。生成しなおした全メーター・全64フレームに反映済み。
+- **目盛り・ラベルの色調整**: `tools/gen_vintage.py` の `TICK_COL`/`LABEL_COL` は、素の `INK_COL`（(30,26,20)）を面の地色 `CREAM_HI` へ 35%（`INK_FADE`）ブレンドした色（赤針・赤ゾーン目盛り `RED_COL` は対象外）。目盛り・ラベルを薄くすることで針の視認性を上げている。全メーター・全64フレームに適用済み。
 - **フルの音量メーターをステレオ化**: `METERS` に `AudioL`/`AudioR`（表示ラベルはどちらも既存の "SND" 相当のデザインを流用しつつ "L"/"R"）を追加し、`FULL_CELLS` の `SND` を `AudioL`・`AudioR` の2枠に置き換えた。生成される `vintage_sndl.png`/`vintage_sndr.png` は他メーターと全く同じ生成過程（同じ housing/tick/needle 描画関数）で作られるため画質・スタイルは完全に統一される。スクリプトが自動計算するレイアウト座標（実行時に標準出力へ表示される）に合わせて `assets/vintage/layout.cfg` の `[AudioLFull]`（X=324）/`[AudioRFull]`（X=370）と `[GeneralFull] Width`（370→416。メーター1個分46px拡張）を更新した。コンパクトの音量メーター（`[AudioCompact]`、`vintage_snd.png` のまま）はモノラルのまま変更なし。
-- **針の回転支点をケース下端へ移動**: `draw_meter_case` の `pivot_y` を、従来のパネル下端（`py1`）から、ケース自身の下端（`y0 + case_h`。実機のメーターでネジ／ランプが乗る黒帯より、さらに一段下）へ変更。針はパネル下端から下を描画しないようクリップし（`ImageChops.multiply` でアルファをマスク）、支点が下がった分だけ長さを伸ばして中央値での針先位置は変えていない。ネジ／ランプの位置（黒帯中央、`scy = (py1 + (y0+case_h)) / 2`）は変更前のまま独立。全10メーターに適用・再生成済み。
+- **針の回転支点はケース下端**: `draw_meter_case` の `pivot_y` はケース自身の下端（`y0 + case_h`）— 実機のメーターでネジ／ランプが乗る黒帯より、さらに一段下、パネルのベゼルに隠れる位置にある。針はパネル下端（`py1`）より下を描画しないようクリップし（`ImageChops.multiply` でアルファをマスク）、支点分だけ長さを伸ばして中央値での針先位置を保っている。ネジ／ランプの位置（黒帯中央、`scy = (py1 + (y0+case_h)) / 2`）は針の支点とは独立。全10メーターに適用済み。
 
 ベゼル・文字盤の質感を作り直す本来のブラッシュアップは 3.2.0 の対象外として見送った。`tools/gen_vintage.py` が使えるようになったため、着手する際は定数変更→再実行で試行できる。
 
@@ -320,3 +328,50 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 - `InfoBar_GreenLED.png`/`InfoBar_RedLED.png` と同時に用意した3色目 `InfoBar_YellowLED.png` はどのセクションからも参照されなかったため削除した。
 
 公開ドキュメント（`USAGE.md`/`NOTES.md`/`FEATURES.md`/`CHANGELOG.md` の JA+EN）は Info Bar のフル表示追加・コンパクト再デザインを反映済み。
+
+## 10. トレイアイコン読み込みロジックの重複解消（LoadTrayIcon/LoadPreviewIcon/TrayIconPath）
+
+`/code-review` で確認。`uMainForm.pas` の `LoadTrayIcon`（[uMainForm.pas:1232-1240](../src/uMainForm.pas#L1232)、`LoadIconMetric(..., LIM_SMALL, ...)` → 失敗時 `LoadFromFile` の順で読む）と、`uOptionsForm.pas` の `LoadPreviewIcon`（[uOptionsForm.pas:136-153](../src/uOptionsForm.pas#L136)、`LIM_LARGE` を使う点以外はロジックが同一）が実質同じ処理を2箇所に持っている。あわせて `uMainForm.TrayIconPath`（[uMainForm.pas:1224](../src/uMainForm.pas#L1224)、`assets/tray/<color>/<file>` のパス組み立て）を、`uOptionsForm.LoadLedPreviewIcons` が `IncludeTrailingPathDelimiter` の手組みで再実装している（[uOptionsForm.pas:173](../src/uOptionsForm.pas#L173)）。将来アイコン読み込みの挙動を直す際に片方だけ直して食い違う恐れがある。
+
+- 両ユニットとも既に `uses` している `src/view/uAssetStore.pas`（`TAssetStore.LocateRoot`、[uAssetStore.pas:24,117](../src/view/uAssetStore.pas#L24)）へ、`LIM_*` を引数化した共通のアイコン読み込み関数と `TrayIconPath` 相当のパス組み立て関数を移設し、両フォームから呼ぶ形に統合する。
+
+## 11. asset-editor 内の重複コードの整理
+
+`/code-review` で確認。いずれも動作に影響しない保守性の指摘（`REVIEW.md` の対象範囲どおりロジックのみ、バイナリアセットは対象外）。
+
+- `clamp01` が `asset-editor/js/renderer.js:23-27` と `asset-editor/js/historyBuffer.js:17-21` に同一定義で重複
+- 真偽値の truthy 判定 `['1','true','yes','on']` が `asset-editor/index.html:528` と `:959`（`boolFromRaw`）に重複し、さらに正式な実装である `SkinReader.readStrictBool`（[skinLoader.js:133](../asset-editor/js/skinLoader.js#L133)、false 側の綴りも判定する）とも別建てで、3箇所とも食い違いうる
+- `drawStrip`（[renderer.js:76-89](../asset-editor/js/renderer.js#L76)）と `drawPing`（[renderer.js:97-112](../asset-editor/js/renderer.js#L97)）がフレーム番号の求め方以外ほぼ同一処理
+- `CfgDoc.setValue` のセクション未存在時の分岐（[cfgModel.js:94-104](../asset-editor/js/cfgModel.js#L94)）が `addSection`（[cfgModel.js:131-138](../asset-editor/js/cfgModel.js#L131)）のロジックをインラインで再実装
+- `asset-editor/spike-roundtrip.cjs` はどこからも実行されない検証スパイクで、同じ保証は `index.html` の `runFullFieldCheck`（実装済み・全セクション横断でより網羅的）がカバー済み
+- `tools/generate-tray-icons.ps1` の `Draw-Orb` 内、ベゼル用のリング状グラデーションブロックが直後のオーブ本体グラデーションブロックとほぼ同一構造
+
+いずれも重複箇所を1箇所へ集約するリファクタリングで解消できる。
+
+## 12. asset-editor の Blob URL 未解放（メモリリーク）を解消
+
+`/code-review` で確認。`loadImage`（[index.html:835-842](../asset-editor/index.html#L835)）が `URL.createObjectURL(file)` で生成した URL を、フォルダの再読み込み時や `loadAssetFromEntries`（[index.html:1372-](../asset-editor/index.html#L1372)）で前回の `loadedAsset` を差し替える際にも `URL.revokeObjectURL` していない。同一ページで複数回スキンフォルダを読み込み直すセッション（スキン作者が試行錯誤する典型的な使い方）ほど、画像 Blob が解放されずメモリに残り続ける。
+
+- `loadAssetFromEntries` の冒頭で、既存 `loadedAsset.images` に紐づく Blob URL を全て `revokeObjectURL` してから新しいアセットを読み込むようにする。
+
+## 13. asset-editor の検証ロジックが uSkinLoader.pas と細かく食い違っている箇所の解消
+
+`/code-review` で確認。asset-editor の JS 版パーサ・バリデータ（`docs/CONTRIBUTING.md` の「asset-editor と uSkinLoader.pas の二重実装」節が運用ルールを定義済み）と実機側の間に、次の細かい非互換がある。
+
+- `IniFile.readInteger`（[skinLoader.js:71](../asset-editor/js/skinLoader.js#L71)）は `parseInt(raw, 10)` を使っており、`"100abc"` のような末尾にゴミが付く値を `100` として受理してしまう。実機の `Ini.ReadInteger` は `StrToIntDef` で文字列全体が数値でなければ既定値に落ちる（`Width` なら 0 になり [uSkinLoader.pas:356-357](../src/view/uSkinLoader.pas#L356) の `raise` で弾かれる）ため、asset-editor では「動く」skin が実機では起動時エラーになるケースがありうる
+- `EditorFields.describeSection`（[editorFields.js:115](../asset-editor/js/editorFields.js#L115)）のセクション名判定は大文字小文字を区別する `===`/`endsWith` だが、実機の `TMemIniFile` はセクション名の大文字小文字を区別しない。`[generalcompact]` のような大小文字違いは実機では正常に読み込まれるのに、GUI エディタ側では「認識できないセクション」として編集フォームが出ない
+- enum 系の `<select>` 描画（[index.html:1080](../asset-editor/index.html#L1080)）は `raw` が空のときだけ `field.options[0]` にフォールバックし、`Kind=xyz` のような「値はあるが無効」なケースでは選択肢が空欄のまま表示される
+
+いずれも JS 側の該当関数を実機の判定ロジックに合わせて直す（`readInteger` は全体一致の正規表現チェックを追加、セクション名比較は小文字化して比較、enum フォールバックは「一致する `option` が無いとき」も対象にする）。
+
+## 14. tools/gen_vintage.py: ハウジング全体を毎フレーム再描画している非効率の解消
+
+`/code-review` で確認。`build_meter_strip`（[gen_vintage.py:323](../tools/gen_vintage.py#L323)）は `NEEDLE_FRAMES`（64）回のループ（[gen_vintage.py:329](../tools/gen_vintage.py#L329)）ごとに `draw_meter_case`（[gen_vintage.py:173](../tools/gen_vintage.py#L173)）を呼び直しており、針以外（ケース・ベベル・文字盤・目盛り・ラベル）は全64コマで不変にもかかわらず毎回描き直している。特に `add_inset_shadow`（[gen_vintage.py:124-145](../tools/gen_vintage.py#L124)）はピクセル単位の Python ループで、64コマ×12メーター分（本来12回で済む処理を768回）実行している計算になり、このスクリプトの実行時間の大半を占めていると見られる。
+
+- ハウジング（ケース＋ベベル＋文字盤＋シャドウ＋目盛り＋ラベル）を1メーターにつき1回だけ描画してベース画像として保持し、64フレームぶんはそのコピーへ針だけを合成する形に変更する。
+
+## 15. layout.cfg の重複キー処理方針を JS/Delphi 間で確定する
+
+`/code-review` で確認（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` の「既知の未解決事項」[:48-50](../docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md#L48) に既に記録済みの項目を、この計画にもタスクとして残す）。`asset-editor/js/cfgModel.js` の `findDuplicateKeys`（[cfgModel.js:179](../asset-editor/js/cfgModel.js#L179)）は同一セクション内のキー重複を「先勝ち」として扱う一方、`src/view/uSkinLoader.pas` 側は重複キー自体を検出しておらず `TMemIniFile.ReadString` の生の挙動（先勝ちか後勝ちか未確認）に委ねている。スキン作者が誤ってキーを重複させた場合、asset-editor のプレビューと実機 DiskLED.exe とで異なる値が採用されうる。
+
+- 実機（RAD Studio IDE）で `TMemIniFile.ReadString` の重複キー挙動を確認し、`cfgModel.js` の方針をそれに合わせるか、いっそ重複キーをハードエラー（読み込み拒否）にして両実装の解釈が分岐する余地自体を無くすかを決める。

@@ -106,6 +106,12 @@ type
     FHasTrayLedState2: Boolean;
     FActivateMsg: Cardinal;
     FTrayClickDelay: TTimer;
+    { Independent from FTrayClickDelay so a click on one tray icon can never
+      arm/cancel the other's pending single-click (they used to share one
+      timer via the same TrayClick/TrayDblClick handlers, which let a quick
+      double-click on FTray2 silently swallow a pending single-click on
+      FTray, or vice versa). Created lazily alongside FTray2. }
+    FTrayClickDelay2: TTimer;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
@@ -155,6 +161,9 @@ type
     procedure TrayDblClick(Sender: TObject);
     procedure TrayClick(Sender: TObject);
     procedure TrayClickDelayTick(Sender: TObject);
+    procedure TrayDblClick2(Sender: TObject);
+    procedure TrayClick2(Sender: TObject);
+    procedure TrayClickDelayTick2(Sender: TObject);
     procedure TrayBalloonClick(Sender: TObject);
     procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMNCHitTest(var Message: TWMNCHitTest); message WM_NCHITTEST;
@@ -1322,8 +1331,12 @@ begin
     FTray2 := TTrayIcon.Create(Self);
     FTray2.Hint := 'DiskLED';
     FTray2.PopupMenu := FPopup;
-    FTray2.OnDblClick := TrayDblClick;
-    FTray2.OnClick := TrayClick;
+    FTray2.OnDblClick := TrayDblClick2;
+    FTray2.OnClick := TrayClick2;
+    FTrayClickDelay2 := TTimer.Create(Self);
+    FTrayClickDelay2.Enabled := False;
+    FTrayClickDelay2.Interval := GetDoubleClickTime;
+    FTrayClickDelay2.OnTimer := TrayClickDelayTick2;
   end;
   FTray2.Visible := True;
 end;
@@ -1643,6 +1656,30 @@ end;
 procedure TMainForm.TrayClickDelayTick(Sender: TObject);
 begin
   FTrayClickDelay.Enabled := False;
+  ShowDashboard;
+end;
+
+{ FTray2's own click/double-click/timer handlers, kept fully independent of
+  FTray's (see FTrayClickDelay2's declaration comment). }
+
+procedure TMainForm.TrayDblClick2(Sender: TObject);
+begin
+  FTrayClickDelay2.Enabled := False;
+  if (FSettings <> nil) and FSettings.WindowHidden then
+    LeaveTrayOnly
+  else
+    BringWindowForward;
+end;
+
+procedure TMainForm.TrayClick2(Sender: TObject);
+begin
+  FTrayClickDelay2.Enabled := False;
+  FTrayClickDelay2.Enabled := True;
+end;
+
+procedure TMainForm.TrayClickDelayTick2(Sender: TObject);
+begin
+  FTrayClickDelay2.Enabled := False;
   ShowDashboard;
 end;
 
