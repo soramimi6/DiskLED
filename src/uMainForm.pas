@@ -105,6 +105,7 @@ type
     FTrayLedOn2: Boolean;
     FHasTrayLedState2: Boolean;
     FActivateMsg: Cardinal;
+    FTrayClickDelay: TTimer;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
@@ -152,6 +153,8 @@ type
     procedure miUpdateClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure TrayDblClick(Sender: TObject);
+    procedure TrayClick(Sender: TObject);
+    procedure TrayClickDelayTick(Sender: TObject);
     procedure TrayBalloonClick(Sender: TObject);
     procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMNCHitTest(var Message: TWMNCHitTest); message WM_NCHITTEST;
@@ -423,6 +426,11 @@ begin
   FUpdateDelay.Enabled := False;
   FUpdateDelay.Interval := 5000;
   FUpdateDelay.OnTimer := UpdateDelayTick;
+
+  FTrayClickDelay := TTimer.Create(Self);
+  FTrayClickDelay.Enabled := False;
+  FTrayClickDelay.Interval := GetDoubleClickTime;
+  FTrayClickDelay.OnTimer := TrayClickDelayTick;
   { Menu item starts hidden (BuildPopup's default) and stays that way until
     this session's own check confirms a newer version via
     ApplyUpdateCheckResult -> SyncUpdateMenu. Do not call SyncUpdateMenu here:
@@ -452,6 +460,7 @@ begin
   FTray.Hint := 'DiskLED';
   FTray.PopupMenu := FPopup;
   FTray.OnDblClick := TrayDblClick;
+  FTray.OnClick := TrayClick;
   FTray.OnBalloonClick := TrayBalloonClick;
   FTray.Visible := True;
 end;
@@ -1314,6 +1323,7 @@ begin
     FTray2.Hint := 'DiskLED';
     FTray2.PopupMenu := FPopup;
     FTray2.OnDblClick := TrayDblClick;
+    FTray2.OnClick := TrayClick;
   end;
   FTray2.Visible := True;
 end;
@@ -1615,10 +1625,25 @@ end;
 
 procedure TMainForm.TrayDblClick(Sender: TObject);
 begin
+  FTrayClickDelay.Enabled := False;
   if (FSettings <> nil) and FSettings.WindowHidden then
     LeaveTrayOnly
   else
     BringWindowForward;
+end;
+
+procedure TMainForm.TrayClick(Sender: TObject);
+begin
+  { Deferred so the first click of a double-click doesn't also open the
+    dashboard: TrayDblClick cancels this timer before it fires. }
+  FTrayClickDelay.Enabled := False;
+  FTrayClickDelay.Enabled := True;
+end;
+
+procedure TMainForm.TrayClickDelayTick(Sender: TObject);
+begin
+  FTrayClickDelay.Enabled := False;
+  ShowDashboard;
 end;
 
 procedure TMainForm.ShowAppPopup(AX, AY: Integer);
