@@ -1,6 +1,6 @@
 # ブランチ・PR 運用ルール
 
-DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI 無しのプロジェクト。レビュー担当がいない代わりに、PR ごとに `/code-review`（`ultra`はコストが高すぎるので本当に必要な場面でしか使わない）を通すことをレビューゲートとする。
+DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI 無しのプロジェクト。レビュー担当がいない代わりに、`/code-review` を通すことをレビューゲートとする。対象範囲・effort レベルの運用ルールは [REVIEW.md](../REVIEW.md) を参照（`work/...` 単位は `low`、`feature/x.y.z` へのバッチレビューは `medium`、リリース直前の最終レビューのみ `high`。`ultra` はコストが高いため本当に必要な場面でしか使わない）。
 
 ## ブランチ構成
 
@@ -20,7 +20,7 @@ DiskLED は単独メンテナ・GitHub ホスト（`soramimi6/DiskLED`）・CI �
 2. その項目の「実装プラン」（`PLANNED-x.y.z.md` 内）に沿って実装する
 3. **ビルド確認**: 開発機の Delphi は Community Edition の場合 CLI ビルド不可のことがある。その場合は実装者が RAD Studio IDE で Win64 Release をビルドし、コンパイルが通ることを確認してから次へ進む（PR 前に必ず 1 回）
 4. `work/...` → `feature/x.y.z` 宛てに PR を作る。タイトルは下記「PR タイトル」のフォーマットに従う。説明文は対応する `PLANNED-x.y.z.md` の項番リンクのみで簡潔に（what/why の本文は squash merge 時のコミットメッセージ側が正本になるため、ここで二重に書かない）
-5. `/code-review`（規模が大きい・リスクが高い項目は `/code-review ultra`）を通し、指摘を反映する
+5. `/code-review`（effort レベルは [REVIEW.md](../REVIEW.md) を参照。`work/...` 単位なら `low`）を通し、指摘を反映する。個別に通さず `feature/x.y.z` へのバッチレビュー（`medium`）にまとめて回してもよい
 6. **squash merge** で `feature/x.y.z` に取り込み、`work/...` ブランチは削除する。GitHub の squash merge ダイアログは既定でブランチ内の各コミットメッセージを箇条書き連結するので、確定前に下記フォーマットへ手動で書き直す
 7. 誤字修正やドキュメントのみの変更など、番号付き項目に対応しない軽微な修正は PR を作らず `feature/x.y.z` へ直接コミットしてよい
 
