@@ -9,7 +9,7 @@
 - **Network** in/out LEDs and speed bars (sum of real NICs; VPN/loopback-style adapters are excluded when possible)
 - **Ping** shown in four levels (OK / fair / slow / timeout)
 - **Display modes**: Original / Crystal / Metalic / Info Bar / Vintage
-- Original / Metalic full view includes history graphs (**measured values**, peak in each update interval; not the meter coast). Original uses bars; Metalic uses a line. Switching network linear/log clears the graph. Crystal and Info Bar stay compact-only. Vintage has a full view but no history graph
+- Original / Metalic full view includes history graphs (**measured values**, peak in each update interval; not the meter coast). Original uses bars; Metalic uses a line. Switching network linear/log clears the graph. Crystal stays compact-only. Info Bar and Vintage have a full view but no history graph
 - **Always-on-top** and drag-to-move
 - Hover the window (or tray) for a tooltip with **version, usage, Disk/Net I/O, and Ping (target and RTT)**
 - **Single instance** (a second launch focuses the existing window and exits)
@@ -21,6 +21,12 @@
 - **View Trace Route** (3.1.1): opens a dedicated window from the right-click menu showing the route to the target hop by hop (TTL, IP, hostname, RTT). Hostname lookups run asynchronously
 - **Task Tray** (3.1.1): a third display size alongside Compact and Full. Hides the gadget window and turns the notification-area icon into a disk-activity LED
 - **Display mode "Vintage"** (3.1.2): an analog VU-meter style skin. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 8 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / SND). Disk and Net meters include an activity lamp
+- **Display scale** (3.2.0): pick the gadget's own zoom level from the right-click menu's "Display scale" submenu. Default is Automatic (follows screen DPI); can also be fixed at 100% / 150% / 200% (the dashboard is unaffected and always follows the real DPI)
+- **UI language** (3.2.0): choose the UI language in Options — Auto (default) / Japanese / English. Takes effect on the next launch
+- **GPU usage on the dashboard** (3.2.0): shares the CPU card (outer ring = CPU, inner ring = GPU, two history lines). On multi-GPU systems, shows the busiest GPU's usage
+- **Reworked task tray** (3.2.0): the display menu is now a 3-way choice of "Window only / Window + tray LED / Tray LED only", so the tray LED can stay lit while the window is also shown. The tray LED color can be green, blue, or red. Disk and network activity can be shown at the same time as two separate tray icons
+- **Asset Editor** (3.2.0): a browser-based skin editor bundled in `asset-editor/`. Its text and GUI editors for `layout.cfg` stay in sync in real time, with a live preview matching the real app's look, for creating and tweaking your own display modes. See [SKIN_GUIDE.md](SKIN_GUIDE.md)
+- **Reworked Options dialog** (3.2.0): reorganized into four tabs (General / Display / Tray LED / Ping & Network), with colors that follow Windows' light/dark app mode
 
 ## Display modes
 
@@ -31,13 +37,13 @@ Built-in looks only. User-installed legacy skins (`.dla`) are not supported.
 | **Original** | System Analog Meter II (sam2) compact | 240×34 | Yes |
 | **Crystal** | Mac OS X–style (MacX) | 192×14 | Yes |
 | **Metalic** | xsrv SkinS | 256×24 | No (rectangular) |
-| **Info Bar** | New for DiskLED 3 | 531×16 | No (rectangular) |
+| **Info Bar** | New for DiskLED 3 | 285×16 (full 531×16) | No (rectangular) |
 | **Vintage** | New for DiskLED 3 | 232×32 (full 370×32) | Yes |
 
 - Original uses full background `Original_FullBase.png` with `[ModeFull]` / `[Graph]` (left double-click toggles). Network LEDs are separate In / Out. 64-frame analog meters. History graphs are bars
 - Crystal has no full layout (compact only). CPU / memory level bars use 32 frames
 - Metalic uses `Metalic_FullBase.bmp` plus graphs (left double-click toggles). History graphs are a line
-- Info Bar has no full layout (compact only). CPU / memory / SWAP / disk read·write / network in·out / playback volume L / R are horizontal LED bars (21 frames). No activity LEDs
+- Info Bar's compact and full views are both centered on horizontal LED bars, toggled by left double-click (full added in 3.2.0). Full shows CPU / memory / SWAP / disk read·write / network in·out / playback volume L / R, all as horizontal LED bars (21 frames), with no activity LEDs. Compact trims that down to a CPU bar, Ping, and playback volume L / R bars, plus 2-frame activity LEDs for disk read·write and network in·out (green = read/in, red = write/out)
 - Vintage is an analog (moving-coil) VU-meter style. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 8 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / SND), toggled by left double-click. DiskIO / NetIO needles show the larger of read/write (in/out). Disk- and Net-family meters include an activity lamp. No history graph
 
 ## Monitoring model

@@ -4,6 +4,19 @@
 
 Newest first. User-facing summary only; implementation detail lives in `docs/DESIGN.md`.
 
+## 3.2.0
+
+Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
+
+- **Manual display scale for the gadget itself**. Added a "Display scale" submenu to the right-click menu: the default stays Automatic (follows screen DPI), or pick a fixed 100% / 150% / 200% (the dashboard is unaffected and always follows the real DPI)
+- **Manual UI language selection** in Options (Auto / Japanese / English). Takes effect on the next launch
+- **Added GPU usage to the dashboard**, sharing the CPU card (outer ring = CPU, inner ring = GPU, two history lines). On multi-GPU systems, shows the busiest GPU's usage
+- **Reworked the task tray**. The display menu is now a 3-way choice of "Window only / Window + tray LED / Tray LED only", so the tray LED can stay lit while the window is also shown. The tray LED color can now be green, blue, or red. Disk and network activity can be shown at the same time as two separate tray icons
+- **Added a browser-based skin editor, "Asset Editor"** (bundled in `asset-editor/`). Its text and GUI editors for `layout.cfg` stay in sync in real time, with a live preview matching the real app's look, for creating and tweaking your own display modes. See the bundled `SKIN_GUIDE.md` for usage
+- **Added a full view to the "Info Bar" display mode**. Full shows what the old compact view used to (CPU/memory/SWAP bars, disk/network speed bars, Ping, volume bars); compact was redesigned to a slimmer layout (narrower width) with a CPU bar, Ping, volume bars, and simple disk/network activity LEDs in place of the speed bars
+- Fixed a bug where, at high display scales (200% etc.), the dashboard window couldn't be resized down to fit the screen. Also tightened the spacing on the power card
+- Reorganized the Options dialog into four tabs (General / Display / Tray LED / Ping & Network) and made its colors follow Windows' light/dark app mode
+
 ## 3.1.2
 
 **If you use the Microsoft Store version**: "Run at Windows startup" now works correctly. Previously, turning it on did not actually register the app. Please turn it off and back on once to pick up the fix.

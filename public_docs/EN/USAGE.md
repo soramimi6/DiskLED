@@ -18,7 +18,7 @@
 |--------|--------|
 | Left-drag | Move the window |
 | Hover | Tooltip with version, CPU / MEM / SWP, Disk / Net I/O, and Ping (target and RTT). Updates about once per second |
-| Left double-click | Compact ⇄ full (Original / Metalic / Vintage; no-op on Crystal / Info Bar) |
+| Left double-click | Compact ⇄ full (Original / Metalic / Vintage / Info Bar; no-op on Crystal) |
 | Right-click | Popup menu |
 
 The window is a tool window and usually does not appear on the taskbar (resident-gadget style).
@@ -30,25 +30,40 @@ The window is a tool window and usually does not appear on the taskbar (resident
 | Original / Crystal / Metalic / Info Bar / Vintage | Switch display mode (exclusive) |
 | Compact / コンパクト | Compact view (always available) |
 | Full / フル | Full view (enabled only when the mode defines full layout) |
-| Task Tray / タスクトレイ | Switch display size to the task tray (exclusive with Compact/Full; available for every mode). See [Task Tray](#task-tray) |
+| Display Scale / 表示倍率 | Submenu: exclusive choice of Auto (default) / 100% / 150% / 200%. Only affects the gadget's own zoom; the dashboard is unaffected |
+| Window Only / ウィンドウのみ | Shows the main window; the tray LED stays off (one of a 3-way exclusive choice — see [Task Tray](#task-tray)) |
+| Window + Tray LED / ウィンドウ＋トレイ LED | Shows the main window while the tray LED also lights up |
+| Tray LED Only / トレイ LED のみ | Hides the main window and lights up only the tray LED (the old "Task Tray") |
 | Dashboard / ダッシュボード | Separate window with left and right columns. Remembers position, size, and maximized state. Reopens on next launch if it was open at exit |
 | View Trace Route / Ping 結果表示 | Show the route (Tracert) results in a dedicated window. See [View Trace Route](#view-trace-route) |
-| Options / オプション | Always-on-top, startup, check for a new version at startup, fps, graph rate, network speed response (linear / log), Ping settings |
-| Reset Position / 位置をリセット | Move the main window back on-screen and bring it forward. Recovery for a window stuck off-screen; also works while in task tray size, restoring compact/full |
+| Options / オプション | Always-on-top, startup, UI language, check for a new version at startup, fps, graph rate, network speed response (linear / log), tray LED color/info, Ping settings. Four tabs: General / Display / Tray LED / Ping & Network |
+| Reset Position / 位置をリセット | Move the main window back on-screen and bring it forward. Recovery for a window stuck off-screen; also works while the tray LED only is showing, restoring the window |
 | View DiskLED 3.x.x release info / 新しい DiskLED 3.x.x の情報を見る | Shown above Exit only when a newer stable release exists. Click opens that GitHub release page (stays until you install it). The tray balloon is once per version |
 | Exit / 終了 | Quit the app |
 
-Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese). The right-click menu is the same from the tray icon and from the window, regardless of display size (Compact / Full / Task Tray). Hovering the tray shows the same tooltip as the window (version, usage, I/O, Ping).
+Menu captions follow the OS UI language (**English by default**; Japanese only when OS UI is Japanese — or fix either one from Options' Language setting). The right-click menu is the same from the tray icon and from the window, regardless of display state (Compact/Full, Window Only/Window + Tray LED/Tray LED Only). Hovering the tray shows the same tooltip as the window (version, usage, I/O, Ping).
 
 ## Task Tray
 
-Setting the display size to **Task Tray** from the right-click menu hides the main window (the app keeps running). The notification-area icon itself lights up or goes dark instead, tracking whether the disk is being read from or written to (Read and Write are not distinguished).
+**Window Only / Window + Tray LED / Tray LED Only** on the right-click menu is a 3-way exclusive choice for the main window's visibility and the tray LED, independent of the Compact/Full size.
 
-- Double-click the tray icon, or pick **Compact** / **Full** from the right-click menu, to return to whichever of the two you last used
-- The right-click menu is the same one used in Compact/Full — switching display size or opening the dashboard both still work from it
-- The dashboard is independent of display size: if it was open, it stays open while in task tray size
+- **Window Only** (default): shows only the main window, as before; the tray LED stays off
+- **Window + Tray LED**: shows the main window while the notification-area icon also lights up as a disk/network activity LED
+- **Tray LED Only**: hides the main window (the app keeps running) and lights up only the notification-area icon as an LED
+- Double-click the tray icon, or pick **Window Only** / **Window + Tray LED** from the right-click menu, to bring the window back
+- The right-click menu is the same in every state — switching display or opening the dashboard both still work from it
+- The dashboard is independent of this state: if it was open, it stays open even with only the tray LED showing
 - Storing the icon in the notification area's "hidden icons" tray hides the blinking too (a Windows limitation) — pin it somewhere always visible instead
 - Each display mode ships with its own tray LED art; if a mode is missing it, the tray falls back to the fixed app icon (no LED)
+
+### Tray LED settings (Options)
+
+Set these on the **Tray LED** tab in Options.
+
+| Item | Effect |
+|------|--------|
+| Tray LED Color | Green (default) / Blue / Red, with a preview swatch |
+| Tray LED Info | Independent Disk / Network checkboxes. **Both can be on at once**, which shows two tray icons (one per metric). Both cannot be off at the same time |
 
 ## View Trace Route
 
@@ -63,7 +78,7 @@ Open **View Trace Route** (Japanese UI: **Ping 結果表示**) from the right-cl
 ## Reading the display
 
 - **Meters** — CPU / memory / SWAP usage. Rise is snappy; fall has a short coast (varies by display mode)
-- **LEDs** — disk R/W and network activity (Original: separate In / Out; Crystal and others may also show a combined activity LED). Info Bar has no activity LEDs; throughput is shown as horizontal LED bars
+- **LEDs** — disk R/W and network activity (Original: separate In / Out; Crystal and others may also show a combined activity LED). Info Bar's full view has no activity LEDs (throughput is shown as horizontal LED bars instead), but its compact view does show activity LEDs (green = read/in, red = write/out)
 - **Speed bars** — instantaneous throughput. Disk is auto-sense linear; network is linear or logarithmic in Options (same rise/fall ballistics as meters)
 - **Ping** — four-level frame/lamp (look varies by mode)
 - **Volume** — Info Bar only: playback peak L / R as horizontal LED bars (separate from the dashboard power subsection)
@@ -77,7 +92,7 @@ Open **Dashboard** from the right-click menu. Region names:
 ```
 DISKLED HUD (header)
 + Left column
-| + CPU / memory / SWAP / disk / network sections
+| + CPU (shares its card with GPU) / memory / SWAP / disk / network sections
 |     donut graph (about 5 times per second) | history graph (about 5 minutes, updated every second while open)
 + Right column
   + CPU subsection — name, cores (C/T), clock (current and max when they differ), user/kernel
@@ -87,6 +102,7 @@ DISKLED HUD (header)
   + Ping — latest RTT/target plus a time / target / RTT / status history (up to 5 rows, newest first)
 ```
 
+- The CPU section's outer ring is CPU and inner ring is GPU (two history lines, distinguished by the legend). On multi-GPU systems, shows the busiest GPU's usage
 - The disk section combines read (outer ring) and write (inner ring); both history traces are solid lines, distinguished by color and the legend. Network in/out is the same
 - Numbers in the donut update once per second. Only the rings and volume bars follow about 5 times per second
 - CPU / memory / SWAP history graphs fill under the line with a lighter wash of the line color. Disk / network are lines only, because the traces overlap
@@ -99,16 +115,38 @@ DISKLED HUD (header)
 
 ## Options
 
-Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply** (Cancel discards).
+Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply** (Cancel discards). Four tabs: **General / Display / Tray LED / Ping & Network**, colored to follow Windows' light/dark app mode.
+
+### General
 
 | Item | Effect |
 |------|--------|
 | Always on top | Gadget window only (on by default). Does not apply to the dashboard |
 | Run at Windows startup | Starts at logon. The GitHub edition writes the Run key on Apply and on a normal exit. The Microsoft Store edition uses Windows' startup task mechanism (`windows.startupTask`); if it has been disabled from outside the app (Windows Startup Apps settings or policy), the checkbox becomes read-only and shows that state |
 | Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item. Not shown on the Microsoft Store build, which updates automatically via the Store. **Do not run the Store edition and the GitHub edition (installer/zip) side by side** |
+| Language | Auto (default) / Japanese / English. **Takes effect on the next launch** |
+
+### Display
+
+| Item | Effect |
+|------|--------|
 | Refresh rate (fps) | 10 / 15 (default) / 20. No redraw while sprite frames stay the same |
 | Graph update (Hz) | 0.5 / 1 (default) / 2 for Original / Metalic **full-view** history. Dashboard history is always 1 second |
 | Network speed response | Linear (link speed = 100%, default) or logarithmic. Switching clears gadget and dashboard network history |
+
+The gadget's own zoom level is set from the right-click menu's **Display Scale** submenu, not from this tab.
+
+### Tray LED
+
+| Item | Effect |
+|------|--------|
+| Tray LED Color | Green (default) / Blue / Red, with a preview swatch |
+| Tray LED Info | Independent Disk / Network checkboxes. Both can be on at once (shows two tray icons). Both cannot be off at the same time |
+
+### Ping & Network
+
+| Item | Effect |
+|------|--------|
 | Enable Ping | Off stops periodic ICMP |
 | Use default gateway | Host field is read-only when on |
 | Ping host | Default `mg6.jp` (when gateway is off) |
