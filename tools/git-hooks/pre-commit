@@ -1,0 +1,27 @@
+#!/bin/sh
+# Keeps public_docs/images/skins/*.png in sync with assets/ automatically:
+# whenever a commit touches anything under assets/, regenerate the skin
+# gallery sample images (tools/render_skin_gallery.py) and stage the result
+# in the same commit, so the samples in public_docs/SKIN_GALLERY.md can
+# never silently drift from the shipped skin art.
+#
+# Not wired up automatically -- this repo has no CI (see docs/CONTRIBUTING.md),
+# so each machine enables it once with:
+#   git config core.hooksPath tools/git-hooks
+#
+# Best-effort only: if no working Python is found, this warns and lets the
+# commit proceed rather than blocking it (regenerate manually in that case).
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -q '^assets/'; then
+  exit 0
+fi
+
+for PY in python py python3; do
+  if command -v "$PY" >/dev/null 2>&1 && "$PY" -c "import PIL" >/dev/null 2>&1; then
+    "$PY" tools/render_skin_gallery.py >/dev/null && git add public_docs/images/skins
+    exit 0
+  fi
+done
+
+echo "warning: assets/ changed but no working Python (with Pillow) was found to refresh public_docs/images/skins/ -- run 'python tools/render_skin_gallery.py' manually and amend." >&2
+exit 0

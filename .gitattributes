@@ -1,0 +1,4 @@
+# Git hook scripts run via /bin/sh; a CRLF shebang line breaks them on
+# checkout when core.autocrlf converts text files to CRLF. Force LF
+# regardless of the checking-out machine's autocrlf setting.
+tools/git-hooks/* text eol=lf

@@ -111,6 +111,16 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
 `asset-editor/js/skinLoader.js` は `src/view/uSkinLoader.pas` の検証ロジック（`Read*` 系ヘルパー）を JS に移植したもので、実質的な二重実装になっている。**`uSkinLoader.pas` の `Read*` 系ヘルパーに変更を加えたら、`asset-editor/js/skinLoader.js` の対応するロジックも必ず追従改修すること。** CI が無いため機械照合はできず、`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md`（fixture は `tools/asset-editor-fixtures/`）を使って人力で照合する。追従を怠ると「asset-editor では通るのに実機の DiskLED.exe では弾かれる」という信頼性の欠陥を生む。
 
+## スキンギャラリーの自動更新
+
+`public_docs/SKIN_GALLERY.md`（JA+EN）のサンプル画像（`public_docs/images/skins/*.png`）は `tools/render_skin_gallery.py`（Pillow）が実アセットと `layout.cfg` から機械生成する。CI が無いため、各自の作業マシンで一度だけ次を実行し、`assets/` を含むコミットのたびに自動再生成されるようにする:
+
+```
+git config core.hooksPath tools/git-hooks
+```
+
+これで `tools/git-hooks/pre-commit` が有効になり、コミット対象に `assets/` 配下の変更が含まれるときだけ画像を再生成してコミットへ含める（動作に無関係な変更なら画像は差分無しのまま）。Python（Pillow込み）が見つからない場合は警告を出すだけでコミットは止めない。ベストエフォートのため、`SKIN_GALLERY.md` 本文の説明文（特徴・メーター構成）はこの仕組みでは更新されず、スキンの見た目や構成が変わったときは手動で見直す。
+
 ## 備考
 
 - CI が無いため、`/code-review` を通す・実機での目視確認（UI 変更時）を都度行うことが唯一の品質担保になる。省略しない

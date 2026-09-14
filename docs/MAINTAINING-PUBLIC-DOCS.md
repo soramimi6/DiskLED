@@ -23,6 +23,7 @@
 | `CREDITS.md` | `EN/CREDITS.md` |
 | `CHANGELOG.md` | `EN/CHANGELOG.md` |
 | `SKIN_GUIDE.md` | `EN/SKIN_GUIDE.md` |
+| `SKIN_GALLERY.md` | `EN/SKIN_GALLERY.md` |
 
 ## 文書の役割
 
@@ -47,6 +48,7 @@
 | 非対応機能・注意・プライバシー | `NOTES` |
 | クレジット・スキン由来 | `CREDITS` |
 | asset-editor の画面・操作・layout.cfg 仕様の変更 | `SKIN_GUIDE` |
+| 同梱スキンの追加・見た目やメーター構成の変更 | `SKIN_GALLERY`（サンプル画像の再生成を含む）・`FEATURES` |
 | リリース版の確定 | `CHANGELOG`（実装済み／未実装を整理し、版番号を切る） |
 
 実装が設計より遅れている場合は、`CHANGELOG` の「実装済み／未実装」と `USAGE` のメニュー表を**実装に合わせて正直に**書く。製品ビジョン（MVP）は FEATURES に、現状は CHANGELOG / USAGE に分ける。
