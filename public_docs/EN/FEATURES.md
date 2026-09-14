@@ -20,7 +20,7 @@
 - **New version notice** (3.1.0): one GitHub Releases Latest check at startup. A newer stable release gets a tray balloon once per version, and a right-click item above Exit (**View DiskLED 3.x.x release info**) until you install it. Click opens that release page in the browser (no download or self-update; can be turned off in Options; not performed at all on the Microsoft Store build, which updates through the Store instead)
 - **View Trace Route** (3.1.1): opens a dedicated window from the right-click menu showing the route to the target hop by hop (TTL, IP, hostname, RTT). Hostname lookups run asynchronously
 - **Task Tray** (3.1.1): a third display size alongside Compact and Full. Hides the gadget window and turns the notification-area icon into a disk-activity LED
-- **Display mode "Vintage"** (3.1.2): an analog VU-meter style skin. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 8 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / SND). Disk and Net meters include an activity lamp
+- **Display mode "Vintage"** (3.1.2; full volume meter became stereo in 3.2.0): an analog VU-meter style skin. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 9 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / L / R stereo volume). Disk and Net meters include an activity lamp
 - **Display scale** (3.2.0): pick the gadget's own zoom level from the right-click menu's "Display scale" submenu. Default is Automatic (follows screen DPI); can also be fixed at 100% / 150% / 200% (the dashboard is unaffected and always follows the real DPI)
 - **UI language** (3.2.0): choose the UI language in Options — Auto (default) / Japanese / English. Takes effect on the next launch
 - **GPU usage on the dashboard** (3.2.0): shares the CPU card (outer ring = CPU, inner ring = GPU, two history lines). On multi-GPU systems, shows the busiest GPU's usage
@@ -38,13 +38,13 @@ Built-in looks only. User-installed legacy skins (`.dla`) are not supported.
 | **Crystal** | Mac OS X–style (MacX) | 192×14 | Yes |
 | **Metalic** | xsrv SkinS | 256×24 | No (rectangular) |
 | **Info Bar** | New for DiskLED 3 | 285×16 (full 531×16) | No (rectangular) |
-| **Vintage** | New for DiskLED 3 | 232×32 (full 370×32) | Yes |
+| **Vintage** | New for DiskLED 3 | 232×32 (full 416×32) | Yes |
 
 - Original uses full background `Original_FullBase.png` with `[ModeFull]` / `[Graph]` (left double-click toggles). Network LEDs are separate In / Out. 64-frame analog meters. History graphs are bars
 - Crystal has no full layout (compact only). CPU / memory level bars use 32 frames
 - Metalic uses `Metalic_FullBase.bmp` plus graphs (left double-click toggles). History graphs are a line
 - Info Bar's compact and full views are both centered on horizontal LED bars, toggled by left double-click (full added in 3.2.0). Full shows CPU / memory / SWAP / disk read·write / network in·out / playback volume L / R, all as horizontal LED bars (21 frames), with no activity LEDs. Compact trims that down to a CPU bar, Ping, and playback volume L / R bars, plus 2-frame activity LEDs for disk read·write and network in·out (green = read/in, red = write/out)
-- Vintage is an analog (moving-coil) VU-meter style. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 8 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / SND), toggled by left double-click. DiskIO / NetIO needles show the larger of read/write (in/out). Disk- and Net-family meters include an activity lamp. No history graph
+- Vintage is an analog (moving-coil) VU-meter style. Compact shows 5 meters (CPU / MEM / DiskIO / NetIO / SND); full shows 9 (CPU / MEM / SWP / DiskRead / DiskWrite / NetIn / NetOut / L / R stereo volume), toggled by left double-click. DiskIO / NetIO needles show the larger of read/write (in/out). Disk- and Net-family meters include an activity lamp. No history graph
 
 ## Monitoring model
 

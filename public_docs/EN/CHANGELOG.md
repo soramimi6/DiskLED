@@ -15,6 +15,7 @@ Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 - **Added a browser-based skin editor, "Asset Editor"** (bundled in `asset-editor/`). Its text and GUI editors for `layout.cfg` stay in sync in real time, with a live preview matching the real app's look, for creating and tweaking your own display modes. See the bundled `SKIN_GUIDE.md` for usage
 - **Added a full view to the "Info Bar" display mode**. Full shows what the old compact view used to (CPU/memory/SWAP bars, disk/network speed bars, Ping, volume bars); compact was redesigned to a slimmer layout (narrower width) with a CPU bar, Ping, volume bars, and simple disk/network activity LEDs in place of the speed bars
 - Fixed a bug where, at high display scales (200% etc.), the dashboard window couldn't be resized down to fit the screen. Also tightened the spacing on the power card
+- Lightened the "Vintage" display mode's tick marks and labels a bit to make the needle easier to see, and changed its full view's volume meter from mono to stereo (L / R)
 - Reorganized the Options dialog into four tabs (General / Display / Tray LED / Ping & Network) and made its colors follow Windows' light/dark app mode
 
 ## 3.1.2

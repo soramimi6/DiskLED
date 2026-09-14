@@ -45,6 +45,10 @@ Desktop.ini
 .DS_Store
 *.code-workspace
 
+# Python (tools/gen_vintage.py)
+__pycache__/
+*.pyc
+
 # Build / packages
 *.zip
 *.7z
