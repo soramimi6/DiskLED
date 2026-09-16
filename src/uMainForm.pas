@@ -86,6 +86,11 @@ type
     FHasDashboardPushTick: Boolean;
     FDashboardForm: TDashboardForm;
     FTraceRouteForm: TTraceRouteForm;
+    { Set around TOptionsForm.Execute's ShowModal call: that dialog is an
+      owned, non-topmost window, so PollStayOnTop must not re-assert
+      HWND_TOPMOST on the (disabled-while-modal) main form while it's up,
+      or it would bury the dialog behind it. }
+    FOptionsOpen: Boolean;
     FMiUpdate: TMenuItem;
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
@@ -850,6 +855,13 @@ begin
   if (FSettings = nil) or (not FSettings.StayOnTop) or FDragging or
     FClosing or (not HandleAllocated) then
     Exit;
+  { Options/Dashboard/TraceRoute are owned windows that never set FormStyle
+    themselves. Re-asserting HWND_TOPMOST on the main form while one of them
+    is open would bury it behind the (possibly disabled) main form, since
+    SetWindowPos doesn't re-elevate an already-open owned window for us. }
+  if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) or
+    ((FTraceRouteForm <> nil) and FTraceRouteForm.Visible) then
+    Exit;
   NowTick := GetTickCount;
   if FHasTopMostTick and (NowTick - FLastTopMostTick < ReassertIntervalMs) then
     Exit;
@@ -1505,10 +1517,18 @@ begin
 end;
 
 procedure TMainForm.miOptionsClick(Sender: TObject);
+var
+  Applied: Boolean;
 begin
   if FSettings = nil then
     Exit;
-  if TOptionsForm.Execute(Self, FSettings) then
+  FOptionsOpen := True;
+  try
+    Applied := TOptionsForm.Execute(Self, FSettings);
+  finally
+    FOptionsOpen := False;
+  end;
+  if Applied then
   begin
     ApplySettingsToUi;
     RefreshTrayIconForState;
