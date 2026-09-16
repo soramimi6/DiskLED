@@ -78,12 +78,19 @@ type
       work area after a DPI change: the taskbar resizes with the new scale and
       its work-area rect can still be stale on the tick the change is seen. }
     FDpiSettleTicks: Integer;
+    FLastTopMostTick: Cardinal;
+    FHasTopMostTick: Boolean;
     FDashboardHistory: TDashboardHistory;
     FDashboardPeak: TDashboardSample;
     FDashboardLastPushTick: Cardinal;
     FHasDashboardPushTick: Boolean;
     FDashboardForm: TDashboardForm;
     FTraceRouteForm: TTraceRouteForm;
+    { Set around TOptionsForm.Execute's ShowModal call: that dialog is an
+      owned, non-topmost window, so PollStayOnTop must not re-assert
+      HWND_TOPMOST on the (disabled-while-modal) main form while it's up,
+      or it would bury the dialog behind it. }
+    FOptionsOpen: Boolean;
     FMiUpdate: TMenuItem;
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
@@ -119,6 +126,7 @@ type
     procedure ResetDashboardPeak;
     procedure ApplyDpiScale;
     procedure PollMonitorDpiChange;
+    procedure PollStayOnTop;
     function ResolveScale100: Integer;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
@@ -386,6 +394,7 @@ begin
   FMonitorDpi := 96;
   FScale100 := 100;
   FDpiSettleTicks := 0;
+  FHasTopMostTick := False;
   ResetGraphPeak;
   ResetDashboardPeak;
   FTimer := TTimer.Create(Self);
@@ -831,6 +840,37 @@ begin
   end;
 end;
 
+procedure TMainForm.PollStayOnTop;
+const
+  ReassertIntervalMs = 2000;
+var
+  NowTick: Cardinal;
+begin
+  { FormStyle=fsStayOnTop (see ApplySettingsToUi) only asserts WS_EX_TOPMOST
+    once, on assignment. Windows can still push this window out of the
+    topmost z-order band later (observed behind browser windows) with no
+    reliable notification back to us, so periodically re-assert its place at
+    the top of that band -- cheap compared to the FormStyle path, which
+    recreates the HWND. }
+  if (FSettings = nil) or (not FSettings.StayOnTop) or FDragging or
+    FClosing or (not HandleAllocated) then
+    Exit;
+  { Options/Dashboard/TraceRoute are owned windows that never set FormStyle
+    themselves. Re-asserting HWND_TOPMOST on the main form while one of them
+    is open would bury it behind the (possibly disabled) main form, since
+    SetWindowPos doesn't re-elevate an already-open owned window for us. }
+  if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) or
+    ((FTraceRouteForm <> nil) and FTraceRouteForm.Visible) then
+    Exit;
+  NowTick := GetTickCount;
+  if FHasTopMostTick and (NowTick - FLastTopMostTick < ReassertIntervalMs) then
+    Exit;
+  FLastTopMostTick := NowTick;
+  FHasTopMostTick := True;
+  SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0,
+    SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE);
+end;
+
 function TMainForm.ResolveScale100: Integer;
 begin
   { Scale = 0 means "automatic" (derive from monitor DPI). A pinned 100/150/200
@@ -1050,6 +1090,7 @@ begin
   if (FCollector = nil) or (FPipeline = nil) then
     Exit;
   PollMonitorDpiChange;
+  PollStayOnTop;
   FCollector.TickPing;
   FPipeline.Update(FCollector.Collect);
 
@@ -1476,10 +1517,18 @@ begin
 end;
 
 procedure TMainForm.miOptionsClick(Sender: TObject);
+var
+  Applied: Boolean;
 begin
   if FSettings = nil then
     Exit;
-  if TOptionsForm.Execute(Self, FSettings) then
+  FOptionsOpen := True;
+  try
+    Applied := TOptionsForm.Execute(Self, FSettings);
+  finally
+    FOptionsOpen := False;
+  end;
+  if Applied then
   begin
     ApplySettingsToUi;
     RefreshTrayIconForState;
