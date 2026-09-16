@@ -8,7 +8,9 @@
 
 項目 **10〜15** は機能項目ではなく、蓄積した変更に対する `/code-review` バッチレビューで見つかった保守性・整合性の指摘を個別タスク化したもの（優先度は低〜中）。着手順・3.2.0 出荷の必須条件には含めない。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **10〜15 は未着手**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
+項目 **16** はユーザー報告により判明した不具合修正で、着手順・3.2.0 出荷の必須条件には含めないが判明時点で即時対応した。
+
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **10〜15 は未着手**。項目 **16 は完了**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -27,6 +29,7 @@
 | 13 | asset-editor の検証ロジックと uSkinLoader.pas の細かい食い違いを解消 | 高 | 低〜中 | **未着手**（`/code-review` で発見） | 中 |
 | 14 | tools/gen_vintage.py のハウジング毎フレーム再描画を解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低 |
 | 15 | layout.cfg の重複キー処理方針を JS/Delphi 間で確定する | 中（実機での `TMemIniFile` 挙動確認が必要） | 低 | **未着手**（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` に既知事項として記録済み、`/code-review` でも再確認） | 中 |
+| 16 | 「常に手前に表示」が他の最前面窓に押し出されたまま戻らない不具合を修正 | 高（原因箇所を特定済み） | 低（フレームタイマーからの定期 `SetWindowPos` 呼び出し） | **完了**（`work/3.2.0-16-stay-on-top-repoll`、IDE ビルド・実機確認済み） | 高（不具合修正） |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
@@ -375,3 +378,10 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 `/code-review` で確認（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` の「既知の未解決事項」[:48-50](../docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md#L48) に既に記録済みの項目を、この計画にもタスクとして残す）。`asset-editor/js/cfgModel.js` の `findDuplicateKeys`（[cfgModel.js:179](../asset-editor/js/cfgModel.js#L179)）は同一セクション内のキー重複を「先勝ち」として扱う一方、`src/view/uSkinLoader.pas` 側は重複キー自体を検出しておらず `TMemIniFile.ReadString` の生の挙動（先勝ちか後勝ちか未確認）に委ねている。スキン作者が誤ってキーを重複させた場合、asset-editor のプレビューと実機 DiskLED.exe とで異なる値が採用されうる。
 
 - 実機（RAD Studio IDE）で `TMemIniFile.ReadString` の重複キー挙動を確認し、`cfgModel.js` の方針をそれに合わせるか、いっそ重複キーをハードエラー（読み込み拒否）にして両実装の解釈が分岐する余地自体を無くすかを決める。
+
+## 16. 「常に手前に表示」が他の最前面窓に押し出されたまま戻らない不具合を修正
+
+ユーザー報告により判明。「常に手前に表示」は `TMainForm.ApplySettingsToUi`（[uMainForm.pas:485-492](../src/uMainForm.pas#L485)）内で `FormStyle := fsStayOnTop` を代入することで実現しているが、これは起動時（`FormCreate`、[uMainForm.pas:406](../src/uMainForm.pas#L406)）とオプション画面で OK を押した時（`miOptionsClick`、[uMainForm.pas:1517-1533](../src/uMainForm.pas#L1517)）の2箇所でしか呼ばれない。他の最前面窓の出現などで Windows 側に最前面バンドから押し出されると、オプションを OFF→ON し直すまで元に戻らなかった。
+
+- `TMainForm.PollStayOnTop`（[uMainForm.pas:838-865](../src/uMainForm.pas#L838)）を追加し、フレームタイマー（`TimerTick`、[uMainForm.pas:1052-1053](../src/uMainForm.pas#L1052)）から毎ティック呼んで、2秒間隔で `SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE)` を再アサートする。`FormStyle` の代入（HWND 再生成を伴う重い操作）ではなく、`uHoverTip.pas:68-69` に前例のある軽量な `SetWindowPos` 呼び出しを踏襲した。WM_DPICHANGED が信頼できないため毎ティック poll している `PollMonitorDpiChange`（[uMainForm.pas:802-832](../src/uMainForm.pas#L802)）と同じ設計パターン。
+- `/code-review` で、オプション画面（モーダル）やダッシュボード／Tracert窓（モードレス）のような、topmost でない owned 窓が開いている間もこの再アサートが走ると、それらの窓がメイン窓の背後に埋もれる不具合を指摘された。`FOptionsOpen` フラグ（`miOptionsClick` で `ShowModal` 前後にセット）と `FDashboardForm`/`FTraceRouteForm` の `Visible` チェックを `PollStayOnTop` の先頭ガードに追加し、これらが開いている間は再アサートをスキップするよう対応済み。
