@@ -30,7 +30,7 @@
 | 12 | asset-editor の Blob URL 未解放（メモリリーク）を解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低〜中 |
 | 13 | asset-editor の検証ロジックと uSkinLoader.pas の細かい食い違いを解消 | 高 | 低〜中 | **未着手**（`/code-review` で発見） | 中 |
 | 14 | tools/gen_vintage.py のハウジング毎フレーム再描画を解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低 |
-| 15 | layout.cfg の重複キー処理方針を JS/Delphi 間で確定する | 中（実機での `TMemIniFile` 挙動確認が必要） | 低 | **未着手**（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` に既知事項として記録済み、`/code-review` でも再確認） | 中 |
+| 15 | layout.cfg の重複キー処理方針を JS/Delphi 間で確定する | 高（`System.IniFiles.pas` 実ソースで確認済み） | 低（両実装とも先勝ちで一致、コード変更不要） | **完了**（`System.IniFiles.pas` 実ソースで `TMemIniFile.ReadString` が先勝ちであることを確認、`cfgModel.js` と一致。`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` を更新） | 中 |
 | 16 | 「常に手前に表示」が他の最前面窓に押し出されたまま戻らない不具合を修正 | 高（原因箇所を特定済み） | 低（フレームタイマーからの定期 `SetWindowPos` 呼び出し） | **完了**（`work/3.2.0-16-stay-on-top-repoll`、IDE ビルド・実機確認済み） | 高（不具合修正） |
 | 17 | Vintage スキンの針の始点・終点が背景の目盛りと一致していない不具合を修正 | 高（原因箇所を特定済み） | 低（`tools/gen_vintage.py` の目盛り円と針のピボット・半径を一致させる） | **実装済み**（`work/3.2.0-17-vintage-needle-alignment`、`assets/vintage/` 再生成済み。実機確認待ち） | 中（不具合修正） |
 
@@ -378,9 +378,10 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 
 ## 15. layout.cfg の重複キー処理方針を JS/Delphi 間で確定する
 
-`/code-review` で確認（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` の「既知の未解決事項」[:48-50](../docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md#L48) に既に記録済みの項目を、この計画にもタスクとして残す）。`asset-editor/js/cfgModel.js` の `findDuplicateKeys`（[cfgModel.js:179](../asset-editor/js/cfgModel.js#L179)）は同一セクション内のキー重複を「先勝ち」として扱う一方、`src/view/uSkinLoader.pas` 側は重複キー自体を検出しておらず `TMemIniFile.ReadString` の生の挙動（先勝ちか後勝ちか未確認）に委ねている。スキン作者が誤ってキーを重複させた場合、asset-editor のプレビューと実機 DiskLED.exe とで異なる値が採用されうる。
+`/code-review` で確認。`asset-editor/js/cfgModel.js` の `findDuplicateKeys`（[cfgModel.js:179](../asset-editor/js/cfgModel.js#L179)）は同一セクション内のキー重複を「先勝ち」として扱う一方、`src/view/uSkinLoader.pas` 側は重複キー自体を検出しておらず `TMemIniFile.ReadString` の生の挙動に委ねていた。この生の挙動が先勝ちか後勝ちか未確認だった。
 
-- 実機（RAD Studio IDE）で `TMemIniFile.ReadString` の重複キー挙動を確認し、`cfgModel.js` の方針をそれに合わせるか、いっそ重複キーをハードエラー（読み込み拒否）にして両実装の解釈が分岐する余地自体を無くすかを決める。
+- 確認結果: RAD Studio 37.0 の実ソース `source/rtl/common/System.IniFiles.pas` を参照。`TMemIniFile.TSection.Add`（`SetStrings` から重複行も含め全キー行に対して呼ばれる）は検索用インデックス `FItemsDict` を `if not FItemsDict.ContainsKey(PrepKey)` の条件で埋めるため、重複キーでは最初の出現のインデックスしか記録されない。`ReadString` はこの `FItemsDict` を経由して検索するため、**`TMemIniFile.ReadString` も先勝ち**であることを実ソースで確認した。`cfgModel.js` の既存方針と一致しており、両実装の解釈は元々分岐していなかった。
+- `docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` の fixture 13 の期待結果・「既知の未解決事項」節を更新済み。コード変更は不要。
 
 ## 16. 「常に手前に表示」が他の最前面窓に押し出されたまま戻らない不具合を修正
 

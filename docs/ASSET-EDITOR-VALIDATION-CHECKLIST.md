@@ -41,10 +41,10 @@ JS側の列は本チェックリスト作成時に `node` 上で `skinLoader.js`
 | 10 | `10-digit-missing-font` | `ValSW=1`+`ValStyle=bitmap`で`ValFontFile`無し | エラー（`err.layout_digit_font_required` 相当） | ✅ `ValFontFile=(required...) is not a valid value` | ☐ |
 | 11 | `11-digit-invalid-b` | `ValB=0`（1未満） | エラー | ✅ `ValB=0 is not a valid value` | ☐ |
 | 12 | `12-graph-invalid-lane` | `[GraphFull] Cpu=1,2,3`（4要素でない） | エラー | ✅ `Cpu=1,2,3 is not a valid value` | ☐ |
-| 13 | `13-duplicate-key` | `X` キーが2回定義されている | ⚠️ 未確定（下記「既知の未解決事項」参照） | ✅ エラー無し・重複キー警告「X」を検出 | ☐ **要確認: どちらの値が採用されるか** |
+| 13 | `13-duplicate-key` | `X` キーが2回定義されている | 先勝ち（`System.IniFiles.pas` 実ソースで確認済み、下記参照） | ✅ エラー無し・重複キー警告「X」を検出、先勝ちの値を採用 | ☐ |
 | 14 | `14-unknown-key` | `FooBar` という未知のキーが存在 | エラー無し（Delphi側は単に無視される想定） | ✅ エラー無し・不明キー警告「FooBar」を検出 | ☐ |
 | 15 | `15-valid-full-with-graph` | 正常系（Compact+Full+Graph+数値readout+LED+Ping の網羅） | エラー無し | ✅ OK（hasFull=true） | ☐ |
 
-## 既知の未解決事項
+## fixture 13（重複キー）の Delphi 側挙動について
 
-- **fixture 13（重複キー）の Delphi 側の実際の挙動が未確認。** `asset-editor/js/cfgModel.js` の `CfgDoc` は「先勝ち（最初の出現を採用）」を明示的な方針としているが、Delphi の `TMemIniFile.ReadString` が重複キーに対して実際に先勝ちか後勝ちかは、VCL ソースを読むか実機で確認するまで確定していない。**実機確認で後勝ちだと判明した場合、`CfgDoc` の重複解決方針をどちらに揃えるか（あるいは「重複はエラーとして扱い、読み込み自体を拒否する」方針に変更するか）を検討する必要がある。** 現状は「重複はGUIエディタ側で警告するのでユーザーが直す」という前提で先勝ち・後勝ちのどちらでも致命的ではないという判断だが、両実装が異なる値を採用してしまう状態は望ましくないため、次回このチェックリストを実施する際に解消すること。
+`TMemIniFile.ReadString`（`System.IniFiles.pas`）の実ソースで確認済み: `TSection.Add` は重複キーの行も含め全ての行を `FItems` へ追加するが、検索用の `FItemsDict` は `if not FItemsDict.ContainsKey(PrepKey)` により最初の出現のインデックスしか記録しない。`ReadString` はこの辞書経由で検索するため、**重複キーは先勝ち（最初の出現を採用）**。`asset-editor/js/cfgModel.js` の `CfgDoc`（`findDuplicateKeys`/`_rebuildIndex`）も同じく先勝ちを明示的な方針としており、両実装は一致している。
