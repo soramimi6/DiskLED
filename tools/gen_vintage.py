@@ -195,6 +195,11 @@ def draw_meter_case(img: Image.Image, x0, y0, label: str, arrow: str, ss: int,
     py0 = y0 + panel_margin
     px1 = x0 + case_w - panel_margin
     py1 = y0 + case_h * PANEL_H_FRAC
+    # The needle's true hinge sits at the case's own bottom edge -- hidden
+    # behind the bezel (below the screw/lamp strip), like a real meter
+    # movement. Only the part of the needle above py1 (the panel's own
+    # bottom edge) is ever drawn; see the clipping below.
+    pivot_y = y0 + case_h
 
     # Silver bevel behind the cream face (angle-shaded for a brushed look).
     light_angle = math.radians(-60)
@@ -264,13 +269,14 @@ def draw_meter_case(img: Image.Image, x0, y0, label: str, arrow: str, ss: int,
                      outline=(20, 18, 18, 255))
 
     # Needle, baked last (on top of ticks/label/screw, matching the engine's
-    # own draw order of background-then-sprite). Pivots at the tick arc's own
-    # center/outer radius (cx, arc_pivot_y / r_outer) so the tip always lands
-    # exactly on the scale, including at NEEDLE_MIN_DEG/NEEDLE_MAX_DEG where
-    # it must meet the first/last tick. arc_pivot_y sits just below py1 (the
-    # panel's own bottom edge), so the hinge itself stays hidden behind the
-    # bezel like a real meter movement; the clipping below keeps only the
-    # part of the needle that would show above that edge.
+    # own draw order of background-then-sprite). Drawn from the true hinge at
+    # the case's own bottom edge (cx, pivot_y) -- hidden behind the bezel
+    # below the screw/lamp strip, like a real meter movement -- but aimed at
+    # the exact point on the tick arc's own circle (cx, arc_pivot_y / r_outer)
+    # for this angle, so the tip always lands on the scale, including at
+    # NEEDLE_MIN_DEG/NEEDLE_MAX_DEG where it must meet the first/last tick.
+    # Only the part of the needle above py1 (the panel's own bottom edge) is
+    # ever drawn; see the clipping below.
     if needle_deg is not None:
         rad = math.radians(needle_deg - 90)
         tip_x = cx + r_outer * math.cos(rad)
@@ -281,11 +287,11 @@ def draw_meter_case(img: Image.Image, x0, y0, label: str, arrow: str, ss: int,
         needle_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
         ndraw = ImageDraw.Draw(needle_layer)
         ndraw.polygon([
-            (cx - bx, arc_pivot_y - by),
-            (cx + bx, arc_pivot_y + by),
+            (cx - bx, pivot_y - by),
+            (cx + bx, pivot_y + by),
             (tip_x, tip_y),
         ], fill=NEEDLE_SHADOW + (255,))
-        ndraw.line([cx, arc_pivot_y, tip_x, tip_y], fill=NEEDLE_COL + (255,), width=ss)
+        ndraw.line([cx, pivot_y, tip_x, tip_y], fill=NEEDLE_COL + (255,), width=ss)
         mask = Image.new("L", img.size, 0)
         ImageDraw.Draw(mask).rectangle([0, 0, img.width, py1], fill=255)
         r, g, b, a = needle_layer.split()
