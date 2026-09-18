@@ -22,6 +22,8 @@ type
     function Background(const ALayout: TViewLayout): TBitmap;
     function Graphic(const ALayout: TViewLayout; const AFileName: string): TBitmap;
     class function LocateRoot: string; static;
+    class function BuildPath(const ARoot, ASubDir, AFileName: string): string; static;
+    class function LoadIconFile(const APath: string; ASizeMetric: Integer): TIcon; static;
     property Root: string read FRoot;
   end;
 
@@ -29,6 +31,8 @@ implementation
 
 uses
   System.IOUtils,
+  Winapi.Windows,
+  Winapi.CommCtrl,
   Vcl.Imaging.pngimage,
   uAppStrings,
   uDisplayModes;
@@ -145,6 +149,30 @@ begin
     Dir := Parent;
   end;
   raise EDirectoryNotFoundException.Create(S('err.assets_not_found'));
+end;
+
+class function TAssetStore.BuildPath(const ARoot, ASubDir, AFileName: string): string;
+begin
+  if AFileName = '' then
+    Exit('');
+  Result := IncludeTrailingPathDelimiter(ARoot) + IncludeTrailingPathDelimiter(ASubDir) + AFileName;
+end;
+
+class function TAssetStore.LoadIconFile(const APath: string; ASizeMetric: Integer): TIcon;
+var
+  H: HICON;
+begin
+  Result := TIcon.Create;
+  if (APath = '') or (not TFile.Exists(APath)) then
+    Exit;
+  H := 0;
+  if Succeeded(LoadIconMetric(0, PChar(APath), ASizeMetric, H)) and (H <> 0) then
+    Result.Handle := H
+  else
+  try
+    Result.LoadFromFile(APath);
+  except
+  end;
 end;
 
 end.

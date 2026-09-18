@@ -159,7 +159,6 @@ type
     procedure UpdateTrayLed(AOn: Boolean);
     procedure ResetTrayToAppIcon;
     procedure RefreshTrayIconForState;
-    function TrayIconPath(const AAssetDir, AFileName: string): string;
     procedure miPingResultClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
     procedure miResetPositionClick(Sender: TObject);
@@ -1262,31 +1261,6 @@ begin
     Result := FPipeline.State.NetActivityOn;
 end;
 
-function TMainForm.TrayIconPath(const AAssetDir, AFileName: string): string;
-begin
-  if AFileName = '' then
-    Exit('');
-  Result := IncludeTrailingPathDelimiter(FAssetsRoot) +
-    IncludeTrailingPathDelimiter(AAssetDir) + AFileName;
-end;
-
-function LoadTrayIcon(const APath: string): TIcon;
-var
-  H: HICON;
-begin
-  Result := TIcon.Create;
-  if (APath = '') or (not FileExists(APath)) then
-    Exit;
-  H := 0;
-  if Succeeded(LoadIconMetric(0, PChar(APath), LIM_SMALL, H)) and (H <> 0) then
-    Result.Handle := H
-  else
-  try
-    Result.LoadFromFile(APath);
-  except
-  end;
-end;
-
 procedure TMainForm.ReloadTrayIcons;
 var
   TypeDir, PrimarySrc: string;
@@ -1304,12 +1278,16 @@ begin
     PrimarySrc := 'disk'
   else
     PrimarySrc := 'net';
-  FTrayOffIcon := LoadTrayIcon(TrayIconPath(TypeDir, PrimarySrc + 'Off.ico'));
-  FTrayOnIcon := LoadTrayIcon(TrayIconPath(TypeDir, PrimarySrc + 'On.ico'));
+  FTrayOffIcon := TAssetStore.LoadIconFile(
+    TAssetStore.BuildPath(FAssetsRoot, TypeDir, PrimarySrc + 'Off.ico'), LIM_SMALL);
+  FTrayOnIcon := TAssetStore.LoadIconFile(
+    TAssetStore.BuildPath(FAssetsRoot, TypeDir, PrimarySrc + 'On.ico'), LIM_SMALL);
   if BothLedSourcesOn then
   begin
-    FTrayOffIcon2 := LoadTrayIcon(TrayIconPath(TypeDir, 'netOff.ico'));
-    FTrayOnIcon2 := LoadTrayIcon(TrayIconPath(TypeDir, 'netOn.ico'));
+    FTrayOffIcon2 := TAssetStore.LoadIconFile(
+      TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOff.ico'), LIM_SMALL);
+    FTrayOnIcon2 := TAssetStore.LoadIconFile(
+      TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOn.ico'), LIM_SMALL);
   end;
 end;
 
