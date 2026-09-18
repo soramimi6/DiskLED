@@ -1077,7 +1077,12 @@ function renderFieldPanel(sectionName) {
         o.textContent = opt; // literal layout.cfg value, not translated
         sel.appendChild(o);
       }
-      sel.value = (raw || '').trim().toLowerCase() || field.options[0];
+      // Falls back to the first option both when raw is blank and when it's
+      // present but doesn't match any option (e.g. Kind=xyz) -- otherwise
+      // setting .value to a non-matching string leaves the <select> with no
+      // option selected at all, shown as a blank field.
+      const normalized = (raw || '').trim().toLowerCase();
+      sel.value = field.options.includes(normalized) ? normalized : field.options[0];
       sel.addEventListener('change', () => onFieldChanged(sectionName, field.key, sel.value));
       fieldsPanel.appendChild(sel);
     } else if (field.type === 'color') {
