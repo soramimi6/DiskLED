@@ -692,6 +692,7 @@ begin
     FPipeline.State.AudioL, FPipeline.State.AudioR,
     S('dash.power'), S('dash.power_source'), S('dash.power_ac'),
     S('dash.power_battery'), S('dash.power_unknown'), S('dash.power_remain'),
+    S('dash.power_remain_h'), S('dash.power_remain_m'), S('dash.power_remain_hm'),
     S('dash.audio'), S('dash.audio_l'), S('dash.audio_r'),
     HudPalette, CurrentMetrics);
 end;

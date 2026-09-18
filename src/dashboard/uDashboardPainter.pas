@@ -44,6 +44,7 @@ procedure DrawDiskQueue(ACanvas: TCanvas; const ARect: TRect;
 procedure DrawPowerPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; AAudioL, AAudioR: Double;
   const AHeading, ASourceLbl, AAcLbl, ABattLbl, AUnknownLbl, ARemainLbl,
+  ARemainHourFmt, ARemainMinFmt, ARemainHourMinFmt,
   AVolHeading, ALeftLbl, ARightLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawPingPanel(ACanvas: TCanvas; const ARect: TRect;
@@ -679,6 +680,7 @@ end;
 procedure DrawPowerPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; AAudioL, AAudioR: Double;
   const AHeading, ASourceLbl, AAcLbl, ABattLbl, AUnknownLbl, ARemainLbl,
+  ARemainHourFmt, ARemainMinFmt, ARemainHourMinFmt,
   AVolHeading, ALeftLbl, ARightLbl: string; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 var
@@ -726,7 +728,16 @@ begin
   begin
     H := ASnap.PowerRemainSec div 3600;
     M := (ASnap.PowerRemainSec div 60) mod 60;
-    RemainTxt := Format('%d:%02d', [H, M]);
+    { Omit whichever side is zero (e.g. "45min" rather than "0h 45min", "2h"
+      rather than "2h 0min") -- the previous bare "H:MM" (e.g. "1:1") read as
+      a clock time rather than a remaining duration. Both-zero still shows
+      the minute form ("0min") rather than nothing. }
+    if H = 0 then
+      RemainTxt := Format(ARemainMinFmt, [M])
+    else if M = 0 then
+      RemainTxt := Format(ARemainHourFmt, [H])
+    else
+      RemainTxt := Format(ARemainHourMinFmt, [H, M]);
   end
   else
     RemainTxt := #$2014;

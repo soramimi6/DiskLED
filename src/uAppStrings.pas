@@ -224,6 +224,9 @@ begin
   AddStr('dash.power_battery', 'バッテリ', 'Battery');
   AddStr('dash.power_unknown', '不明', 'Unknown');
   AddStr('dash.power_remain', '残時間', 'Remaining');
+  AddStr('dash.power_remain_h', '%d時間', '%dh');
+  AddStr('dash.power_remain_m', '%d分', '%dmin');
+  AddStr('dash.power_remain_hm', '%d時間%d分', '%dh %dmin');
   AddStr('dash.audio', '音量', 'Volume');
   AddStr('dash.audio_l', 'L', 'L');
   AddStr('dash.audio_r', 'R', 'R');
