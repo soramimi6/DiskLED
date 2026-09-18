@@ -525,7 +525,7 @@ function pickTestValue(field, currentRaw) {
     return String((Number.isNaN(n) ? 0 : n) + 1);
   }
   if (field.type === 'bool') {
-    const isTrue = currentRaw !== undefined && ['1', 'true', 'yes', 'on'].includes(currentRaw.trim().toLowerCase());
+    const isTrue = currentRaw !== undefined && SkinLoader.BOOL_TRUE_WORDS.includes(currentRaw.trim().toLowerCase());
     return isTrue ? '0' : '1';
   }
   if (field.type === 'enum') {
@@ -953,10 +953,11 @@ function setFieldsEnabled(enabled) {
 }
 
 // Same truthy rule as ReadStrictBool's accepted "true" spellings
-// (uSkinLoader.pas:98-111) -- a blank/missing value reads as `def`.
+// (uSkinLoader.pas:98-111, shared via SkinLoader.BOOL_TRUE_WORDS) -- a
+// blank/missing value reads as `def`.
 function boolFromRaw(raw, def) {
   if (raw === undefined || raw.trim() === '') return def;
-  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+  return SkinLoader.BOOL_TRUE_WORDS.includes(raw.trim().toLowerCase());
 }
 
 function intCell(sectionName, field, raw) {
