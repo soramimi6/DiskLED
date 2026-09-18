@@ -4,7 +4,7 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 470
+  ClientHeight = 478
   ClientWidth = 460
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
@@ -12,21 +12,23 @@ object OptionsForm: TOptionsForm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  Padding.Left = 8
+  Padding.Top = 8
+  Padding.Right = 8
   Position = poScreenCenter
   OnCreate = FormCreate
-  Scaled = True
-  PixelsPerInch = 96
   TextHeight = 15
   object PageControl1: TPageControl
-    Left = 0
-    Top = 0
-    Width = 460
-    Height = 414
+    Left = 8
+    Top = 8
+    Width = 444
+    Height = 422
     ActivePage = TsGeneral
     Align = alClient
     TabOrder = 0
-    ExplicitWidth = 458
-    ExplicitHeight = 406
+    ExplicitLeft = 0
+    ExplicitWidth = 460
+    ExplicitHeight = 414
     object TsGeneral: TTabSheet
       Caption = 'General'
       object CardWindow: TPanel
@@ -524,23 +526,22 @@ object OptionsForm: TOptionsForm
     end
   end
   object PnlButtons: TPanel
-    Left = 0
-    Top = 414
-    Width = 460
-    Height = 56
+    Left = 8
+    Top = 430
+    Width = 444
+    Height = 48
     Align = alBottom
     BevelOuter = bvNone
     Color = clWhite
     TabOrder = 1
-    ExplicitTop = 406
-    ExplicitWidth = 458
     object ShpButtonTop: TShape
       Left = 0
       Top = 0
-      Width = 460
+      Width = 444
       Height = 1
       Align = alTop
       Pen.Color = 14211288
+      ExplicitWidth = 460
     end
     object BtnOk: TButton
       Left = 256
