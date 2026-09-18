@@ -128,7 +128,9 @@ function Draw-Glyph {
   if ($On) {
     $fillColor = [System.Drawing.Color]::FromArgb(235, 8, 8, 8)
   } else {
-    $fillColor = [System.Drawing.Color]::FromArgb(130, 255, 255, 255)
+    # Half the RGB brightness of the previous pure white (255->128), alpha
+    # unchanged -- a dimmer, less attention-grabbing glyph for the idle net icon.
+    $fillColor = [System.Drawing.Color]::FromArgb(130, 128, 128, 128)
   }
   $fill = [System.Drawing.SolidBrush]::new($fillColor)
 
@@ -138,7 +140,7 @@ function Draw-Glyph {
 
   $arcSpan = 76
   $arcStart = 270 - $arcSpan / 2
-  $arcPen = [System.Drawing.Pen]::new($fillColor, [Math]::Max(1.0, $InnerD * 0.095))
+  $arcPen = [System.Drawing.Pen]::new($fillColor, [Math]::Max(1.0, $InnerD * 0.065))
   $arcPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
   $arcPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
   foreach ($arcD in @(($InnerD * 0.39), ($InnerD * 0.64), ($InnerD * 0.90))) {
