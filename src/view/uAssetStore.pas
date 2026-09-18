@@ -31,7 +31,6 @@ implementation
 
 uses
   System.IOUtils,
-  Winapi.Windows,
   Winapi.CommCtrl,
   Vcl.Imaging.pngimage,
   uAppStrings,
