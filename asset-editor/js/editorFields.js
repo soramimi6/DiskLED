@@ -102,9 +102,19 @@ const SPRITE_BASES = [
 // same section as their meter sprite -- uSkinLoader.pas:272-274).
 const DIGIT_BASES = ['Cpu', 'Mem', 'Swap'];
 
+// Lowercase lookup sets for describeSection's base-name checks -- the real
+// engine's TMemIniFile section names are case-insensitive (e.g.
+// "[generalcompact]" loads fine), so matching against the canonically-cased
+// arrays directly would treat a differently-cased but valid section as
+// unrecognized.
+const METER_BASES_LOWER = new Set(METER_BASES.map((b) => b.toLowerCase()));
+const SPRITE_BASES_LOWER = new Set(SPRITE_BASES.map((b) => b.toLowerCase()));
+const DIGIT_BASES_LOWER = new Set(DIGIT_BASES.map((b) => b.toLowerCase()));
+
 function stripSuffix(name) {
-  if (name.endsWith('Compact')) return { base: name.slice(0, -'Compact'.length), suffix: 'Compact' };
-  if (name.endsWith('Full')) return { base: name.slice(0, -'Full'.length), suffix: 'Full' };
+  const lower = name.toLowerCase();
+  if (lower.endsWith('compact')) return { base: name.slice(0, -'Compact'.length), suffix: 'Compact' };
+  if (lower.endsWith('full')) return { base: name.slice(0, -'Full'.length), suffix: 'Full' };
   return { base: name, suffix: '' };
 }
 
@@ -113,19 +123,21 @@ function stripSuffix(name) {
 // text pane remains the only way to edit it -- see uSkinLoader.pas's own
 // comment that an omitted section simply means "unused").
 function describeSection(name) {
-  if (name === 'General') return { kind: 'general', fields: GENERAL_FIELDS };
-  if (name === 'GeneralCompact' || name === 'GeneralFull') return { kind: 'mode', fields: MODE_FIELDS };
-  if (name === 'GraphFull') return { kind: 'graph', fields: graphFields() };
+  const lower = name.toLowerCase();
+  if (lower === 'general') return { kind: 'general', fields: GENERAL_FIELDS };
+  if (lower === 'generalcompact' || lower === 'generalfull') return { kind: 'mode', fields: MODE_FIELDS };
+  if (lower === 'graphfull') return { kind: 'graph', fields: graphFields() };
 
   const { base, suffix } = stripSuffix(name);
   if (suffix === '') return null;
+  const baseLower = base.toLowerCase();
 
-  if (METER_BASES.includes(base)) {
+  if (METER_BASES_LOWER.has(baseLower)) {
     const fields = [...SPRITE_FIELDS, ...BALLISTIC_FIELDS];
-    if (DIGIT_BASES.includes(base)) fields.push(...DIGIT_FIELDS);
+    if (DIGIT_BASES_LOWER.has(baseLower)) fields.push(...DIGIT_FIELDS);
     return { kind: 'meter', fields };
   }
-  if (SPRITE_BASES.includes(base)) {
+  if (SPRITE_BASES_LOWER.has(baseLower)) {
     return { kind: 'sprite', fields: SPRITE_FIELDS };
   }
   return null;

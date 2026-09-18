@@ -76,10 +76,14 @@ class IniFile {
   }
 
   readInteger(section, key, def) {
-    const raw = this.readString(section, key, '');
-    if (raw === '') return def;
-    const n = parseInt(raw, 10);
-    return Number.isNaN(n) ? def : n;
+    const raw = this.readString(section, key, '').trim();
+    // Mirrors TMemIniFile.ReadInteger's use of StrToIntDef: the whole
+    // string must be a valid integer, not just its leading run of digits --
+    // parseInt alone would accept "100abc" as 100, but the real engine
+    // falls back to `def` for it (and ReadStrictInt in turn rejects it as
+    // an error where that's the field's actual validation rule).
+    if (raw === '' || !/^[+-]?\d+$/.test(raw)) return def;
+    return parseInt(raw, 10);
   }
 }
 
