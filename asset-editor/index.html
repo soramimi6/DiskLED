@@ -835,9 +835,12 @@ modeFullBtn.addEventListener('click', () => { isFullMode = true; onModeChanged()
 function loadImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
+    const url = URL.createObjectURL(file);
     img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = URL.createObjectURL(file);
+    // A failed decode never reaches loadedAsset.images, so nothing else
+    // would ever revoke this URL -- do it here instead of leaking it.
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
   });
 }
 
@@ -1370,6 +1373,13 @@ function initEditor() {
 // `entries`: Array<{file: File, relativePath: string}>, relativePath rooted
 // at the picked/dropped folder's own name (e.g. "myskin/layout.cfg").
 async function loadAssetFromEntries(entries) {
+  // Release the previous asset's decoded-image blob URLs before dropping
+  // the reference to them -- otherwise re-loading a skin folder repeatedly
+  // (the normal trial-and-error flow for a skin author) leaks one Blob per
+  // image every time.
+  if (loadedAsset) {
+    for (const img of loadedAsset.images.values()) URL.revokeObjectURL(img.src);
+  }
   tbody.innerHTML = '';
   summary.textContent = '';
   table.hidden = true;
