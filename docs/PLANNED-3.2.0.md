@@ -10,7 +10,9 @@
 
 項目 **16** はユーザー報告により判明した不具合修正で、着手順・3.2.0 出荷の必須条件には含めないが判明時点で即時対応した。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **10〜15 は未着手**。項目 **16 は完了**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
+項目 **17** はユーザー報告により判明した Vintage スキンの不具合で、着手順・3.2.0 出荷の必須条件には含めない（項目 10〜15 と同様の事後対応枠）。
+
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1・2・3・4・5・6・7・8・9 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **10〜15・17 は未着手**。項目 **16 は完了**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -30,6 +32,7 @@
 | 14 | tools/gen_vintage.py のハウジング毎フレーム再描画を解消 | 高 | 低 | **未着手**（`/code-review` で発見） | 低 |
 | 15 | layout.cfg の重複キー処理方針を JS/Delphi 間で確定する | 中（実機での `TMemIniFile` 挙動確認が必要） | 低 | **未着手**（`docs/ASSET-EDITOR-VALIDATION-CHECKLIST.md` に既知事項として記録済み、`/code-review` でも再確認） | 中 |
 | 16 | 「常に手前に表示」が他の最前面窓に押し出されたまま戻らない不具合を修正 | 高（原因箇所を特定済み） | 低（フレームタイマーからの定期 `SetWindowPos` 呼び出し） | **完了**（`work/3.2.0-16-stay-on-top-repoll`、IDE ビルド・実機確認済み） | 高（不具合修正） |
+| 17 | Vintage スキンの針の始点・終点が背景の目盛りと一致していない不具合を修正 | 高（原因箇所を特定済み） | 低（`tools/gen_vintage.py` の目盛り円と針のピボット・半径を一致させる） | **未着手**（ユーザー報告） | 中（不具合修正） |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
@@ -385,3 +388,17 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 
 - `TMainForm.PollStayOnTop`（[uMainForm.pas:838-865](../src/uMainForm.pas#L838)）を追加し、フレームタイマー（`TimerTick`、[uMainForm.pas:1052-1053](../src/uMainForm.pas#L1052)）から毎ティック呼んで、2秒間隔で `SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE)` を再アサートする。`FormStyle` の代入（HWND 再生成を伴う重い操作）ではなく、`uHoverTip.pas:68-69` に前例のある軽量な `SetWindowPos` 呼び出しを踏襲した。WM_DPICHANGED が信頼できないため毎ティック poll している `PollMonitorDpiChange`（[uMainForm.pas:802-832](../src/uMainForm.pas#L802)）と同じ設計パターン。
 - `/code-review` で、オプション画面（モーダル）やダッシュボード／Tracert窓（モードレス）のような、topmost でない owned 窓が開いている間もこの再アサートが走ると、それらの窓がメイン窓の背後に埋もれる不具合を指摘された。`FOptionsOpen` フラグ（`miOptionsClick` で `ShowModal` 前後にセット）と `FDashboardForm`/`FTraceRouteForm` の `Visible` チェックを `PollStayOnTop` の先頭ガードに追加し、これらが開いている間は再アサートをスキップするよう対応済み。
+
+## 17. Vintage スキンの針の始点・終点が背景の目盛りと一致していない不具合を修正
+
+ユーザー報告により判明。Vintage スキン（[assets/vintage/](../assets/vintage/)）は `tools/gen_vintage.py` による機械生成（項目2）で、背景の目盛り弧と針を別々の中心・半径で描いているため、両端（最小値・最大値）で針が目盛りの範囲からずれて見える。
+
+- 目盛り弧は `draw_meter_case`（[gen_vintage.py:221-240](../tools/gen_vintage.py#L221)）で、中心 `(cx, arc_pivot_y)`（`arc_pivot_y = fy1 + face_h * 0.07`、[gen_vintage.py:225](../tools/gen_vintage.py#L225)）・半径 `r1`〜`r_outer`（`r_outer = face_h * 0.95`、[gen_vintage.py:226](../tools/gen_vintage.py#L226)）の円弧上に `NEEDLE_MIN_DEG`〜`NEEDLE_MAX_DEG`（[gen_vintage.py:78-79](../tools/gen_vintage.py#L78)）で13本描画される。
+- 針は同じ関数の別ブロック（[gen_vintage.py:272-300](../tools/gen_vintage.py#L272)）で、目盛りとは異なる中心 `(pivot_x, pivot_y)`（`pivot_y = y0 + case_h`＝ケース下端、[gen_vintage.py:203](../tools/gen_vintage.py#L203)）から、目盛り弧の半径とは無関係な `needle_len = face_h * 0.86 + (pivot_y - py1)`（[gen_vintage.py:282](../tools/gen_vintage.py#L282)）で直線として伸ばしている。針の中心（ケース下端、パネルより下に隠れる想定）と目盛りの中心（パネル下端のすぐ下）が別点かつ半径も独立に決めているため、`NEEDLE_MIN_DEG`/`NEEDLE_MAX_DEG` の角度自体は目盛り両端と揃っていても、針の先端が目盛り両端の点を通らない。
+- 修正方針: 針の中心・長さを目盛り弧の中心 `(cx, arc_pivot_y)`・半径 `r_outer` 相当に合わせる（または目盛り弧の方を針の実ピボット `(pivot_x, pivot_y)` を中心とした円に描き直す）。どちらを基準にするかは、針の可動部が隠れるケース下端のデザイン（[gen_vintage.py:199-203](../tools/gen_vintage.py#L199) のコメント）を崩さない側を選ぶ。
+- 全10メーター・全64フレームに影響するため、`tools/gen_vintage.py` の定数修正 → 再実行 → `assets/vintage/` 配下 PNG 差し替えで対応する（項目2と同じ手順）。
+
+### 実装後に実機で見ること
+
+- コンパクト／フル両方の Vintage スキンで、各メーターの針を最小値・最大値まで振らせ、目盛りの両端と針の先端が重なること。
+- 中間値でも目盛りと針の角度がずれないこと（円弧の中心を変えた場合、角度→位置の対応がずれていないか）。
