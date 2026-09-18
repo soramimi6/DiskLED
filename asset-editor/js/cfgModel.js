@@ -2,16 +2,15 @@
 // section/key -> line-number index, and write back by touching only the
 // lines that actually changed. This is the foundational piece PLANNED-3.2.0
 // item 6 flags as the biggest uncertainty ("テキスト<->GUI同期はフォーマット
-// 保持"); see asset-editor/spike-roundtrip.cjs for the proof this file exists
-// to support: a single GUI value change must turn into a single changed
-// text line against the project's own real layout.cfg files.
+// 保持"); index.html's runFullFieldCheck is the standing proof this file
+// exists to support: a single GUI value change must turn into a single
+// changed text line, checked across every field of every section.
 //
 // Plain classic script (no ES-module `import`/`export`) so index.html can
 // load it via <script src="js/cfgModel.js"></script> and still work when the
 // page is opened directly from disk (file://) -- Chromium blocks module
 // script loading under file://, but a classic script has no such
-// restriction. A tiny UMD wrapper also lets spike-roundtrip.cjs `require()`
-// it under Node for fast command-line re-checks during development.
+// restriction.
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -94,10 +93,7 @@ class CfgDoc {
   setValue(sectionName, key, newValue) {
     let section = this.findSection(sectionName);
     if (!section) {
-      if (this.lines.length > 0 && this.lines[this.lines.length - 1] !== '') {
-        this.lines.push('');
-      }
-      this.lines.push(`[${sectionName}]`);
+      this._appendSectionHeader(sectionName);
       this.lines.push(`${key}=${newValue}`);
       this._rebuildIndex();
       return;
@@ -130,11 +126,18 @@ class CfgDoc {
   // GUI fields to fill in (which themselves call setValue as usual).
   addSection(sectionName) {
     if (this.findSection(sectionName)) return;
+    this._appendSectionHeader(sectionName);
+    this._rebuildIndex();
+  }
+
+  // Appends a "[Section]" header at EOF, blank-line separated from any prior
+  // content. Shared by addSection and setValue's "section doesn't exist yet"
+  // path; callers are responsible for rebuilding the index afterward.
+  _appendSectionHeader(sectionName) {
     if (this.lines.length > 0 && this.lines[this.lines.length - 1] !== '') {
       this.lines.push('');
     }
     this.lines.push(`[${sectionName}]`);
-    this._rebuildIndex();
   }
 
   // Removes a section's header line and every line through its recorded

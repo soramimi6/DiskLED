@@ -22,6 +22,13 @@
   }
 })(typeof self !== 'undefined' ? self : this, function () {
 
+// Spellings ReadStrictBool (uSkinLoader.pas:98-111) accepts, shared with the
+// editor's own lenient truthy checks (index.html's boolFromRaw and
+// pickTestValue) so all of them read the same set of "true"/"false" words
+// instead of hardcoding separate copies that could drift apart.
+const BOOL_TRUE_WORDS = ['1', 'true', 'yes', 'on'];
+const BOOL_FALSE_WORDS = ['0', 'false', 'no', 'off'];
+
 class SkinFormatError extends Error {
   constructor(path, section, key, raw) {
     super(`${path}: [${section}] ${key}=${raw} is not a valid value`);
@@ -134,8 +141,8 @@ class SkinReader {
     const raw = this.ini.readString(section, key, '').trim();
     if (raw === '') return def;
     const v = raw.toLowerCase();
-    if (v === '1' || v === 'true' || v === 'yes' || v === 'on') return true;
-    if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false;
+    if (BOOL_TRUE_WORDS.includes(v)) return true;
+    if (BOOL_FALSE_WORDS.includes(v)) return false;
     throw this.err(section, key, raw);
   }
 
@@ -333,6 +340,6 @@ function loadSkin(path, text, folderName) {
   return { id, caption, order, isDefault, hasFull, compact, full };
 }
 
-return { loadSkin, tryParseColor, colorToCss, SkinFormatError, IniFile };
+return { loadSkin, tryParseColor, colorToCss, SkinFormatError, IniFile, BOOL_TRUE_WORDS, BOOL_FALSE_WORDS };
 
 });

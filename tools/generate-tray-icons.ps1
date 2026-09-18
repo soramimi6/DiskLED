@@ -53,6 +53,29 @@ $HighlightColor = New-Color 255 255 255 245
 $BezelBright = New-Color 250 250 252
 $BezelDark = New-Color 110 112 116
 
+# Fills one or more ellipses (a single circle, or two forming a ring under
+# Alternate fill mode) with a radial PathGradientBrush, then disposes both
+# the path and the brush. Shared by the bezel ring, the orb core, and the
+# highlight below -- all three are "gradient-filled ellipse(s)", differing
+# only in shape, colors, optional off-center CenterPoint, and optional bell
+# falloff for a stronger "lit up" look.
+function Fill-RadialGradientEllipse {
+  param($Gfx, [System.Drawing.RectangleF[]]$Ellipses, $CenterColor, $SurroundColor,
+        $CenterPoint = $null, [double]$SigmaFalloff = 0)
+
+  $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
+  if ($Ellipses.Count -gt 1) { $path.FillMode = [System.Drawing.Drawing2D.FillMode]::Alternate }
+  foreach ($r in $Ellipses) { $path.AddEllipse($r) }
+  $grad = [System.Drawing.Drawing2D.PathGradientBrush]::new($path)
+  $grad.CenterColor = $CenterColor
+  $grad.SurroundColors = @($SurroundColor)
+  if ($null -ne $CenterPoint) { $grad.CenterPoint = $CenterPoint }
+  if ($SigmaFalloff -gt 0) { $grad.SetSigmaBellShape($SigmaFalloff, 1.0) }
+  $Gfx.FillPath($grad, $path)
+  $grad.Dispose()
+  $path.Dispose()
+}
+
 function Draw-Orb {
   param($Gfx, [float]$Cx, [float]$Cy, [float]$D, $CoreColor, $EdgeColor, [bool]$On)
 
@@ -68,47 +91,25 @@ function Draw-Orb {
   $afterRingD = $D - 2 * $ringT
   $bezelT = $D * 0.035
   $bezelInnerD = $afterRingD - 2 * $bezelT
-  $bezelPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
-  $bezelPath.FillMode = [System.Drawing.Drawing2D.FillMode]::Alternate
-  $bezelPath.AddEllipse(($Cx - $afterRingD/2), ($Cy - $afterRingD/2), $afterRingD, $afterRingD)
-  $bezelPath.AddEllipse(($Cx - $bezelInnerD/2), ($Cy - $bezelInnerD/2), $bezelInnerD, $bezelInnerD)
-  $bezelGrad = [System.Drawing.Drawing2D.PathGradientBrush]::new($bezelPath)
-  $bezelGrad.CenterColor = $BezelBright
-  $bezelGrad.SurroundColors = @($BezelDark)
-  $bezelGrad.CenterPoint = [System.Drawing.PointF]::new($Cx, ($Cy - $afterRingD * 0.30))
-  $Gfx.FillPath($bezelGrad, $bezelPath)
-  $bezelGrad.Dispose()
-  $bezelPath.Dispose()
+  $bezelOuterRect = [System.Drawing.RectangleF]::new(($Cx - $afterRingD/2), ($Cy - $afterRingD/2), $afterRingD, $afterRingD)
+  $bezelInnerRect = [System.Drawing.RectangleF]::new(($Cx - $bezelInnerD/2), ($Cy - $bezelInnerD/2), $bezelInnerD, $bezelInnerD)
+  Fill-RadialGradientEllipse -Gfx $Gfx -Ellipses @($bezelOuterRect, $bezelInnerRect) `
+    -CenterColor $BezelBright -SurroundColor $BezelDark `
+    -CenterPoint ([System.Drawing.PointF]::new($Cx, ($Cy - $afterRingD * 0.30)))
 
   $innerD = $bezelInnerD
   $innerRect = [System.Drawing.RectangleF]::new(($Cx - $innerD/2), ($Cy - $innerD/2), $innerD, $innerD)
-  $path = [System.Drawing.Drawing2D.GraphicsPath]::new()
-  $path.AddEllipse($innerRect)
-  $grad = [System.Drawing.Drawing2D.PathGradientBrush]::new($path)
-  $grad.CenterColor = $CoreColor
-  $grad.SurroundColors = @($EdgeColor)
-  $grad.CenterPoint = [System.Drawing.PointF]::new(($Cx - $innerD*0.16), ($Cy - $innerD*0.16))
-  if ($On) {
-    # A bell falloff keeps the bright core color over more of the sphere
-    # instead of a linear falloff, i.e. a stronger "lit up" look.
-    $grad.SetSigmaBellShape(0.55, 1.0)
-  }
-  $Gfx.FillPath($grad, $path)
-  $grad.Dispose()
-  $path.Dispose()
+  $sigma = if ($On) { 0.55 } else { 0 }
+  Fill-RadialGradientEllipse -Gfx $Gfx -Ellipses @($innerRect) `
+    -CenterColor $CoreColor -SurroundColor $EdgeColor `
+    -CenterPoint ([System.Drawing.PointF]::new(($Cx - $innerD*0.16), ($Cy - $innerD*0.16))) -SigmaFalloff $sigma
 
   if ($On) {
     $hlW = $innerD * 0.40; $hlH = $innerD * 0.24
     $hlCx = $Cx - $innerD * 0.20; $hlCy = $Cy - $innerD * 0.22
     $hlRect = [System.Drawing.RectangleF]::new(($hlCx - $hlW/2), ($hlCy - $hlH/2), $hlW, $hlH)
-    $hlPath = [System.Drawing.Drawing2D.GraphicsPath]::new()
-    $hlPath.AddEllipse($hlRect)
-    $hlGrad = [System.Drawing.Drawing2D.PathGradientBrush]::new($hlPath)
-    $hlGrad.CenterColor = $HighlightColor
-    $hlGrad.SurroundColors = @([System.Drawing.Color]::FromArgb(0, $HighlightColor))
-    $Gfx.FillPath($hlGrad, $hlPath)
-    $hlGrad.Dispose()
-    $hlPath.Dispose()
+    Fill-RadialGradientEllipse -Gfx $Gfx -Ellipses @($hlRect) `
+      -CenterColor $HighlightColor -SurroundColor ([System.Drawing.Color]::FromArgb(0, $HighlightColor))
   }
 
   return $innerD

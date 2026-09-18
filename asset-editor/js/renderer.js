@@ -20,16 +20,12 @@
   }
 })(typeof self !== 'undefined' ? self : this, function () {
 
-function clamp01(v) {
-  if (v < 0) return 0;
-  if (v > 1) return 1;
-  return v;
-}
-
 // Mirrors TMeterRenderer.StripFrame (uMeterRenderer.pas:54-63).
 function stripFrame(sprite, value) {
   if (!sprite || !sprite.fileName || sprite.frames <= 0) return 0;
-  let f = Math.round(clamp01(value) * (sprite.frames - 1));
+  // clamp01 lives on HistoryBuffer (historyBuffer.js, loaded before this
+  // file) -- see that file's comment for why it's the shared home.
+  let f = Math.round(HistoryBuffer.clamp01(value) * (sprite.frames - 1));
   if (f < 0) f = 0;
   if (f > sprite.frames - 1) f = sprite.frames - 1;
   return f;
@@ -71,9 +67,9 @@ function image(images, fileName) {
   return images.get(fileName.toLowerCase()) || null;
 }
 
-// Mirrors the DrawStrip local proc (uMeterRenderer.pas:140-167) shared by
-// meters and LEDs (an LED is just a 2-frame strip drawn at value 0.0/1.0).
-function drawStrip(ctx, images, sprite, value) {
+// Shared by drawStrip and drawPing: given an already-resolved frame index,
+// slices that frame out of the sprite's vertical strip and blits it.
+function drawSpriteFrame(ctx, images, sprite, frame) {
   if (!sprite || !sprite.fileName || sprite.frames <= 0) return;
   const img = image(images, sprite.fileName);
   if (!img) return;
@@ -81,11 +77,16 @@ function drawStrip(ctx, images, sprite, value) {
   const frameH = Math.floor(naturalH / sprite.frames);
   if (frameH <= 0) return;
 
-  const frame = stripFrame(sprite, value);
   const srcY = frame * frameH;
   const w = img.naturalWidth || img.width;
   const source = sprite.transparent ? keyedCanvas(img, sprite.maskColor) : img;
   ctx.drawImage(source, 0, srcY, w, frameH, sprite.x, sprite.y, w, frameH);
+}
+
+// Mirrors the DrawStrip local proc (uMeterRenderer.pas:140-167) shared by
+// meters and LEDs (an LED is just a 2-frame strip drawn at value 0.0/1.0).
+function drawStrip(ctx, images, sprite, value) {
+  drawSpriteFrame(ctx, images, sprite, stripFrame(sprite, value));
 }
 
 function drawLed(ctx, images, sprite, on) {
@@ -96,19 +97,10 @@ function drawLed(ctx, images, sprite, on) {
 // TPingLevel (Timeout=0, Slow=1, Fair=2, Normal=3), not a value-driven strip.
 function drawPing(ctx, images, sprite, pingLevelIndex) {
   if (!sprite || !sprite.fileName || sprite.frames <= 0) return;
-  const img = image(images, sprite.fileName);
-  if (!img) return;
-  const naturalH = img.naturalHeight || img.height;
-  const frameH = Math.floor(naturalH / sprite.frames);
-  if (frameH <= 0) return;
-
   let frame = pingLevelIndex;
   if (frame < 0) frame = 0;
   if (frame > sprite.frames - 1) frame = sprite.frames - 1;
-  const srcY = frame * frameH;
-  const w = img.naturalWidth || img.width;
-  const source = sprite.transparent ? keyedCanvas(img, sprite.maskColor) : img;
-  ctx.drawImage(source, 0, srcY, w, frameH, sprite.x, sprite.y, w, frameH);
+  drawSpriteFrame(ctx, images, sprite, frame);
 }
 
 const FONT_GLYPHS = 11; // 0..9 + space, mirrors uDigitRenderer.pas's CFontGlyphs
@@ -162,7 +154,7 @@ function drawSystemDigits(ctx, val, text) {
 // Mirrors TDigitRenderer.DrawPercent (uDigitRenderer.pas:135-153).
 function drawPercent(ctx, images, val, value01) {
   if (!val.enabled) return;
-  const percent = Math.round(clamp01(value01) * 100);
+  const percent = Math.round(HistoryBuffer.clamp01(value01) * 100);
   const text = formatPercentText(percent, val.digits, val.fillZero);
   if (val.style === 'bitmap') drawBitmapDigits(ctx, images, val, text);
   else drawSystemDigits(ctx, val, text);
@@ -237,7 +229,7 @@ function drawGraphLane(ctx, graph, lane, key, history) {
   if (graph.style === 'bar') {
     ctx.fillStyle = color;
     for (let i = 0; i < w; i++) {
-      const v = clamp01(history.sampleChronological(start + i)[key]);
+      const v = HistoryBuffer.clamp01(history.sampleChronological(start + i)[key]);
       const y = Math.round(v * lane.h);
       if (y < 1) continue;
       ctx.fillRect(left + i, bottom - y, 1, y);
@@ -247,7 +239,7 @@ function drawGraphLane(ctx, graph, lane, key, history) {
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i < w; i++) {
-      const v = clamp01(history.sampleChronological(start + i)[key]);
+      const v = HistoryBuffer.clamp01(history.sampleChronological(start + i)[key]);
       const x = left + i + 0.5;
       const y = bottom - 1 - Math.round(v * (lane.h - 1)) + 0.5;
       if (i === 0) ctx.moveTo(x, y);
@@ -305,6 +297,6 @@ function renderFrame(canvas, images, layout, state, history, opts) {
   }
 }
 
-return { clamp01, stripFrame, renderFrame, formatPercentText, graphMaxWidth };
+return { stripFrame, renderFrame, formatPercentText, graphMaxWidth };
 
 });
