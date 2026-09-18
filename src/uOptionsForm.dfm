@@ -4,7 +4,7 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 470
+  ClientHeight = 478
   ClientWidth = 460
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
@@ -12,6 +12,7 @@ object OptionsForm: TOptionsForm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  Padding.Top = 8
   Position = poScreenCenter
   OnCreate = FormCreate
   Scaled = True
