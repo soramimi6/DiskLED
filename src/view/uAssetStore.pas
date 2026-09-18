@@ -31,11 +31,18 @@ implementation
 
 uses
   System.IOUtils,
-  Winapi.Windows,
   Winapi.CommCtrl,
   Vcl.Imaging.pngimage,
   uAppStrings,
   uDisplayModes;
+
+type
+  { Winapi.CommCtrl (needed below for LoadIconMetric/HICON) pulls in
+    Winapi.Windows, which declares its own TBitmap = tagBITMAP -- an
+    unrelated GDI struct that would otherwise shadow Vcl.Graphics.TBitmap
+    for the rest of this section. A same-named local alias always wins over
+    an imported one, so this pins TBitmap back to the VCL class. }
+  TBitmap = Vcl.Graphics.TBitmap;
 
 class function TAssetStore.LoadGraphic(const APath: string): TBitmap;
 var
