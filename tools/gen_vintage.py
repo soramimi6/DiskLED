@@ -170,16 +170,19 @@ LAMP_CENTER_X = CASE_W / 2
 LAMP_CENTER_Y = CASE_H * (PANEL_H_FRAC + 1) / 2
 
 
-def draw_meter_case(img: Image.Image, x0, y0, label: str, arrow: str, ss: int,
-                     lamp_slot: bool = False, needle_deg=None):
+def draw_meter_housing(img: Image.Image, x0, y0, label: str, arrow: str, ss: int,
+                        lamp_slot: bool = False):
     """x0, y0 already in supersampled coordinates. lamp_slot=True leaves the
     screw/lamp spot blank -- the shipped background never bakes a lamp state,
     since DiskRW/NetActivity (compact) and DiskRead/DiskWrite/NetIn/NetOut
     (full) are separate runtime sprites blitted there over the real on/off
-    state. needle_deg, if given, bakes the needle at that angle directly into
-    this same opaque image (drawn last, on top of everything else, matching
-    the engine's own draw order: background+screw first, needle sprite on
-    top of it)."""
+    state. Everything here (case, bevel, ticks, label, screw/lamp slot) is
+    identical across a meter's 64 needle-angle frames, so it's drawn once per
+    meter and reused -- see draw_needle, which bakes the one part that
+    actually changes per frame onto a copy of this image.
+
+    Returns the needle geometry (cx, pivot_y, arc_pivot_y, r_outer, py1)
+    draw_needle needs, so it doesn't have to recompute it from x0/y0/ss."""
     draw = ImageDraw.Draw(img)
     case_w, case_h, case_r = CASE_W * ss, CASE_H * ss, CASE_R * ss
     panel_margin, border_w = PANEL_MARGIN * ss, BORDER_W * ss
@@ -268,35 +271,40 @@ def draw_meter_case(img: Image.Image, x0, y0, label: str, arrow: str, ss: int,
         draw.ellipse([cx - scr, scy - scr, cx + scr, scy + scr], fill=SCREW_COL + (255,),
                      outline=(20, 18, 18, 255))
 
-    # Needle, baked last (on top of ticks/label/screw, matching the engine's
-    # own draw order of background-then-sprite). Drawn from the true hinge at
-    # the case's own bottom edge (cx, pivot_y) -- hidden behind the bezel
-    # below the screw/lamp strip, like a real meter movement -- but aimed at
-    # the exact point on the tick arc's own circle (cx, arc_pivot_y / r_outer)
-    # for this angle, so the tip always lands on the scale, including at
-    # NEEDLE_MIN_DEG/NEEDLE_MAX_DEG where it must meet the first/last tick.
-    # Only the part of the needle above py1 (the panel's own bottom edge) is
-    # ever drawn; see the clipping below.
-    if needle_deg is not None:
-        rad = math.radians(needle_deg - 90)
-        tip_x = cx + r_outer * math.cos(rad)
-        tip_y = arc_pivot_y + r_outer * math.sin(rad)
-        perp = rad + math.pi / 2
-        base_w = max(0.6 * ss, 2.0 * SCALE * ss)
-        bx, by = base_w * math.cos(perp), base_w * math.sin(perp)
-        needle_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        ndraw = ImageDraw.Draw(needle_layer)
-        ndraw.polygon([
-            (cx - bx, pivot_y - by),
-            (cx + bx, pivot_y + by),
-            (tip_x, tip_y),
-        ], fill=NEEDLE_SHADOW + (255,))
-        ndraw.line([cx, pivot_y, tip_x, tip_y], fill=NEEDLE_COL + (255,), width=ss)
-        mask = Image.new("L", img.size, 0)
-        ImageDraw.Draw(mask).rectangle([0, 0, img.width, py1], fill=255)
-        r, g, b, a = needle_layer.split()
-        needle_layer = Image.merge("RGBA", (r, g, b, ImageChops.multiply(a, mask)))
-        img.alpha_composite(needle_layer)
+    return (cx, pivot_y, arc_pivot_y, r_outer, py1)
+
+
+def draw_needle(img: Image.Image, geometry, needle_deg, ss: int):
+    """Bakes the needle at needle_deg onto img (a copy of a
+    draw_meter_housing base image), on top of everything else, matching the
+    engine's own draw order of background-then-sprite. Drawn from the true
+    hinge at the case's own bottom edge (cx, pivot_y) -- hidden behind the
+    bezel below the screw/lamp strip, like a real meter movement -- but
+    aimed at the exact point on the tick arc's own circle (cx, arc_pivot_y /
+    r_outer) for this angle, so the tip always lands on the scale, including
+    at NEEDLE_MIN_DEG/NEEDLE_MAX_DEG where it must meet the first/last tick.
+    Only the part of the needle above py1 (the panel's own bottom edge) is
+    ever drawn; see the clipping below."""
+    cx, pivot_y, arc_pivot_y, r_outer, py1 = geometry
+    rad = math.radians(needle_deg - 90)
+    tip_x = cx + r_outer * math.cos(rad)
+    tip_y = arc_pivot_y + r_outer * math.sin(rad)
+    perp = rad + math.pi / 2
+    base_w = max(0.6 * ss, 2.0 * SCALE * ss)
+    bx, by = base_w * math.cos(perp), base_w * math.sin(perp)
+    needle_layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ndraw = ImageDraw.Draw(needle_layer)
+    ndraw.polygon([
+        (cx - bx, pivot_y - by),
+        (cx + bx, pivot_y + by),
+        (tip_x, tip_y),
+    ], fill=NEEDLE_SHADOW + (255,))
+    ndraw.line([cx, pivot_y, tip_x, tip_y], fill=NEEDLE_COL + (255,), width=ss)
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).rectangle([0, 0, img.width, py1], fill=255)
+    r, g, b, a = needle_layer.split()
+    needle_layer = Image.merge("RGBA", (r, g, b, ImageChops.multiply(a, mask)))
+    img.alpha_composite(needle_layer)
 
 
 def draw_lamp(draw: ImageDraw.ImageDraw, cx, cy, r, on: bool):
@@ -321,15 +329,21 @@ def build_background(cells, filename):
 
 def build_meter_strip(label, arrow, lamp_slot, filename):
     """Bakes this meter's housing + ticks + label + screw-or-blank-lamp-slot
-    + needle (at each of 64 angles) into one opaque frame per angle. Returns
+    once, then composites the needle (at each of 64 angles) onto a copy of
+    it. The housing is pixel-identical across all 64 frames, so redrawing it
+    from scratch per frame -- particularly add_inset_shadow's per-pixel
+    Python loop -- would be 64x the work for no visual difference. Returns
     the pre-flatten RGBA frames too, for the full-scene review preview."""
     w, h = int(math.ceil(CASE_W)), int(math.ceil(CASE_H))
+    housing = Image.new("RGBA", (w * SS, h * SS), (0, 0, 0, 0))
+    geometry = draw_meter_housing(housing, 0, 0, label, arrow, SS, lamp_slot=lamp_slot)
+
     frames = []
     for f in range(NEEDLE_FRAMES):
         t = f / (NEEDLE_FRAMES - 1)
         deg = NEEDLE_MIN_DEG + (NEEDLE_MAX_DEG - NEEDLE_MIN_DEG) * t
-        big = Image.new("RGBA", (w * SS, h * SS), (0, 0, 0, 0))
-        draw_meter_case(big, 0, 0, label, arrow, SS, lamp_slot=lamp_slot, needle_deg=deg)
+        big = housing.copy()
+        draw_needle(big, geometry, deg, SS)
         frames.append(big.resize((w, h), Image.LANCZOS))
 
     strip = Image.new("RGB", (w, h * NEEDLE_FRAMES), MASK_COLOR)
