@@ -17,6 +17,7 @@ Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
 - Fixed a bug where, at high display scales (200% etc.), the dashboard window couldn't be resized down to fit the screen. Also tightened the spacing on the power card
 - Lightened the "Vintage" display mode's tick marks and labels a bit to make the needle easier to see, and changed its full view's volume meter from mono to stereo (L / R)
 - Reorganized the Options dialog into four tabs (General / Display / Tray LED / Ping & Network) and made its colors follow Windows' light/dark app mode
+- **For skin authors**: the tray icon no longer depends on the skin, so the `[Tray]` section in `layout.cfg` (the `Off=` / `On=` tray icon override) has been removed. A `[Tray]` section left over in a 3.1.x or earlier skin is not an error and is simply ignored (the tray LED always uses the color chosen in Options)
 
 ## 3.1.2
 
