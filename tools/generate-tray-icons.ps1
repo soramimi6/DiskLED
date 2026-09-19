@@ -19,10 +19,11 @@ Add-Type -AssemblyName System.Drawing
 $MasterSize = 256
 # Covers SM_CXSMICON at the common Windows scale factors: 16=100%, 20=125%,
 # 24=150%, 28=175%, 32=200%, 40=250%, 48=300%. Without a frame at the exact
-# size LoadIconMetric(LIM_SMALL) needs, Windows stretches the nearest one
-# and the tray icon looks visibly soft at every scale except 100/200/300%.
+# size TAssetStore.LoadIconFile requests (GetSystemMetrics(SM_CXSMICON) via
+# LoadImage, LIM_SMALL), Windows stretches the nearest one and the tray icon
+# looks visibly soft at every scale except 100/200/300%.
 # 64/96 additionally cover SM_CXICON (LIM_LARGE) at 200%/300% -- used by
-# uOptionsForm.pas's LoadPreviewIcon for the Tray LED color swatches, which
+# uOptionsForm.pas's LoadLedPreviewIcons for the Tray LED color swatches, which
 # deliberately asks for LIM_LARGE rather than LIM_SMALL (see that function's
 # comment). LIM_LARGE at 100/125/150% already lands on 32/40/48 above.
 $Sizes = @(16, 20, 24, 28, 32, 40, 48, 64, 96)
