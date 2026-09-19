@@ -169,12 +169,29 @@ end;
 class function TAssetStore.LoadIconFile(const APath: string; ASizeMetric: Integer): TIcon;
 var
   H: HICON;
+  Cx, Cy: Integer;
 begin
   Result := TIcon.Create;
   if (APath = '') or (not TFile.Exists(APath)) then
     Exit;
-  H := 0;
-  if Succeeded(LoadIconMetric(0, PChar(APath), ASizeMetric, H)) and (H <> 0) then
+  { ASizeMetric is LIM_SMALL or LIM_LARGE. LoadIconMetric can't be used here:
+    it only loads named module resources / system icons, never a .ico file.
+    LoadImage with LR_LOADFROMFILE reads the file and picks the frame that
+    matches the system small/large icon size, so the multi-size tray icons
+    (16..96 px) actually get their exact-size frame instead of TIcon's default
+    32 px one being rescaled by the shell. }
+  if ASizeMetric = LIM_LARGE then
+  begin
+    Cx := GetSystemMetrics(SM_CXICON);
+    Cy := GetSystemMetrics(SM_CYICON);
+  end
+  else
+  begin
+    Cx := GetSystemMetrics(SM_CXSMICON);
+    Cy := GetSystemMetrics(SM_CYSMICON);
+  end;
+  H := HICON(LoadImage(0, PChar(APath), IMAGE_ICON, Cx, Cy, LR_LOADFROMFILE));
+  if H <> 0 then
     Result.Handle := H
   else
   try

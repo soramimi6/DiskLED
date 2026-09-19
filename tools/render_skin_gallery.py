@@ -80,6 +80,24 @@ def image_cache():
     return get
 
 
+def flag(section, key, default):
+    """Mirrors uSkinLoader's ReadStrictBool: blank/absent reads as `default`;
+    1/true/yes/on and 0/false/no/off are the accepted spellings."""
+    v = (section.get(key) or "").strip().lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    return default
+
+
+def sprite_transparent(sprite):
+    """A sprite with a MaskColor but no Transparent key is transparent
+    (uSkinLoader: Transparent defaults to HasMask)."""
+    has_mask = bool((sprite.get("MaskColor") or "").strip())
+    return flag(sprite, "Transparent", has_mask) and has_mask
+
+
 def keyed(img, mask_rgb):
     if mask_rgb is None:
         return img
@@ -111,7 +129,7 @@ def draw_strip(canvas, get_img, folder, sprite, value):
     f = round(max(0.0, min(1.0, value)) * (frames - 1))
     f = max(0, min(frames - 1, f))
     frame = img.crop((0, f * fh, img.width, (f + 1) * fh))
-    if sprite.get("Transparent") == "1" and sprite.get("MaskColor"):
+    if sprite_transparent(sprite):
         frame = keyed(frame, hexcolor(sprite["MaskColor"]))
     canvas.alpha_composite(frame, (int(sprite["X"]), int(sprite["Y"])))
 
@@ -127,7 +145,7 @@ def draw_ping(canvas, get_img, folder, sprite, level):
     fh = img.height // frames
     level = max(0, min(frames - 1, level))
     frame = img.crop((0, level * fh, img.width, (level + 1) * fh))
-    if sprite.get("Transparent") == "1" and sprite.get("MaskColor"):
+    if sprite_transparent(sprite):
         frame = keyed(frame, hexcolor(sprite["MaskColor"]))
     canvas.alpha_composite(frame, (int(sprite["X"]), int(sprite["Y"])))
 
@@ -159,7 +177,7 @@ def render(skin_id, mode):
             val = 1.0 if DEMO_STATE[LED_PARTS[base]] else 0.0
             draw_strip(canvas, get_img, folder, sprite, val)
 
-    if g.get("Transparent") == "1" and g.get("MaskColor"):
+    if flag(g, "Transparent", True) and g.get("MaskColor"):
         canvas = keyed(canvas, hexcolor(g["MaskColor"]))
 
     return canvas

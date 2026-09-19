@@ -28,6 +28,7 @@ type
     FInitTried: Boolean;
     FRetryPending: Boolean;
     FRetryTick: Cardinal;
+    FFailCount: Integer;
     FBuf: array of Byte;
     FLast: Double;
     FLastTick: Cardinal;
@@ -35,6 +36,7 @@ type
     function InitPdh: Boolean;
     procedure ClosePdh;
     function SamplePdh(out AValue: Double): Boolean;
+    procedure SuspendPdh(ANowTick: Cardinal);
   public
     constructor Create;
     destructor Destroy; override;
@@ -63,6 +65,11 @@ const
     process. A machine that never had the counter set (InitPdh failing on the
     very first attempt) is not retried -- that absence is permanent. }
   CRetryIntervalMs = 30000;
+  { PdhCollectQueryData failing this many samples in a row means the query
+    handle went stale (driver reset, counters removed) -- PDH reports that as
+    a status code, not an exception, so it needs its own trigger for the
+    re-initialise above. }
+  CMaxFailsBeforeRetry = 3;
   { The instance count can grow between PdhGetFormattedCounterArrayW's sizing
     call and the retry, so PDH_MORE_DATA can repeat. }
   CMaxBufGrowAttempts = 3;
@@ -161,6 +168,16 @@ begin
     formatted values -- no separate "first call after init" case needed. }
   PdhCollectQueryData(FQuery);
   Result := True;
+end;
+
+procedure TGpuCollector.SuspendPdh(ANowTick: Cardinal);
+begin
+  FUsePdh := False;
+  FRetryPending := True;
+  FRetryTick := ANowTick;
+  FFailCount := 0;
+  ClosePdh;
+  FLast := 0;
 end;
 
 procedure TGpuCollector.ClosePdh;
@@ -279,13 +296,21 @@ begin
   Result := FLast;
   try
     if SamplePdh(V) then
+    begin
+      FFailCount := 0;
       Result := V;
+    end
+    else
+    begin
+      Inc(FFailCount);
+      if FFailCount >= CMaxFailsBeforeRetry then
+      begin
+        SuspendPdh(NowTick);
+        Result := 0;
+      end;
+    end;
   except
-    FUsePdh := False;
-    FRetryPending := True;
-    FRetryTick := NowTick;
-    ClosePdh;
-    FLast := 0;
+    SuspendPdh(NowTick);
     Result := 0;
   end;
 end;
