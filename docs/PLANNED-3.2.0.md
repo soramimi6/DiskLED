@@ -18,7 +18,9 @@
 
 項目 **20** はタスクトレイ LED アイコンのデザイン調整で、着手順・3.2.0 出荷の必須条件には含めない（項目 16〜19 と同様の事後対応枠）。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1〜20 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
+項目 **21〜23** は `feature/3.2.0` 全体への `/code-review` バッチレビュー（medium）で確定した指摘のうち、修正方針が明確なものを個別タスク化したもの。着手順・3.2.0 出荷の必須条件には含めない（項目 10〜15 と同様の事後対応枠）。
+
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1〜20 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **21〜23 は実装済み・実機確認待ち**（`work/3.2.0-21-22-review-fixes`）。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -42,6 +44,9 @@
 | 18 | ダッシュボード電源パネルの残時間表示を単位付きに改善（「1:1」→「1時間1分」） | 高（原因箇所を特定済み） | 低（`DrawPowerPanel` のフォーマット処理と文字列3件を追加） | **完了**（PR #41、実機確認済み） | 低（表示改善） |
 | 19 | オプション画面のタブ上部マージンを調整（タイトルバーに近すぎる） | 高（原因箇所を特定済み） | 低（`Padding` を設定するのみ） | **完了**（PR #39、実機確認済み。左右マージン・ボタン行高さは実機での微調整を反映） | 低（表示改善） |
 | 20 | タスクトレイ LED アイコンのネットグリフのデザイン調整 | 高（原因箇所を特定済み） | 低（`generate-tray-icons.ps1` の色・線幅を2箇所調整） | **完了**（PR #40、プレビュー画像でユーザー確認済み。Delphi コード変更なしのため IDE ビルド不要） | 低（表示改善） |
+| 21 | オプション画面がタスクバー／Alt+Tab に表示される退行を修正（`WS_EX_TOOLWINDOW` の復元） | 高（master の実装を参照可） | 低 | **実装済み**（`work/3.2.0-21-22-review-fixes`、実機確認待ち） | 中（退行修正） |
+| 22 | GPU 使用率取得が PDH 例外後に永久に 0% 固定になる問題を修正（再初期化・バッファ再拡張） | 高（原因箇所を特定済み） | 低〜中 | **実装済み**（`work/3.2.0-21-22-review-fixes`、実機確認待ち） | 中（不具合修正） |
+| 23 | pre-commit フックの失敗握りつぶし・`cfgModel.js` の `;` 誤解析・asset-editor の多重読み込み競合を修正 | 高 | 低 | **実装済み**（`work/3.2.0-21-22-review-fixes`。Delphi コード変更なし） | 低〜中 |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
@@ -317,7 +322,7 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 
 ### 実装内容
 
-1. [uOptionsForm.dfm](../src/uOptionsForm.dfm): `PageControl1: TPageControl`（[:18](../src/uOptionsForm.dfm#L18)、`Align = alClient`）配下に `TsGeneral`/`TsDisplay`/`TsTrayLed`/`TsPing`（[:26,125,267,352](../src/uOptionsForm.dfm#L26)）の4 `TTabSheet` を配置し、既存のカードパネルをその子として再配置（ロジック変更なし）。ダイアログサイズを `ClientHeight=470`／`ClientWidth=460`（[:7-8](../src/uOptionsForm.dfm#L7)、旧 634×859 の単一ページ2カラムから変更）。デザイン時にキャプションが空欄でメンテナンスしづらくならないよう、各 `TTabSheet` に他ラベルと同じ流儀の英語 `Caption` を設定（`General`/`Display`/`Tray LED`/`Ping && Network`。`&` は VCL のアクセラレータマーカーのため `&&` でエスケープ、[uAppStrings.pas:94-96](../src/uAppStrings.pas#L94-L96)）。カードパネル 8 箇所の `ParentBackground` を `False`→`True` に変更。
+1. [uOptionsForm.dfm](../src/uOptionsForm.dfm): `PageControl1: TPageControl`（[:18](../src/uOptionsForm.dfm#L18)、`Align = alClient`）配下に `TsGeneral`/`TsDisplay`/`TsTrayLed`/`TsPing`（[:26,125,267,352](../src/uOptionsForm.dfm#L26)）の4 `TTabSheet` を配置し、既存のカードパネルをその子として再配置（ロジック変更なし）。ダイアログサイズを `ClientHeight=470`／`ClientWidth=460`（[:7-8](../src/uOptionsForm.dfm#L7)）。デザイン時にキャプションが空欄でメンテナンスしづらくならないよう、各 `TTabSheet` に他ラベルと同じ流儀の英語 `Caption` を設定（`General`/`Display`/`Tray LED`/`Ping && Network`。`&` は VCL のアクセラレータマーカーのため `&&` でエスケープ、[uAppStrings.pas:94-96](../src/uAppStrings.pas#L94-L96)）。カードパネル 8 箇所の `ParentBackground` を `False`→`True` に変更。
 2. [uOptionsForm.pas](../src/uOptionsForm.pas): `TOptionsForm` は引き続きプレーンな `TForm`（独自描画基底クラスへの変更はしない）。`ApplyCaptions`（[:144](../src/uOptionsForm.pas#L144)）の先頭にタブキャプションの多言語適用（`TsGeneral.Caption := S('opt.tab.general')` 等）を追加（[:147-150](../src/uOptionsForm.pas#L147)）。文字列キー4件を [uAppStrings.pas:91-96](../src/uAppStrings.pas#L91) に追加。フォーム自身に `StyleName` は設定せず、後述の `uAppStyle` によるアプリ全体スタイルをそのまま継承する。
 3. 新規ユニット [uAppStyle.pas](../src/uAppStyle.pas): `ApplyAppStyle` が `SystemUsesLightTheme` に応じて `styles/Windows10.vsf`／`Windows10Dark.vsf` を読み込み、`TStyleManager.TrySetStyle`（[:136](../src/uAppStyle.pas#L136)）でアプリ全体へ適用する。`.vsf` の内部登録名はファイル名と一致する保証が無いため、`TStyleManager.StyleNames` の読み込み前後差分で実際の名前を検出する（`LoadStyleFileName`、[:73-104](../src/uAppStyle.pas#L73)）。検出結果はライト/ダーク双方をユニット変数（[:49-50](../src/uAppStyle.pas#L49)）にキャッシュし、2回目以降の呼び出し（後述のライブ切替）でも正しい名前を再利用する。[DiskLED.dpr:69](../DiskLED.dpr#L69) で最初のフォーム生成前に一度呼ぶ。
 4. **自家描画ウィンドウの除外**: メイン画面（`TMainForm`）・ダッシュボード/Ping結果画面（`TThemedHudForm` 系）はアプリ全体スタイルの対象から外す必要がある（対象のままだとネイティブ子コントロールが再スキンされ、既存の自家描画パレットと衝突する）。`StyleName := 'Windows'`（VCL 組み込みの「スタイル無し」の名前）をそれぞれの生成時に設定: [uMainForm.pas:311](../src/uMainForm.pas#L311)（`FormCreate`）、[uThemedHudForm.pas:49](../src/uThemedHudForm.pas#L49)（`CreateWnd`、ダッシュボード・Ping結果画面が共有する基底クラス）。
@@ -444,3 +449,39 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 - OFF 時のグリフ色（[generate-tray-icons.ps1:133](../tools/generate-tray-icons.ps1#L133)）を白 `FromArgb(130, 255, 255, 255)` からグレー `FromArgb(130, 128, 128, 128)` へ変更。不透明度（アルファ130）は変更せず RGB の明度のみ半分に落とし、OFF 球体に馴染むようにした。
 - 3本の弧の線幅（[generate-tray-icons.ps1:143](../tools/generate-tray-icons.ps1#L143)）を `InnerD * 0.095` から `InnerD * 0.065` へ変更（ON/OFF・全色共通）。プレビュー画像をユーザーに確認してもらいながら 0.095 → 0.08 → 0.065 の順に段階調整した。
 - Delphi コードは一切変更していないため、RAD Studio IDE でのビルド確認は不要。`assets/tray/` 配下の `net{On,Off}.ico`（green/blue/red の計6ファイル）のみ再生成して差し替えた（`disk{On,Off}.ico` は無変更であることを確認済み）。
+
+## 21. オプション画面がタスクバー／Alt+Tab に表示される退行を修正
+
+`/code-review` バッチレビューで確定。`master` の `TOptionsForm.CreateParams`（`Params.ExStyle` に `WS_EX_TOOLWINDOW` を付与し `WS_EX_APPWINDOW` を外す）が、3.2.0 項目8のオプション画面再構成で失われており、オプション画面がタスクバー・Alt+Tab に独立した項目として出るようになっていた（常駐アプリで、トレイ専用表示時にはオプション画面だけがタスクバーに出る状態にもなる）。
+
+- `TOptionsForm` に `CreateParams` のオーバーライドを復元した（[uOptionsForm.pas](../src/uOptionsForm.pas) の `TOptionsForm.CreateParams`）。内容は `master` と同一で、ガジェット本体（`uMainForm.pas` の `CreateParams`）と同じ流儀。
+
+### 実装後に実機で見ること
+
+- トレイメニューからオプション画面を開いて、タスクバーと Alt+Tab に「DiskLED Options」が出ないこと（ダイアログ自体は従来どおり最前面に表示され、操作できること）。
+- 3.2.0 項目19（Padding）を含め、ダイアログの見た目（タイトルバーの太さなど）が意図せず変わっていないこと。
+
+## 22. GPU 使用率取得が PDH 例外後に永久に 0% 固定になる問題を修正
+
+`/code-review` バッチレビューで確定。`TGpuCollector.Sample`（[uGpuCollector.pas](../src/metrics/uGpuCollector.pas)）は `SamplePdh` が一度でも例外を投げると `FUsePdh := False` にして以後 `Exit(0)` するだけで、`FInitTried` が既に True のため再初期化されず、ドライバのリセットなど一時的な PDH 障害でも次回起動まで GPU 表示が 0% 固定になっていた。あわせて `SamplePdh` のバッファ拡張が1回きりで、負荷急増（GPU コンテキストが増える瞬間）に `PDH_MORE_DATA` が連続するとその1サンプルが誤って 0%（アイドル）として報告されていた。
+
+- 実行時の失敗（`SamplePdh` の例外）の後は 30 秒間隔（`CRetryIntervalMs`）で `InitPdh` を再試行する。起動時から PDH カウンタが無い環境（古い Windows・RDP など）は従来どおり再試行しない（`FRetryPending` を例外時にのみ立てる）。
+- `PDH_MORE_DATA` は最大3回（`CMaxBufGrowAttempts`）まで、報告サイズの1.25倍＋64バイトでバッファを拡張して取り直す。
+
+### 実装後に実機で見ること
+
+- ダッシュボードの CPU/GPU カードで GPU 使用率が従来どおり表示・変化すること（GPU 負荷をかけたとき／かけていないとき）。
+- GPU カウンタの無い環境（RDP セッションなど）で、従来どおり 0% 表示のままエラーや遅延が出ないこと。
+
+## 23. pre-commit フックの失敗握りつぶし・`cfgModel.js` の `;` 誤解析・asset-editor の多重読み込み競合を修正
+
+`/code-review` バッチレビューで確定した3件。Delphi コードは変更していない。
+
+- **pre-commit フック**（[tools/git-hooks/pre-commit](../tools/git-hooks/pre-commit)）: `render_skin_gallery.py` が失敗すると `&&` が短絡して `git add` されず、直後の無条件 `exit 0` で無言のままコミットが通り、`public_docs/images/skins/` が古いままになっていた。失敗時に警告を stderr へ出すようにした（フックは従来どおり best-effort でコミットは止めない）。
+- **`cfgModel.js` の `KEY_RE`**（[cfgModel.js:30](../asset-editor/js/cfgModel.js#L30)）: 値中の `;` 以降をインラインコメントとして切り落としていたが、Delphi の `TMemIniFile`（VCL 実ソース `System.IniFiles.pas` の `SetStrings` で確認済み）も `skinLoader.js` の `IniFile` もインラインコメントを持たず行の残りを値として扱う。`File=my;icon.png` のような値が誤って欠落扱いになるため、コメントは行頭 `;` のみとした。同梱の全 `layout.cfg` に値中の `;` は無く、既存スキンへの影響はない。
+- **asset-editor の多重読み込み**（[index.html](../asset-editor/index.html) の `loadAssetFromEntries`）: フォルダを続けて読み込むと、遅い方の読み込みが後から `loadedAsset` を上書きし Blob URL も解放されなかった。読み込みごとに連番（`loadSeq`）を持ち、置き換えられた古い読み込みは結果を捨てて自分の Blob URL を解放する。
+
+### 実装後に確認すること
+
+- asset-editor で同梱スキンを続けて読み込み直しても、直前に選んだスキンだけが表示されること（`asset-editor/index.html` をブラウザで開いて確認）。
+- `layout.cfg` を GUI で編集した際、値・行末の空白・`;` で始まるコメント行が従来どおり保たれること。
