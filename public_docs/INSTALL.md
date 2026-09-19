@@ -43,15 +43,3 @@
 1. `DiskLED-3.1.2-portable.zip` を任意のフォルダへ展開する
 2. フォルダ内の `DiskLED.exe` を実行する（同梱の `assets`・`styles`・`LICENSE.txt`・`public_docs` はそのまま残す）
 3. 使い終わったら DiskLED を終了し、フォルダごと削除する（`DiskLED.ini` も同フォルダにあれば一緒に消えます）
-
-## 開発者向け: パッケージの作り方
-
-Delphi Community Edition ではコマンドラインコンパイルができないため、先に IDE で **Win64 / Release** をビルドし、`Win64\Release\DiskLED.exe` を用意してください。ユーザー向け説明の正本はリポジトリ直下の `public_docs\` です（ステージ時に `dist\DiskLED\public_docs\` へコピーされます）。
-
-| 手順 | コマンド（リポジトリルートで） |
-|------|--------------------------------|
-| ステージのみ（`dist\DiskLED\`） | `.\tools\stage-dist.ps1` |
-| ポータブル zip | `.\tools\make-portable.ps1` |
-| インストーラー（[Inno Setup 6](https://jrsoftware.org/isinfo.php) が必要） | `.\tools\make-installer.ps1` |
-
-Debug ビルドしかない場合は `-Config Debug` を付けられます（配布用は Release 推奨）。
