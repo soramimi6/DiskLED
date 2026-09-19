@@ -18,7 +18,11 @@ fi
 
 for PY in python py python3; do
   if command -v "$PY" >/dev/null 2>&1 && "$PY" -c "import PIL" >/dev/null 2>&1; then
-    "$PY" tools/render_skin_gallery.py >/dev/null && git add public_docs/images/skins
+    if "$PY" tools/render_skin_gallery.py >/dev/null; then
+      git add public_docs/images/skins
+    else
+      echo "warning: tools/render_skin_gallery.py failed -- public_docs/images/skins/ was NOT refreshed and may be stale; fix the error above and run it manually." >&2
+    fi
     exit 0
   fi
 done

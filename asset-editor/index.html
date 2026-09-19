@@ -1378,7 +1378,13 @@ function initEditor() {
 
 // `entries`: Array<{file: File, relativePath: string}>, relativePath rooted
 // at the picked/dropped folder's own name (e.g. "myskin/layout.cfg").
+// Bumped on every load so a slower earlier load (large folder) that resolves
+// after a newer one has started can tell it was superseded and drop its work
+// instead of overwriting loadedAsset / leaking its Blob URLs.
+let loadSeq = 0;
+
 async function loadAssetFromEntries(entries) {
+  const seq = ++loadSeq;
   // Release the previous asset's decoded-image blob URLs before dropping
   // the reference to them -- otherwise re-loading a skin folder repeatedly
   // (the normal trial-and-error flow for a skin author) leaks one Blob per
@@ -1410,6 +1416,7 @@ async function loadAssetFromEntries(entries) {
   }
 
   const text = await cfgEntry.file.text();
+  if (seq !== loadSeq) return;
   runDiagnostics(rootName, text);
 
   try {
@@ -1417,6 +1424,10 @@ async function loadAssetFromEntries(entries) {
     const images = new Map();
     const imageEntries = entries.filter((e) => /\.(png|bmp|jpg|jpeg|gif)$/i.test(e.file.name));
     const loaded = await Promise.all(imageEntries.map(async (e) => [e.file.name.toLowerCase(), await loadImage(e.file)]));
+    if (seq !== loadSeq) {
+      for (const [, img] of loaded) if (img) URL.revokeObjectURL(img.src);
+      return;
+    }
     for (const [name, img] of loaded) if (img) images.set(name, img);
     loadedAsset = { name: rootName, cfgPath: cfgEntry.relativePath, doc: new CfgDoc(text), skin, images };
     assetLabel.textContent = `${skin.caption} (${rootName}) — ${skin.hasFull ? t('assetLabelCompactFull') : t('assetLabelCompactOnly')}`;
