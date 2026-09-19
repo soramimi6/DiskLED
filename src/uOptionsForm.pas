@@ -93,6 +93,8 @@ type
   public
     procedure BindSettings(ASettings: TAppSettings);
     class function Execute(AOwner: TComponent; ASettings: TAppSettings): Boolean; static;
+  protected
+    procedure CreateParams(var Params: TCreateParams); override;
   end;
 
 var
@@ -118,6 +120,14 @@ const
   CDefaultSlowMs = 500;
   CDefaultTimeoutMs = 1000;
   CMinIntervalSec = 300;
+
+procedure TOptionsForm.CreateParams(var Params: TCreateParams);
+begin
+  inherited CreateParams(Params);
+  { Keeps Options off the taskbar / Alt+Tab, as the tray-centric gadget's own
+    window does (uMainForm.CreateParams). }
+  Params.ExStyle := (Params.ExStyle or WS_EX_TOOLWINDOW) and (not WS_EX_APPWINDOW);
+end;
 
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
