@@ -844,6 +844,7 @@ const
   ReassertIntervalMs = 2000;
 var
   NowTick: Cardinal;
+  Gti: TGUIThreadInfo;
 begin
   { FormStyle=fsStayOnTop (see ApplySettingsToUi) only asserts WS_EX_TOPMOST
     once, on assignment. Windows can still push this window out of the
@@ -860,6 +861,16 @@ begin
     SetWindowPos doesn't re-elevate an already-open owned window for us. }
   if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) or
     ((FTraceRouteForm <> nil) and FTraceRouteForm.Visible) then
+    Exit;
+  { A right-click / tray menu is a TrackPopupMenu modal loop that still
+    dispatches WM_TIMER, so this poll keeps running while it is open. The menu
+    window sits in the same topmost band, and re-asserting HWND_TOPMOST here
+    would raise the gadget above it. GUI_INMENUMODE covers every menu on this
+    thread (gadget, tray, dashboard) without tracking open/close ourselves;
+    the next tick after it closes re-asserts as usual. }
+  Gti.cbSize := SizeOf(Gti);
+  if GetGUIThreadInfo(GetCurrentThreadId, Gti) and
+    ((Gti.flags and (GUI_INMENUMODE or GUI_POPUPMENUMODE)) <> 0) then
     Exit;
   NowTick := GetTickCount;
   if FHasTopMostTick and (NowTick - FLastTopMostTick < ReassertIntervalMs) then
