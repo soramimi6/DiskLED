@@ -4,12 +4,20 @@
 
 Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネットワーク / CPU / メモリ）を、現代の Windows（Windows 11 など）向けに基本設計から再構築したアプリケーションです。
 
-## 確定方針
+![originalSkin](docs/images/ss_skin_original.png) ![vintageSkin](docs/images/ss_skin_vintage.png)
+![dashboard](docs/images/ss_dashboard.png)
+
+## ダウンロード
+- **Github** [リリースページ](https://github.com/soramimi6/DiskLED/releases)
+- **Microsoft Store** [紹介ページ](https://apps.microsoft.com/detail/9NL8ZRTVVFJJ)
+
+---
+
+## 概要
 
 - **開発環境**: Delphi Community Edition（個人開発・無料配布）／**VCL**・64-bit
 - **対象**: Windows 10 / 11
 - **外観**: ユーザー導入の旧スキン（`.dla`）は非対応。内部は **layout.cfg ベースの表示モード**（Original / Crystal / Metalic / Info Bar / Vintage）。`assets/<id>/layout.cfg` を足せばモード追加可能
-- **スキンリソース**: 旧版から引き継いだ画像を `assets/original`・`assets/crystal`・`assets/metalic` に配置。`assets/infobar`・`assets/vintage` は DiskLED 3 向け新規。座標は各 `layout.cfg`。`assets/` 以下は旧版開発者と同一の著作物
 - **更新頻度**: 最低 **10 fps**、デフォルト **15 fps**。見た目のコマが変わらないときは再描画しない
 - **プロセス**: **単一起動のみ**（2つ目以降は起動を抑制し、既存へフォーカス等）
 - **スケール**:
@@ -18,8 +26,6 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
   - Ping … 応答時間を 4 段階（正常／やや遅い／遅い／タイムアウト）で表示
 - **非採用**: ユーザー向けスキン配布（`.dla`）、SSTP、**サウンド全般**、フローティング、複数起動
 - **非採用（権限・API 方針上）**: アクセス中のファイル一覧（ETW カーネルプロバイダ＝管理者権限が必要）、メモリ内訳 Standby/Modified・GPU VRAM 内訳（いずれも非公開 API 依存。一般権限・公式 API 優先の方針に反する。GPU 使用率は PDH で公式に取れるため対象）
-- **Phase5（実装済み）**: コンパクト／フル切替（ダブルクリック）と CPU／MEM／SWAP 推移グラフ（Original / Metalic）
-- **Phase6（実装済み）**: ユーザー権限インストーラー（Inno Setup）＋ポータブル zip（`tools/make-*.ps1`）
 
 ## 主な機能
 
@@ -32,22 +38,10 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - **Ping**：応答段階表示。専用ウィンドウで Tracert のようにホップごとの経路（TTL・IP・ホスト名・RTT）を表示（3.1.1〜）
 - 最前面表示、トレイアイコン、スタートアップ登録、単一起動の強制
 - 右クリックメニューから**位置をリセット**（画面外に外れた本体ウィンドウの復旧、3.1.1〜）
-- 設定の簡易永続化（ini）
-- **高 DPI（Per-Monitor V2）**。ガジェットは 0.5 刻み、ダッシュボードは実 DPI、オプションは VCL Scaled
 - **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、電源（再生音量）、Ping 履歴などを表示
-- 起動時の新しい版の通知（GitHub Latest を 1 回確認。Microsoft Store 版では無効、3.1.1〜）
+
 
 Crystal / Info Bar はコンパクトのみ。Vintage はフル表示ありだが推移グラフは無し。
-
-## 今後の検討事項
-
-- フローティング
-- サウンド
-- 複数起動・ドライブ別インスタンス
-- マウス接近で隠す／最大化でトレイ退避
-- OwnerDraw メニュー
-- 手動速度レンジ UI
-- 手動言語切替（ini / メニュー）
 
 ### 監視対象
 
@@ -61,7 +55,6 @@ Crystal / Info Bar はコンパクトのみ。Vintage はフル表示ありだ�
 - **設定ファイル**: 基本は exe と同じフォルダの `DiskLED.ini`（書込不可時は `%AppData%\DiskLED\DiskLED.ini` へフォールバックする）
 - **メーター追従**: 上昇は指数で速く、下降は定速の余韻（fps 非依存）。動きは表示モードの `layout.cfg` `[Ballistic]` で指定（3.0.1 以降）
 - **対数スケール**: ネット速度はオプションで直線（既定）または対数。ディスクはオートセンスの直線。CPU／MEM／SWAP は常に直線
-- **高 DPI**: プロセスは **Per-Monitor V2**。ガジェットは 0.5 刻み（125% は見た目 1.5 倍）。ダッシュボードは実 DPI。オプションは VCL の Scaled
 - **権限**: **管理者不要**で動く範囲に限定（ICMP Ping も一般権限で実施）
 
 ### 配布・その他
@@ -89,12 +82,20 @@ Crystal / Info Bar はコンパクトのみ。Vintage はフル表示ありだ�
 
 This application rebuilds a resident monitor (HDD / network / CPU / memory) originally written in Delphi 4.0 in the Windows XP era, from a fresh design for modern Windows (Windows 11 and others).
 
-## Confirmed policy
+![originalSkin](docs/images/ss_skin_original.png) ![vintageSkin](docs/images/ss_skin_vintage.png)
+![dashboard](docs/images/ss_dashboard.png)
+
+## Download
+- **GitHub** [Releases page](https://github.com/soramimi6/DiskLED/releases)
+- **Microsoft Store** [Store listing](https://apps.microsoft.com/detail/9NL8ZRTVVFJJ)
+
+---
+
+## Overview
 
 - **Development environment**: Delphi Community Edition (personal development, free distribution) / **VCL** · 64-bit
 - **Target**: Windows 10 / 11
 - **Appearance**: User-supplied legacy skins (`.dla`) are not supported. Internally, display modes are **layout.cfg-based** (Original / Crystal / Metalic / Info Bar / Vintage). Modes can be added by placing `assets/<id>/layout.cfg`
-- **Skin resources**: Images inherited from the previous version live in `assets/original`, `assets/crystal`, and `assets/metalic`. `assets/infobar` and `assets/vintage` are new for DiskLED 3 (coordinates are in each `layout.cfg`). Everything under `assets/` is the same copyrighted work as the previous version
 - **Refresh rate**: Minimum **10 fps**, default **15 fps**. The window is not redrawn while sprite frames stay the same
 - **Process**: **Single instance only** (later launches are suppressed and focus is given to the existing instance, etc.)
 - **Scales**:
@@ -103,8 +104,6 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
   - Ping … response time shown in 4 levels (OK / somewhat slow / slow / timeout)
 - **Not adopted**: User-facing skin distribution (`.dla`), SSTP, **sound in general**, floating, multiple instances
 - **Not adopted (privilege / API policy)**: List of files currently being accessed (ETW kernel provider = requires administrator rights), memory Standby/Modified breakdown and GPU VRAM breakdown (both depend on undocumented APIs, against the "prefer non-elevated, official APIs" policy; GPU utilization is in scope since PDH exposes it officially)
-- **Phase5 (implemented)**: Compact/full toggle (double-click) and CPU / MEM / SWAP history graphs (Original / Metalic)
-- **Phase6 (implemented)**: Per-user installer (Inno Setup) + portable zip (`tools/make-*.ps1`)
 
 ## Key features
 
@@ -117,22 +116,9 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - **Ping**: response-level display. A dedicated window shows the hop-by-hop route (TTL, IP, hostname, RTT) like Tracert (since 3.1.1)
 - Always-on-top, tray icon, startup registration, enforce single instance
 - **Reset position** from the right-click menu (recovers a main window that has drifted off-screen, since 3.1.1)
-- Simple settings persistence (ini)
-- **High DPI (Per-Monitor V2)**. Gadget uses 0.5-step scale; dashboard follows real DPI; Options use VCL Scaled
 - **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), power (playback volume), Ping history, and more
-- New version notice at startup (checks GitHub Latest once; disabled on the Microsoft Store build, since 3.1.1)
 
 Crystal / Info Bar are compact-only. Vintage has a full view but no history graph.
-
-## Future considerations
-
-- Floating
-- Sound
-- Multiple instances / per-drive instances
-- Hide on mouse approach / retreat to tray when maximized
-- OwnerDraw menus
-- Manual speed-range UI
-- Manual language switching (ini / menu)
 
 ### What is monitored
 
@@ -146,7 +132,6 @@ Crystal / Info Bar are compact-only. Vintage has a full view but no history grap
 - **Settings file**: Basically `DiskLED.ini` in the same folder as the exe (falls back to `%AppData%\DiskLED\DiskLED.ini` when that folder is not writable)
 - **Meter follow**: Fast exponential rise, constant-speed fall (fps-independent). Motion is set per display mode in `layout.cfg` `[Ballistic]` (since 3.0.1)
 - **Log scale**: Network speed can be linear (default) or logarithmic in Options. Disk stays auto-sense linear. CPU / MEM / SWAP stay linear
-- **High DPI**: Process is **Per-Monitor V2**. The gadget uses 0.5-step scale (125% looks like 1.5×). The dashboard follows real DPI. Options use VCL Scaled
 - **Privileges**: Limited to what works **without administrator** (ICMP Ping is also done as a standard user)
 
 ### Distribution and other
