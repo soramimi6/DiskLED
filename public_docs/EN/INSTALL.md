@@ -43,15 +43,3 @@ Uninstall does **not** delete `DiskLED.ini` (next to the exe, or under `%AppData
 1. Extract `DiskLED-3.1.2-portable.zip` to any folder
 2. Run `DiskLED.exe` from that folder (keep bundled `assets`, `styles`, `LICENSE.txt`, and `public_docs`)
 3. To remove, quit DiskLED and delete the folder (including any local `DiskLED.ini`)
-
-## Packaging (developers)
-
-Delphi Community Edition cannot compile from the command line. Build **Win64 / Release** in the IDE first so `Win64\Release\DiskLED.exe` exists. Canonical user docs live at repo-root `public_docs\` (copied into `dist\DiskLED\public_docs\` when staging).
-
-| Step | Command (from repo root) |
-|------|--------------------------|
-| Stage only (`dist\DiskLED\`) | `.\tools\stage-dist.ps1` |
-| Portable zip | `.\tools\make-portable.ps1` |
-| Installer (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)) | `.\tools\make-installer.ps1` |
-
-Use `-Config Debug` only if you lack a Release build (Release is preferred for distribution).
