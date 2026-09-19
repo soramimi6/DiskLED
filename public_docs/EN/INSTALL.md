@@ -43,3 +43,9 @@ Uninstall does **not** delete `DiskLED.ini` (next to the exe, or under `%AppData
 1. Extract `DiskLED-3.2.0-portable.zip` to any folder
 2. Run `DiskLED.exe` from that folder (keep bundled `assets`, `styles`, `LICENSE.txt`, and `public_docs`)
 3. To remove, quit DiskLED and delete the folder (including any local `DiskLED.ini`)
+
+## Microsoft Store
+
+1. Install directly from the Microsoft Store
+2. Updates are applied automatically, so no action is needed (if you have turned automatic updates off, update manually)
+3. Uninstall it like any other Store app

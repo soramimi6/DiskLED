@@ -4,7 +4,7 @@
 
 ## Start and exit
 
-1. Run `DiskLED.exe` from the install folder (or portable folder)
+1. Choose DiskLED from the Start menu to launch it. For the portable edition, run `DiskLED.exe` from its folder
 2. The meter window appears on the desktop
 3. To quit: **right-click** the window → **Exit** (Japanese UI: **終了**)
 
@@ -54,7 +54,6 @@ Menu captions follow the OS UI language (**English by default**; Japanese only w
 - The right-click menu is the same in every state — switching display or opening the dashboard both still work from it
 - The dashboard is independent of this state: if it was open, it stays open even with only the tray LED showing
 - Storing the icon in the notification area's "hidden icons" tray hides the blinking too (a Windows limitation) — pin it somewhere always visible instead
-- Each display mode ships with its own tray LED art; if a mode is missing it, the tray falls back to the fixed app icon (no LED)
 
 ### Tray LED settings (Options)
 

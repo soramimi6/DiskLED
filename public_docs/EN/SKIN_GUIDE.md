@@ -8,15 +8,22 @@ A guide to creating and customizing DiskLED's look (a "display mode", or "skin")
 
 - One `assets/<id>/` folder corresponds to one display mode (e.g. Original, Crystal)
 - Each folder contains a `layout.cfg` (settings file) and its image files
-- Any subfolder of `assets/` that has a `layout.cfg` is automatically picked up as a display mode at startup — no rebuild needed
-- **Compact and Full displays are completely independent.** Nothing is inherited between them (more on this below)
+- Any subfolder of `assets/` that has a `layout.cfg` is automatically picked up as a display mode at startup
+- **Compact and Full displays are completely independent.** Settings are not inherited between them (more on this below)
+
+### Handling and distributing user-made skins
+
+- The skin's images and `layout.cfg` are owned by the user who created them (outside DiskLED's control)
+- When distributing, include only your skin's own folder under `assets`, and state that DiskLED is required to use it and where to get it. Redistributing DiskLED itself with your skin bundled is not permitted
+- There are no plans to make major changes to `layout.cfg` or the display engine for the time being, but the specification may change as features are extended. Our policy is to keep backward compatibility, but in unavoidable cases compatibility may be lost (for example, a skin that works only up to a certain version); please understand this in advance
 
 ## 2. Opening Asset Editor
 
-1. Double-click `asset-editor/index.html` (it opens in your browser — it looks a bit nicer with an internet connection, but works fine without one)
-2. Click **Load asset folder…** and pick the folder of the skin you want to edit — the folder that directly contains its `layout.cfg`. You can also **drag and drop** that folder onto the page instead
-3. Picking a parent folder (like `assets/` itself) won't load anything — pick the **one asset's own folder**
-4. To start a brand-new skin from scratch, create an empty folder and put a minimal `layout.cfg` in it first (see the template in section 3), then load it
+1. Double-click `asset-editor/index.html` (it opens in your browser — it looks a bit nicer with an internet connection, but it still works without one)
+2. Use the "EN / JA" toggle at the top right to switch the display language
+3. Click **Load asset folder…** and pick the folder of the skin you want to edit — the folder that directly contains its `layout.cfg`. You can also **drag and drop** that folder onto the page instead
+4. Picking a parent folder (like `assets/` itself) won't load anything — pick the **one asset's own folder**
+5. To start a brand-new skin from scratch, create an empty folder and put a minimal `layout.cfg` in it first (see the template in section 3), then load it
 
 Asset Editor works the same whether the folder is inside this repository or anywhere else on your computer (My Documents, a USB drive, ...).
 

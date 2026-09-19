@@ -43,3 +43,9 @@
 1. `DiskLED-3.2.0-portable.zip` を任意のフォルダへ展開する
 2. フォルダ内の `DiskLED.exe` を実行する（同梱の `assets`・`styles`・`LICENSE.txt`・`public_docs` はそのまま残す）
 3. 使い終わったら DiskLED を終了し、フォルダごと削除する（`DiskLED.ini` も同フォルダにあれば一緒に消えます）
+
+## Microsoft Store
+
+1. Microsoft Store からそのままインストール可能
+2. バージョンアップの際は自動的に反映されるため、ユーザーは操作不要（自動更新機能をOFFにしている場合は手動で実施）
+3. アンインストールも通常のStoreアプリと同様
