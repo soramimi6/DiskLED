@@ -18,9 +18,11 @@
 
 項目 **20** はタスクトレイ LED アイコンのデザイン調整で、着手順・3.2.0 出荷の必須条件には含めない（項目 16〜19 と同様の事後対応枠）。
 
+項目 **24** は、リリース前の最終 `/code-review`（high）で確定した指摘のうち修正したもの。項目 21〜23 と同様の事後対応枠で、3.2.0 出荷の必須条件には含めない。
+
 項目 **21〜23** は `feature/3.2.0` 全体への `/code-review` バッチレビュー（medium）で確定した指摘のうち、修正方針が明確なものを個別タスク化したもの。着手順・3.2.0 出荷の必須条件には含めない（項目 10〜15 と同様の事後対応枠）。
 
-進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1〜20 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **21〜23 もすべて完了**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
+進捗（すべて `feature/3.2.0` 上・`master` 未マージ）: 項目 **1〜20 がすべて完了**（項目2はベゼル質感の作り直しを対象外として見送った上での完了、表の「ステータス」列参照）。項目 **21〜24 もすべて完了**。公開ドキュメント（`USAGE`/`FEATURES`/`NOTES`/`CHANGELOG` の JA+EN）は3.2.0の内容を反映済み。
 
 | # | 機能 | 実現可能性 | 難易度 | ステータス | 優先度 |
 |---|---|---|---|---|---|
@@ -47,6 +49,7 @@
 | 21 | オプション画面がタスクバー／Alt+Tab に表示される退行を修正（`WS_EX_TOOLWINDOW` の復元） | 高（master の実装を参照可） | 低 | **完了**（PR #42、実機確認済み） | 中（退行修正） |
 | 22 | GPU 使用率取得が PDH 例外後に永久に 0% 固定になる問題を修正（再初期化・バッファ再拡張） | 高（原因箇所を特定済み） | 低〜中 | **完了**（PR #42、実機確認済み） | 中（不具合修正） |
 | 23 | pre-commit フックの失敗握りつぶし・`cfgModel.js` の `;` 誤解析・asset-editor の多重読み込み競合を修正 | 高 | 低 | **完了**（PR #42。Delphi コード変更なし） | 低〜中 |
+| 24 | 最終レビューの指摘: GPU 再初期化が実際には発動しない／ギャラリー画像の透過判定／トレイ・色見本アイコンが常に既定サイズで読まれる | 高（原因箇所を特定済み） | 低〜中 | **完了**（PR #44、実機確認済み） | 中（不具合修正） |
 
 3.2.0 に収まらず次のメジャーへ送った項目（リソース別 TOP5 プロセス、ダッシュボード CRT 表示タイプ）は `docs/PLANNED-3.3.0.md`。
 
@@ -231,7 +234,7 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 
 ### 実装内容
 
-- **5a. ウィンドウ表示とトレイ LED の分離**: 右クリックの表示メニューを **「ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ」の排他 3 択**（[uMainForm.pas:640-659](../src/uMainForm.pas#L640-L659)、GroupIndex 4）に組み替えた。「ウィンドウ＋トレイ LED」でウィンドウを出したままトレイも LED 化できる。ウィンドウサイズ（コンパクト/フル）は従来どおり別軸。ini は `[View] WindowHidden` ＋ `[Tray] Led` の直交キー（旧 `[View] Size=compact|full|tray` は起動時に読み替え、保存時に削除）。`TimerTick` はウィンドウ描画とトレイ LED 更新を独立条件にし、両立を可能にした。
+- **5a. ウィンドウ表示とトレイ LED の分離**: 右クリックの表示メニューを **「ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ」の排他 3 択**（[uMainForm.pas:671-689](../src/uMainForm.pas#L671-L689)、GroupIndex 4）に組み替えた。「ウィンドウ＋トレイ LED」でウィンドウを出したままトレイも LED 化できる。ウィンドウサイズ（コンパクト/フル）は従来どおり別軸。ini は `[View] WindowHidden` ＋ `[Tray] Led` の直交キー（旧 `[View] Size=compact|full|tray` は起動時に読み替え、保存時に削除）。`TimerTick` はウィンドウ描画とトレイ LED 更新を独立条件にし、両立を可能にした。
 - **5b. `[Tray]` を廃止し、スキン非依存の「トレイ LED の色」を導入**: スキンの `layout.cfg` `[Tray]` セクションと `TDisplayModeDef.TrayOffFile`/`TrayOnFile` を撤去。`assets/tray/<color>/` に緑・青・赤の Off/On アイコンを用意する。素材は [tools/generate-tray-icons.ps1](../tools/generate-tray-icons.ps1)（PowerShell + System.Drawing）によるプロシージャル生成（リング付きグラデーション球体、On はベル型減衰で明度を強調）。`assets/tray/` は `uDisplayModes.LoadDisplayModes` から明示除外（[uDisplayModes.pas:94-98](../src/view/uDisplayModes.pas#L94-L98)）。赤の Off はほぼ黒に近い暗さにして警告色との誤読を防止。
 - **5c. ディスク／ネット LED**: オプション画面「Tray LED」カードの「トレイ LED の情報」（ディスク／ネットワークの独立チェックボックス、`opt.tray_led_info`）で選ぶ。**両方同時 ON が可能**で、その場合は2つ目のトレイアイコン（`FTray2`、[uMainForm.pas:1300-1334](../src/uMainForm.pas#L1300-L1334)）を動的に生成し、既存アイコンがディスク・2つ目がネットの LED を独立して表示する。グリフ形状はディスク＝横二重バー、ネット＝上下三角で区別。ini は `[Tray] LedDisk`/`LedNet` の独立ブール2個。両方を OFF にはできない（片方を外した結果もう片方も OFF になる場合はその操作をキャンセルする、[uOptionsForm.pas](../src/uOptionsForm.pas) `ChkLedDiskClick`/`ChkLedNetClick`）。
 - トレイアイコンの表示位置・並び順（メイン領域／オーバーフロー、どこに並ぶか）は Windows シェル側が管理・記憶するもので、DiskLED のスコープ外（`Shell_NotifyIcon` の識別情報に紐づけて OS が保持）。将来のドライブ別 LED も同様に、ドライブごとの独立トレイアイコンとして追加され、配置は OS 管理になる見込み。
@@ -322,7 +325,7 @@ GPU 使用率をダッシュボードに追加する。**PDH の `GPU Engine` �
 
 ### 実装内容
 
-1. [uOptionsForm.dfm](../src/uOptionsForm.dfm): `PageControl1: TPageControl`（[:18](../src/uOptionsForm.dfm#L18)、`Align = alClient`）配下に `TsGeneral`/`TsDisplay`/`TsTrayLed`/`TsPing`（[:26,125,267,352](../src/uOptionsForm.dfm#L26)）の4 `TTabSheet` を配置し、既存のカードパネルをその子として再配置（ロジック変更なし）。ダイアログサイズを `ClientHeight=470`／`ClientWidth=460`（[:7-8](../src/uOptionsForm.dfm#L7)）。デザイン時にキャプションが空欄でメンテナンスしづらくならないよう、各 `TTabSheet` に他ラベルと同じ流儀の英語 `Caption` を設定（`General`/`Display`/`Tray LED`/`Ping && Network`。`&` は VCL のアクセラレータマーカーのため `&&` でエスケープ、[uAppStrings.pas:94-96](../src/uAppStrings.pas#L94-L96)）。カードパネル 8 箇所の `ParentBackground` を `False`→`True` に変更。
+1. [uOptionsForm.dfm](../src/uOptionsForm.dfm): `PageControl1: TPageControl`（[:21](../src/uOptionsForm.dfm#L21)、`Align = alClient`）配下に `TsGeneral`/`TsDisplay`/`TsTrayLed`/`TsPing`（[:29,127,266,380](../src/uOptionsForm.dfm#L29)）の4 `TTabSheet` を配置し、既存のカードパネルをその子として再配置（ロジック変更なし）。ダイアログサイズを `ClientHeight=478`／`ClientWidth=460`（[:7-8](../src/uOptionsForm.dfm#L7)）。デザイン時にキャプションが空欄でメンテナンスしづらくならないよう、各 `TTabSheet` に他ラベルと同じ流儀の英語 `Caption` を設定（`General`/`Display`/`Tray LED`/`Ping && Network`。`&` は VCL のアクセラレータマーカーのため `&&` でエスケープ、[uAppStrings.pas:94-96](../src/uAppStrings.pas#L94-L96)）。カードパネル 8 箇所の `ParentBackground` を `False`→`True` に変更。
 2. [uOptionsForm.pas](../src/uOptionsForm.pas): `TOptionsForm` は引き続きプレーンな `TForm`（独自描画基底クラスへの変更はしない）。`ApplyCaptions`（[:144](../src/uOptionsForm.pas#L144)）の先頭にタブキャプションの多言語適用（`TsGeneral.Caption := S('opt.tab.general')` 等）を追加（[:147-150](../src/uOptionsForm.pas#L147)）。文字列キー4件を [uAppStrings.pas:91-96](../src/uAppStrings.pas#L91) に追加。フォーム自身に `StyleName` は設定せず、後述の `uAppStyle` によるアプリ全体スタイルをそのまま継承する。
 3. 新規ユニット [uAppStyle.pas](../src/uAppStyle.pas): `ApplyAppStyle` が `SystemUsesLightTheme` に応じて `styles/Windows10.vsf`／`Windows10Dark.vsf` を読み込み、`TStyleManager.TrySetStyle`（[:136](../src/uAppStyle.pas#L136)）でアプリ全体へ適用する。`.vsf` の内部登録名はファイル名と一致する保証が無いため、`TStyleManager.StyleNames` の読み込み前後差分で実際の名前を検出する（`LoadStyleFileName`、[:73-104](../src/uAppStyle.pas#L73)）。検出結果はライト/ダーク双方をユニット変数（[:49-50](../src/uAppStyle.pas#L49)）にキャッシュし、2回目以降の呼び出し（後述のライブ切替）でも正しい名前を再利用する。[DiskLED.dpr:69](../DiskLED.dpr#L69) で最初のフォーム生成前に一度呼ぶ。
 4. **自家描画ウィンドウの除外**: メイン画面（`TMainForm`）・ダッシュボード/Ping結果画面（`TThemedHudForm` 系）はアプリ全体スタイルの対象から外す必要がある（対象のままだとネイティブ子コントロールが再スキンされ、既存の自家描画パレットと衝突する）。`StyleName := 'Windows'`（VCL 組み込みの「スタイル無し」の名前）をそれぞれの生成時に設定: [uMainForm.pas:311](../src/uMainForm.pas#L311)（`FormCreate`）、[uThemedHudForm.pas:49](../src/uThemedHudForm.pas#L49)（`CreateWnd`、ダッシュボード・Ping結果画面が共有する基底クラス）。
@@ -485,3 +488,15 @@ Info Bar は同梱スキンの中で唯一フル表示を持たなかった（`[
 
 - asset-editor で同梱スキンを続けて読み込み直しても、直前に選んだスキンだけが表示されること（`asset-editor/index.html` をブラウザで開いて確認）。
 - `layout.cfg` を GUI で編集した際、値・行末の空白・`;` で始まるコメント行が従来どおり保たれること。
+
+## 24. 最終レビューの指摘: GPU 再初期化・ギャラリー画像の透過判定・アイコン読み込みサイズ
+
+リリース前の最終 `/code-review`（high）で確定した3件。
+
+- **GPU 再初期化が実際には発動しない**（[uGpuCollector.pas](../src/metrics/uGpuCollector.pas)）: 項目22で入れた再試行は `SamplePdh` の例外時にしか動かないが、PDH のハンドル失効は例外ではなくステータスコード（`PdhCollectQueryData` の非0）で返るため、実際には再初期化が働かなかった。`PdhCollectQueryData` が3サンプル連続（`CMaxFailsBeforeRetry`）で失敗したときも `SuspendPdh` で停止し、30秒後（`CRetryIntervalMs`）に再初期化する。
+- **ギャラリー画像の透過判定**（[render_skin_gallery.py](../tools/render_skin_gallery.py)）: 実アプリ（`uSkinLoader.pas` の `ReadSprite`）は、スプライトに `MaskColor` があり `Transparent` キーが無い場合は透過（`Transparent` の既定値は `MaskColor` の有無）だが、スクリプトは `Transparent=1` のときだけ透過にしていたため、Metalic のギャラリー画像に LED 周りの黒い四角が出ていた。実アプリと同じ既定値・同じ真偽値の綴り（1/true/yes/on と 0/false/no/off）で判定するようにし、`public_docs/images/skins/metalic-{compact,full}.png` を再生成した（他のスキンは変化なし）。
+- **アイコン読み込みサイズ**（[uAssetStore.pas](../src/view/uAssetStore.pas) の `LoadIconFile`）: `LoadIconMetric` は名前付きモジュールリソースかシステムアイコンしか読めず `.ico` のファイルパスは受け付けないため、常に `TIcon.LoadFromFile`（VCL は既定で `SM_CXICON`＝32px に近いフレームを選ぶ）へフォールバックし、DPI 別に用意した 16〜96px のフレームが使われていなかった（3.1.1 のトレイ実装由来）。`LoadImage(LR_LOADFROMFILE)` にシステムの小／大アイコンサイズ（`SM_CXSMICON`／`SM_CXICON`）を指定して読み込むように変更し、PowerShell から 16/20/24/28/32/40/48px の各サイズで一致するフレームが返ることを確認した。
+
+### 実機確認結果
+
+- ビルドが通り、トレイの LED アイコン・オプション画面の色見本・ダッシュボードの GPU 表示が従来どおり動くことを確認済み。

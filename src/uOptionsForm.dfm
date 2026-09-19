@@ -26,9 +26,6 @@ object OptionsForm: TOptionsForm
     ActivePage = TsGeneral
     Align = alClient
     TabOrder = 0
-    ExplicitLeft = 0
-    ExplicitWidth = 460
-    ExplicitHeight = 414
     object TsGeneral: TTabSheet
       Caption = 'General'
       object CardWindow: TPanel
