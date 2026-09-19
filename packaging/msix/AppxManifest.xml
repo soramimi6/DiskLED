@@ -15,7 +15,7 @@
   <Identity
     Name="SoRaMiMi.DiskLED"
     Publisher="CN=EBBC7A9B-4589-4899-8BA5-8AA86D1C6415"
-    Version="3.1.2.0"
+    Version="3.2.0.0"
     ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>DiskLED</DisplayName>
