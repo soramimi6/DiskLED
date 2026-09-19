@@ -22,12 +22,12 @@
 
 const SECTION_RE = /^\s*\[(.+?)\]\s*$/;
 // Captures: 1) everything up to and including '=' (leading whitespace, key,
-// spacing around '='), 2) the value, 3) trailing whitespace/comment to keep
-// untouched. DiskLED's own layout.cfg files don't currently use inline
-// trailing comments (Delphi's TMemIniFile treats the rest of the line as
-// the value), but preserving an optional ';'-led comment here is cheap and
-// matches the plan's "行末コメント保持" requirement defensively.
-const KEY_RE = /^(\s*([^=\s][^=]*?)\s*=\s*)([^;]*?)(\s*(?:;.*)?)$/;
+// spacing around '='), 2) the value, 3) trailing whitespace to keep
+// untouched. There is no inline-comment syntax: Delphi's TMemIniFile (and
+// skinLoader.js's IniFile) treat the rest of the line as the value, so a ';'
+// after the '=' is part of the value (e.g. File=my;icon.png) -- only a line
+// that *starts* with ';' is a comment (COMMENT_LINE_RE below).
+const KEY_RE = /^(\s*([^=\s][^=]*?)\s*=\s*)(.*?)(\s*)$/;
 // A whole line that is (optionally indented) a comment. KEY_RE's key group
 // ([^=\s][^=]*?) doesn't exclude a leading ';', so a comment containing its
 // own '=' (e.g. "; ... 1px = 1 sample ...") would otherwise be misread as a

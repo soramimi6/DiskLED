@@ -26,6 +26,8 @@ type
     FCounter: THandle;
     FUsePdh: Boolean;
     FInitTried: Boolean;
+    FRetryPending: Boolean;
+    FRetryTick: Cardinal;
     FBuf: array of Byte;
     FLast: Double;
     FLastTick: Cardinal;
@@ -56,6 +58,14 @@ const
     wildcard array every frame (10-20 Hz) on the UI thread is wasted work. Task
     Manager itself samples GPU at 1 Hz. }
   CSampleIntervalMs = 900;
+  { After a PDH failure at run time (driver reset, counters briefly gone),
+    re-initialise this often instead of staying at 0% for the rest of the
+    process. A machine that never had the counter set (InitPdh failing on the
+    very first attempt) is not retried -- that absence is permanent. }
+  CRetryIntervalMs = 30000;
+  { The instance count can grow between PdhGetFormattedCounterArrayW's sizing
+    call and the retry, so PDH_MORE_DATA can repeat. }
+  CMaxBufGrowAttempts = 3;
 
 type
   TPdhFmtCounterValue = record
@@ -166,7 +176,7 @@ end;
 function TGpuCollector.SamplePdh(out AValue: Double): Boolean;
 var
   BufSize, ItemCount: DWORD;
-  i: Integer;
+  i, Attempt: Integer;
   St: LongInt;
   Items, Item: PPdhFmtCounterValueItemW;
   Luid, EngType, Key: string;
@@ -187,9 +197,14 @@ begin
   else
     Items := nil;
   St := PdhGetFormattedCounterArrayW(FCounter, PDH_FMT_DOUBLE, BufSize, ItemCount, Items);
-  if DWORD(St) = PDH_MORE_DATA then
+  Attempt := 0;
+  while (DWORD(St) = PDH_MORE_DATA) and (Attempt < CMaxBufGrowAttempts) do
   begin
-    SetLength(FBuf, Integer(BufSize));
+    Inc(Attempt);
+    { Pad the reported size: bursty GPU activity is exactly when more instances
+      appear between the two calls. }
+    SetLength(FBuf, Integer(BufSize) + Integer(BufSize) div 4 + 64);
+    BufSize := DWORD(Length(FBuf));
     Items := PPdhFmtCounterValueItemW(@FBuf[0]);
     St := PdhGetFormattedCounterArrayW(FCounter, PDH_FMT_DOUBLE, BufSize, ItemCount, Items);
   end;
@@ -247,9 +262,16 @@ begin
     FInitTried := True;
     FUsePdh := InitPdh;
   end;
+  NowTick := GetTickCount;
+  if (not FUsePdh) and FRetryPending and (NowTick - FRetryTick >= CRetryIntervalMs) then
+  begin
+    FRetryTick := NowTick;
+    FUsePdh := InitPdh;
+    FRetryPending := not FUsePdh;
+    FHasTick := False;
+  end;
   if not FUsePdh then
     Exit(0);
-  NowTick := GetTickCount;
   if FHasTick and (NowTick - FLastTick < CSampleIntervalMs) then
     Exit(FLast);
   FLastTick := NowTick;
@@ -260,6 +282,8 @@ begin
       Result := V;
   except
     FUsePdh := False;
+    FRetryPending := True;
+    FRetryTick := NowTick;
     ClosePdh;
     FLast := 0;
     Result := 0;
