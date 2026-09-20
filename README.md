@@ -41,7 +41,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、電源（再生音量）、Ping 履歴などを表示
 
 
-Crystal / Info Bar はコンパクトのみ。Vintage はフル表示ありだが推移グラフは無し。
+Crystal はコンパクトのみ。Info Bar・Vintage はフル表示ありだが推移グラフは無し。
 
 ### 監視対象
 
@@ -110,7 +110,7 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - **Reset position** from the right-click menu (recovers a main window that has drifted off-screen, since 3.1.1)
 - **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), power (playback volume), Ping history, and more
 
-Crystal / Info Bar are compact-only. Vintage has a full view but no history graph.
+Crystal is compact-only. Info Bar and Vintage have a full view but no history graph.
 
 ### What is monitored
 
