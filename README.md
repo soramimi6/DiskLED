@@ -32,13 +32,15 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 「今アクセスしているか／どのくらい負荷か」が一目で分かる常駐デスクトップガジェット。
 
 - 表示モード切替（Original / Crystal / Metalic / Info Bar / Vintage。Vintage はアナログ VU メーター風、3.1.2〜）
-- 表示サイズ：コンパクト／フル／**タスクトレイ**（トレイアイコン自体がディスクアクセス LED）の排他 3 択（3.1.1〜）
+- 表示サイズ：コンパクト／フル。**タスクトレイ LED**（トレイアイコン自体がディスク／ネットのアクセス LED）はウィンドウと併用・単独のどちらも可（3.2.0〜。3.1.1〜3.1.2 は排他 3 択）
+- ガジェット本体の**表示倍率**を自動／100%／150%／200% から選択（3.2.0〜）
 - CPU、MEM、SWAP（仮想メモリ）メーター
 - Disk R/W LED＋速度バー、Net 送受信 LED＋速度バー
 - **Ping**：応答段階表示。専用ウィンドウで Tracert のようにホップごとの経路（TTL・IP・ホスト名・RTT）を表示（3.1.1〜）
 - 最前面表示、トレイアイコン、スタートアップ登録、単一起動の強制
 - 右クリックメニューから**位置をリセット**（画面外に外れた本体ウィンドウの復旧、3.1.1〜）
-- **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、電源（再生音量）、Ping 履歴などを表示
+- **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、**GPU 使用率**（CPU カードに同居、3.2.0〜）、電源（再生音量）、Ping 履歴などを表示
+- ブラウザで動くスキン編集ツール **Asset Editor**（`asset-editor/`、3.2.0〜）
 
 
 Crystal はコンパクトのみ。Info Bar・Vintage はフル表示ありだが推移グラフは無し。
@@ -63,7 +65,7 @@ Crystal はコンパクトのみ。Info Bar・Vintage はフル表示ありだ�
   - 正式配布は **Inno Setup インストーラー**（`DiskLED_Setup_<version>.exe`、ユーザー権限・既定 `%LocalAppData%\Programs\DiskLED`）
   - 併せてポータブル zip（`DiskLED-<version>-portable.zip`）も利用可能
   - Microsoft Store 版も配布（Store 経由で自動更新）
-- **言語**: 既定は英語。OS の UI 言語が日本語のときだけ日本語
+- **言語**: 既定（Auto）は英語。OS の UI 言語が日本語のときだけ日本語。オプションで Auto / 日本語 / English を手動選択可（3.2.0〜、反映は次回起動）
 - **ライセンス**: 著作権は SoRaMiMi（旧版開発者と同一）。`assets/` 以下も同様。公式配布物は無償利用可。ソースの改変・再配布は不可。改善・デバッグの協力は共同開発者（リポジトリ編集権限の付与）として行う。詳細は `LICENSE.txt`
 
 ---
@@ -102,13 +104,15 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
 A resident desktop gadget that shows at a glance whether something is being accessed and how much load there is.
 
 - Display mode switching (Original / Crystal / Metalic / Info Bar / Vintage; Vintage is an analog VU-meter style, since 3.1.2)
-- Display size: Compact / Full / **Task tray** (the tray icon itself becomes a disk-access LED), a mutually exclusive 3-way choice (since 3.1.1)
+- Display size: Compact / Full. The **task-tray LED** (the tray icon itself becomes a disk / network access LED) can be shown alongside the window or on its own (since 3.2.0; 3.1.1–3.1.2 had a mutually exclusive 3-way choice)
+- **Display scale** of the gadget: Auto / 100% / 150% / 200% (since 3.2.0)
 - CPU, MEM, SWAP (virtual memory) meters
 - Disk R/W LED + speed bar, Net in/out LEDs + speed bar
 - **Ping**: response-level display. A dedicated window shows the hop-by-hop route (TTL, IP, hostname, RTT) like Tracert (since 3.1.1)
 - Always-on-top, tray icon, startup registration, enforce single instance
 - **Reset position** from the right-click menu (recovers a main window that has drifted off-screen, since 3.1.1)
-- **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), power (playback volume), Ping history, and more
+- **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), **GPU utilization** (shown in the CPU card, since 3.2.0), power (playback volume), Ping history, and more
+- Browser-based skin editor **Asset Editor** (`asset-editor/`, since 3.2.0)
 
 Crystal is compact-only. Info Bar and Vintage have a full view but no history graph.
 
@@ -132,6 +136,6 @@ Crystal is compact-only. Info Bar and Vintage have a full view but no history gr
   - Official distribution is the **Inno Setup installer** (`DiskLED_Setup_<version>.exe`, per-user, default `%LocalAppData%\Programs\DiskLED`)
   - A portable zip (`DiskLED-<version>-portable.zip`) is also available
   - Also distributed via the Microsoft Store (auto-updates through the Store)
-- **Language**: English by default. Japanese only when the OS UI language is Japanese
+- **Language**: English by default (Auto). Japanese only when the OS UI language is Japanese. Auto / Japanese / English can be chosen in Options (since 3.2.0; takes effect on next launch)
 - **License**: Copyright is SoRaMiMi (same as the previous version’s author). Same for `assets/`. Official packages may be used free of charge. Modification and redistribution of the source are not permitted. Help with improvements and debugging is as a co-developer (granted repository write access). Details in `LICENSE.txt`
 
