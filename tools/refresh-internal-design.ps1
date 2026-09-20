@@ -109,7 +109,7 @@ function Get-DisplayModes {
             Order   = (& $get 'Order')
             Default = (& $get 'Default')
             Size    = ('{0}x{1}' -f (& $get 'Width'), (& $get 'Height'))
-            Full    = $(if ([regex]::IsMatch($t, '(?m)^\[ModeFull\]')) { 'yes' } else { 'no' })
+            Full    = $(if ([regex]::IsMatch($t, '(?m)^\[GeneralFull\]')) { 'yes' } else { 'no' })
         }
     }
     $modes | Sort-Object { [int]$_.Order }
@@ -226,7 +226,7 @@ foreach ($k in (Get-IniKeys)) { W ('| {0} | {1} | {2} |' -f $k.Section, $k.Key, 
 W ''
 W '## Display modes (assets/*/layout.cfg)'
 W ''
-W '| dir | Id | Caption | Order | Default | compact WxH | ModeFull |'
+W '| dir | Id | Caption | Order | Default | compact WxH | GeneralFull |'
 W '|---|---|---|---:|---|---|---|'
 foreach ($m in (Get-DisplayModes)) {
     W ('| {0} | {1} | {2} | {3} | {4} | {5} | {6} |' -f $m.Dir, $m.Id, $m.Caption, $m.Order, $m.Default, $m.Size, $m.Full)
