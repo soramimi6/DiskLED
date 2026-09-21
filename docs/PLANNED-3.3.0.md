@@ -12,6 +12,7 @@
 | 5 | PC の稼働時間（起動からの経過時間）の取得・ダッシュボード表示 | 高（`GetTickCount64` 1 本） | 低 | 0.5〜1日 |
 | 6 | ディスク／ネットの累積データ量（読み書き・送受信別）の取得・ダッシュボード表示 | 高（OS の累積カウンタを直読み。実機で取得確認済み） | 低〜中（ネットは 64bit 化が要る）＋表示の設計 | 3〜4日 |
 | 7 | プロセス別 CPU／メモリ消費量（絶対値・割合）の取得・ダッシュボード表示（項目1と収集層を共有） | 中〜高（PDH `Process V2` で全プロセス取得を実機確認。Win10 は未確認） | 中〜高（収集 ＋ 一覧表示の新規 UI） | 収集 2〜3日（項目1と共有）＋表示 3〜5日 |
+| 8 | オプション画面のテーマ連動（ダーク／ライト）を止め、VCL 標準（Windows ネイティブ）の表示に固定 | 高 | 低（アプリ全体スタイルの起動・切替コードの撤去が中心） | 0.5日 |
 
 ## 1. リソース別 TOP5 プロセス
 
@@ -166,3 +167,31 @@
 ### 見積り
 
 収集層 2〜3 日（項目1 と共有。二重に数えない）＋ダッシュボード表示 3〜5 日（行表示の新設・DPI 対応・ライト／ダーク・実機確認が中心）。項目1 の専用ウィンドウ案を採る場合は、UI 分は項目1 の見積りに含まれる。
+
+## 8. オプション画面のテーマ連動を止め、VCL 標準の表示に固定
+
+オプション画面（`TOptionsForm`）は OS のダーク／ライト設定に連動して VCL スタイル（`Windows10` / `Windows10 Dark`）で描画されているが、これをやめ、常に VCL 標準（Windows ネイティブのコントロール描画）で表示する。ダッシュボード・Ping/Tracert 結果窓・ガジェット本体（`TThemedHudForm` 系・`TMainForm`）のテーマ追従は対象外（変更しない）。
+
+### 現状（実ソース確認済み）
+
+- 連動の仕組みは**アプリ全体の VCL スタイル**。`ApplyAppStyle`（[uAppStyle.pas:115](../src/uAppStyle.pas#L115)）が `SystemUsesLightTheme` でライト／ダークの `.vsf` を選び `TStyleManager.TrySetStyle`（[uAppStyle.pas:154](../src/uAppStyle.pas#L154)）で適用する。起動時に [DiskLED.dpr:69](../DiskLED.dpr#L69) で1回、OS のライト／ダーク切替時に `TMainForm.WMSettingChange`（[uMainForm.pas:1812-1827](../src/uMainForm.pas#L1812)）から再適用される。
+- `TOptionsForm` は自前の `StyleName` を持たず、このアプリ全体スタイルを継承している（[uOptionsForm.pas:134-140](../src/uOptionsForm.pas#L134)）。他のウィンドウは `StyleName := 'Windows'` で除外済み（[uThemedHudForm.pas:49](../src/uThemedHudForm.pas#L49)、[uMainForm.pas:332](../src/uMainForm.pas#L332)）なので、**アプリ全体スタイルの実質的な利用者は Options のみ**。
+- タイトルバーのダーク化は別経路で、`TOptionsForm.FormCreate` が `ApplyHudTitleBar(Handle)`（[uOptionsForm.pas:141](../src/uOptionsForm.pas#L141)、実体は [uDashboardTheme.pas:112-126](../src/dashboard/uDashboardTheme.pas#L112)）を呼んでいる。
+
+### 方針
+
+- **アプリ全体スタイルを廃止する**: `ApplyAppStyle` の呼び出し（[DiskLED.dpr:65-69](../DiskLED.dpr#L65)）、`WMSettingChange` 内の再適用（[uMainForm.pas:1812-1827](../src/uMainForm.pas#L1812)）、`uAppStyle.pas` 自体（＋ `uses` の `uAppStyle`、[uMainForm.pas:234](../src/uMainForm.pas#L234)）を撤去する。`Vcl.Styles`/`Vcl.Themes` のリンクも外れる。
+- Options は何もせずネイティブ描画になる。`TOptionsForm.FormCreate` の `ApplyHudTitleBar(Handle)` も外し、**タイトルバーもライト固定**にする（本文だけ標準でタイトルバーだけダークになる不整合を避ける）。
+- `TThemedHudForm`／`TMainForm` の `StyleName := 'Windows'` はアプリ全体スタイルが無くなれば不要になるが、無害なので残すか外すかは実装時に決める（外す場合は [uThemedHudForm.pas:44-49](../src/uThemedHudForm.pas#L44) のコメントも整理する）。
+- `styles/*.vsf` は不要になる。同梱処理（[tools/stage-dist.ps1:15,68-70](../tools/stage-dist.ps1#L15)、[tools/make-msix-sideload.ps1:69](../tools/make-msix-sideload.ps1#L69)）から外す。
+- 公開文書の更新: `docs/DESIGN.md:207`（VCL Style `Windows10` を使う旨の記述）を実装に合わせて直す。
+
+### 実機で見ること（実装時。Win64 Release を IDE でビルド）
+
+- OS をダークにした状態でオプション画面を開いても、本文・タイトルバーとも標準（ライト）の見た目であること（125/150/200% DPI で崩れないこと）。
+- オプション画面を開いたまま OS のライト／ダークを切り替えても、Options が変化しないこと。ダッシュボード・結果窓・ガジェットは従来どおり追従すること。
+- `.dfm` 上のコントロール（タブ・チェック・ボタン・アセットエディタ部）が、スタイル無しでレイアウト崩れ・文字切れを起こしていないこと（これまで `Windows10` スタイル前提で寸法を調整していた可能性がある）。
+
+### 見積り
+
+0.5日（コード撤去は小さい。実機確認が中心）。
