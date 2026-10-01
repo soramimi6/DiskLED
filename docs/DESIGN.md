@@ -204,7 +204,7 @@ DiskLED/
 ### 8.5 オプション
 
 - フォーム: `src/uOptionsForm.pas` + `uOptionsForm.dfm`（IDE の Form Designer でレイアウト編集可）
-- 見た目: カード型パネル＋ **フォーム単位** で VCL Style `Windows10`（`styles/Windows10.vsf`）。メイン窓にはスタイルを当てない
+- 見た目: カード型パネル。VCL 標準（Windows ネイティブ）の表示固定で、OS のダーク／ライト設定には追従しない
 - 起動時に `uAppStrings` でキャプションを上書き（JA/EN）
 - 表示頻度（10 / 15 / 20 fps）
 - グラフ更新（0.5 / 1 / 2 Hz）

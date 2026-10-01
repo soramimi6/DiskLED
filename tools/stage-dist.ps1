@@ -12,7 +12,6 @@ $Root = Split-Path -Parent $PSScriptRoot
 $ExeSrc = Join-Path $Root "Win64\$Config\DiskLED.exe"
 $Stage = Join-Path $Root 'dist\DiskLED'
 $Assets = Join-Path $Root 'assets'
-$Styles = Join-Path $Root 'styles'
 $AssetEditor = Join-Path $Root 'asset-editor'
 
 if (-not (Test-Path -LiteralPath $ExeSrc)) {
@@ -62,12 +61,6 @@ if ($junk) {
 $imgSrc = Join-Path $Stage 'assets\infobar\ImageResource'
 if (Test-Path -LiteralPath $imgSrc) {
     Remove-Item -LiteralPath $imgSrc -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-if (Test-Path -LiteralPath $Styles) {
-    Copy-Item -LiteralPath $Styles -Destination (Join-Path $Stage 'styles') -Recurse -Force
-} else {
-    Write-Warning "styles folder missing — Options dialog may fall back without VCL style."
 }
 
 if (Test-Path -LiteralPath $AssetEditor) {
