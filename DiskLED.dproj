@@ -146,7 +146,6 @@
         <DCCReference Include="src\uWindowPlacement.pas"/>
         <DCCReference Include="src\uDpiScale.pas"/>
         <DCCReference Include="src\uSettings.pas"/>
-        <DCCReference Include="src\uAppStyle.pas"/>
         <DCCReference Include="src\uStartup.pas"/>
         <DCCReference Include="src\uPackaging.pas"/>
         <DCCReference Include="src\uUpdateCheck.pas"/>

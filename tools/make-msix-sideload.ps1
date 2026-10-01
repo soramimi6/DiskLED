@@ -66,7 +66,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $Stage 'DiskLED.exe'))) {
 # --- assemble the pack layout ---
 if (Test-Path -LiteralPath $Layout) { Remove-Item -LiteralPath $Layout -Recurse -Force }
 New-Item -ItemType Directory -Path $Layout | Out-Null
-foreach ($item in 'DiskLED.exe', 'LICENSE.txt', 'assets', 'styles', 'public_docs') {
+foreach ($item in 'DiskLED.exe', 'LICENSE.txt', 'assets', 'public_docs') {
     $src = Join-Path $Stage $item
     if (Test-Path -LiteralPath $src) {
         Copy-Item -LiteralPath $src -Destination (Join-Path $Layout $item) -Recurse -Force

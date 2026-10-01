@@ -112,7 +112,6 @@ uses
   uStartup,
   uPackaging,
   uMetricsTypes,
-  uDashboardTheme,
   uAssetStore;
 
 const
@@ -131,14 +130,6 @@ end;
 
 procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
-  { No StyleName of its own -- it inherits the app-wide custom style
-    uAppStyle activates at startup (see that unit's header comment), unlike
-    uMainForm/uThemedHudForm windows which opt out to keep their own
-    hand-painted look. Only the DWM dark/light title bar needs doing here
-    explicitly; DwmSetWindowAttribute is harmless to call even under the
-    light style since it only darkens the frame when SystemUsesLightTheme
-    is False. Accessing Handle forces the window handle to exist. }
-  ApplyHudTitleBar(Handle);
   SyncPingControlsEnabled;
   LoadLedPreviewIcons;
 end;
