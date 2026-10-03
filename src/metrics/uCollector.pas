@@ -24,6 +24,10 @@ type
     FNet: TNetCollector;
     FPing: TPingCollector;
     FAudio: TAudioCollector;
+    FCumTick: UInt64;
+    FHasCumTick: Boolean;
+    FDiskCumRead, FDiskCumWrite: UInt64;
+    FNetCumIn, FNetCumOut: UInt64;
   public
     constructor Create;
     destructor Destroy; override;
@@ -141,6 +145,27 @@ begin
     Result.NetOutBps := 0;
     Result.NetLinkSpeedBps := 0;
   end;
+  if (not FHasCumTick) or (Result.UptimeSec * 1000 - FCumTick >= 1000) then
+  begin
+    FCumTick := Result.UptimeSec * 1000;
+    FHasCumTick := True;
+    try
+      FDisk.CumulativeBytes(FDiskCumRead, FDiskCumWrite);
+    except
+      FDiskCumRead := 0;
+      FDiskCumWrite := 0;
+    end;
+    try
+      FNet.CumulativeOctets(FNetCumIn, FNetCumOut);
+    except
+      FNetCumIn := 0;
+      FNetCumOut := 0;
+    end;
+  end;
+  Result.DiskCumReadBytes := FDiskCumRead;
+  Result.DiskCumWriteBytes := FDiskCumWrite;
+  Result.NetCumInBytes := FNetCumIn;
+  Result.NetCumOutBytes := FNetCumOut;
   FPing.CopyTo(Result);
   try
     FAudio.Sample(Result.AudioPeakL, Result.AudioPeakR, Result.AudioPeak,

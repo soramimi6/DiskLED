@@ -237,6 +237,8 @@ begin
   AddStr('dash.uptime', '稼働 %s', 'Uptime %s');
   AddStr('dash.uptime_dhm', '%d日 %d時間 %d分', '%dd %dh %dm');
   AddStr('dash.uptime_hm', '%d時間 %d分', '%dh %dm');
+  AddStr('dash.cum', 'ディスク累計 読 %s 書 %s ・ ネット累計 受 %s 送 %s',
+    'Disk total R %s W %s · Net total In %s Out %s');
   AddStr('dash.power_remain', '残時間', 'Remaining');
   AddStr('dash.power_remain_h', '%d時間', '%dh');
   AddStr('dash.power_remain_m', '%d分', '%dmin');

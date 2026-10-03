@@ -663,14 +663,18 @@ end;
 
 procedure TDashboardForm.HeaderPaint(Sender: TObject);
 var
-  Uptime: UInt64;
+  Snap: TMetricsSnapshot;
+  CumText: string;
 begin
-  Uptime := 0;
+  Snap := Default(TMetricsSnapshot);
   if FPipeline <> nil then
-    Uptime := FPipeline.LastSnap.UptimeSec;
+    Snap := FPipeline.LastSnap;
+  CumText := Format(S('dash.cum'), [FormatBytesGiB(Snap.DiskCumReadBytes),
+    FormatBytesGiB(Snap.DiskCumWriteBytes), FormatBytesGiB(Snap.NetCumInBytes),
+    FormatBytesGiB(Snap.NetCumOutBytes)]);
   DrawHudHeader(FHeaderPaint.Canvas, FHeaderPaint.ClientRect,
-    'DISKLED HUD', S('dash.live'), ProductVersionText, UptimeText(Uptime), FLiveOn,
-    HudPalette, CurrentMetrics);
+    'DISKLED HUD', S('dash.live'), ProductVersionText, UptimeText(Snap.UptimeSec),
+    CumText, FLiveOn, HudPalette, CurrentMetrics);
 end;
 
 procedure TDashboardForm.CpuPaint(Sender: TObject);

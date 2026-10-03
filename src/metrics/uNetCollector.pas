@@ -19,6 +19,50 @@ type
   end;
   TNetIfPrevArray = array of TNetIfPrev;
 
+  { MIB_IF_ROW2 (netioapi.h), declared here because the RTL does not provide it.
+    Field order and sizes must match the SDK header. }
+  TMibIfRow2 = record
+    InterfaceLuid: UInt64;
+    InterfaceIndex: Cardinal;
+    InterfaceGuid: TGUID;
+    Alias: array[0..256] of WideChar;
+    Description: array[0..256] of WideChar;
+    PhysicalAddressLength: Cardinal;
+    PhysicalAddress: array[0..31] of Byte;
+    PermanentPhysicalAddress: array[0..31] of Byte;
+    Mtu: Cardinal;
+    MediaType: Integer;
+    PhysicalMediumType: Integer;
+    AccessType: Integer;
+    DirectionType: Integer;
+    InterfaceAndOperStatusFlags: Byte;
+    OperStatus: Integer;
+    AdminStatus: Integer;
+    MediaConnectState: Integer;
+    NetworkGuid: TGUID;
+    ConnectionType: Integer;
+    TransmitLinkSpeed: UInt64;
+    ReceiveLinkSpeed: UInt64;
+    InOctets: UInt64;
+    InUcastPkts: UInt64;
+    InNUcastPkts: UInt64;
+    InDiscards: UInt64;
+    InErrors: UInt64;
+    InUnknownProtos: UInt64;
+    InUcastOctets: UInt64;
+    InMulticastOctets: UInt64;
+    InBroadcastOctets: UInt64;
+    OutOctets: UInt64;
+    OutUcastPkts: UInt64;
+    OutNUcastPkts: UInt64;
+    OutDiscards: UInt64;
+    OutErrors: UInt64;
+    OutUcastOctets: UInt64;
+    OutMulticastOctets: UInt64;
+    OutBroadcastOctets: UInt64;
+    OutQLen: UInt64;
+  end;
+
   TAdapterName = record
     Index: Cardinal;
     Name: string;
@@ -49,6 +93,7 @@ type
   public
     procedure Sample(out AInBps, AOutBps, ALinkSpeedBps: Double);
     procedure CopyDisplayAdapters(out AList: TArray<TNetAdapterInfo>);
+    function CumulativeOctets(out AInOctets, AOutOctets: UInt64): Boolean;
   end;
 
 implementation
@@ -151,6 +196,8 @@ function GetIfTable(pIfTable: Pointer; var pdwSize: DWORD; bOrder: BOOL): DWORD;
   external 'iphlpapi.dll' name 'GetIfTable';
 function GetIfEntry(pIfRow: Pointer): DWORD; stdcall;
   external 'iphlpapi.dll' name 'GetIfEntry';
+function GetIfEntry2(pIfRow: Pointer): DWORD; stdcall;
+  external 'iphlpapi.dll' name 'GetIfEntry2';
 function GetAdaptersAddresses(Family: ULONG; Flags: ULONG; Reserved: Pointer;
   AdapterAddresses: PIP_ADAPTER_ADDRESSES; var SizePointer: ULONG): ULONG; stdcall;
   external 'iphlpapi.dll' name 'GetAdaptersAddresses';
@@ -552,6 +599,28 @@ begin
   AInBps := FLastInBps;
   AOutBps := FLastOutBps;
   ALinkSpeedBps := FLastLinkSpeedBps;
+end;
+
+{ 64-bit cumulative octets since boot for the adapters currently counted in
+  FIfs (the same set as the displayed rates). }
+function TNetCollector.CumulativeOctets(out AInOctets, AOutOctets: UInt64): Boolean;
+var
+  I: Integer;
+  Row: TMibIfRow2;
+begin
+  AInOctets := 0;
+  AOutOctets := 0;
+  Result := False;
+  for I := 0 to High(FIfs) do
+  begin
+    FillChar(Row, SizeOf(Row), 0);
+    Row.InterfaceIndex := FIfs[I].Index;
+    if GetIfEntry2(@Row) <> 0 then
+      Continue;
+    Inc(AInOctets, Row.InOctets);
+    Inc(AOutOctets, Row.OutOctets);
+    Result := True;
+  end;
 end;
 
 procedure TNetCollector.CopyDisplayAdapters(out AList: TArray<TNetAdapterInfo>);

@@ -55,6 +55,7 @@ type
     destructor Destroy; override;
     procedure Sample(out AReadBps, AWriteBps, AQueue, AReadIops,
       AWriteIops, AActivePct, ALatencyMs: Double);
+    function CumulativeBytes(out AReadBytes, AWriteBytes: UInt64): Boolean;
   end;
 
 implementation
@@ -328,6 +329,16 @@ begin
       CloseHandle(H);
     end;
   end;
+end;
+
+function TDiskCollector.CumulativeBytes(out AReadBytes, AWriteBytes: UInt64): Boolean;
+var
+  ReadCount, WriteCount: UInt64;
+  Queue: Double;
+  ServiceTicks: UInt64;
+begin
+  Result := SumDiskPerformance(AReadBytes, AWriteBytes, ReadCount, WriteCount,
+    Queue, ServiceTicks);
 end;
 
 function TDiskCollector.SampleIoCtl(out AReadBps, AWriteBps, AQueue, AReadIops,

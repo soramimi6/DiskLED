@@ -23,7 +23,7 @@ procedure DrawStatPill(ACanvas: TCanvas; const ARect: TRect; const ATitle: strin
   APct: Integer; AAccent: TColor; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
-  ALiveText, AVersion, AUptimeText: string; ALiveOn: Boolean; const APalette: THudPalette;
+  ALiveText, AVersion, AUptimeText, ACumText: string; ALiveOn: Boolean; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawCpuPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, ANameLbl, ATopoLbl, AClockLbl,
@@ -151,13 +151,15 @@ begin
   ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 34), Txt);
 end;
 
+function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string; forward;
+
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
-  ALiveText, AVersion, AUptimeText: string; ALiveOn: Boolean; const APalette: THudPalette;
+  ALiveText, AVersion, AUptimeText, ACumText: string; ALiveOn: Boolean; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 var
   GradRect: TRect;
   LiveTxt: string;
-  BandTop, BandH, TitleY, MetaY, LiveX: Integer;
+  BandTop, BandH, TitleY, MetaY, LiveX, TitleEnd, VersionX, UptimeX, MaxW: Integer;
 begin
   GpFillRect(ACanvas, ARect, APalette.Bg);
   GradRect := Rect(ARect.Left, ARect.Top, ARect.Right,
@@ -173,6 +175,7 @@ begin
   ACanvas.Font.Color := APalette.TextPrimary;
   TitleY := BandTop + (BandH - ACanvas.TextHeight(ATitle)) div 2;
   ACanvas.TextOut(ARect.Left + Dip(AMetrics, 16), TitleY, ATitle);
+  TitleEnd := ARect.Left + Dip(AMetrics, 16) + ACanvas.TextWidth(ATitle);
 
   ACanvas.Font.Style := [];
   ACanvas.Font.Size := AMetrics.HeaderMetaSize;
@@ -180,9 +183,13 @@ begin
   LiveTxt := #$25CF' ' + ALiveText;
   LiveX := ARect.Right - ACanvas.TextWidth(LiveTxt) - Dip(AMetrics, 16);
   ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(LiveX - Dip(AMetrics, 12) - ACanvas.TextWidth(AVersion), MetaY, AVersion);
-  ACanvas.TextOut(LiveX - Dip(AMetrics, 12) - ACanvas.TextWidth(AVersion) -
-    Dip(AMetrics, 16) - ACanvas.TextWidth(AUptimeText), MetaY, AUptimeText);
+  VersionX := LiveX - Dip(AMetrics, 12) - ACanvas.TextWidth(AVersion);
+  ACanvas.TextOut(VersionX, MetaY, AVersion);
+  UptimeX := VersionX - Dip(AMetrics, 16) - ACanvas.TextWidth(AUptimeText);
+  ACanvas.TextOut(UptimeX, MetaY, AUptimeText);
+  MaxW := UptimeX - Dip(AMetrics, 16) - (TitleEnd + Dip(AMetrics, 16));
+  if MaxW >= Dip(AMetrics, 40) then
+    ACanvas.TextOut(TitleEnd + Dip(AMetrics, 16), MetaY, Ellipsize(ACanvas, ACumText, MaxW));
   if ALiveOn then
     ACanvas.Font.Color := APalette.Active
   else

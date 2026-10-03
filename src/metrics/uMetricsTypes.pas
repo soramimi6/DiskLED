@@ -58,6 +58,10 @@ type
     AudioDeviceName: string; { default render endpoint friendly name }
     TickMs: Cardinal;
     UptimeSec: UInt64; { seconds since boot (GetTickCount64) }
+    DiskCumReadBytes: UInt64; { OS cumulative since boot, all physical disks }
+    DiskCumWriteBytes: UInt64;
+    NetCumInBytes: UInt64; { OS cumulative since boot, counted NICs only }
+    NetCumOutBytes: UInt64;
   end;
 
   TBallisticKind = (bkVu, bkBar, bkPeak);
