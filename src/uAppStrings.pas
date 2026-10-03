@@ -68,7 +68,9 @@ begin
   AddStr('menu.update', '新しい DiskLED %s の情報を見る', 'View DiskLED %s release info');
   AddStr('tray.update_title', 'DiskLED からのお知らせ', 'A notice from DiskLED');
   AddStr('tray.update', 'DiskLED %s が公開されています', 'DiskLED %s is available');
-  AddStr('tray.hint_net', 'ネットアクセス', 'Network activity');
+  AddStr('tray.hint_net', 'DiskLED ネットアクセス', 'DiskLED Network activity');
+  AddStr('opt.window_mode', '表示モード', 'Display mode');
+  AddStr('tray.drive_rate', '%s: 読み %s ・ 書き %s', '%s: Read %s · Write %s');
   AddStr('hover.ping_off', 'オフ', 'off');
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
@@ -132,6 +134,11 @@ begin
   AddStr('opt.tray_drives', 'ドライブ別 LED（ツールチップで識別）', 'Per-drive LEDs (identified by tooltip)');
   AddStr('opt.tray_drive_total', '合算 LED も表示する', 'Also show the total LED');
   AddStr('opt.tray_drive_absent', '（未接続）', ' (not connected)');
+  AddStr('drive.fixed', '固定', 'Fixed');
+  AddStr('drive.removable', 'リムーバブル', 'Removable');
+  AddStr('drive.optical', '光学', 'Optical');
+  AddStr('drive.network', 'ネットワーク', 'Network');
+  AddStr('drive.unsupported', '（非対応）', ' (unsupported)');
   AddStr('opt.ping_enabled', 'Ping を有効にする', 'Enable Ping');
   AddStr('opt.ping_auto_gw', 'デフォルトゲートウェイを使う', 'Use default gateway');
   AddStr('opt.ping_host', 'Ping ホスト', 'Ping host');

@@ -60,6 +60,16 @@ type
     LblSecTrayDrives: TLabel;
     ChkLedTotal: TCheckBox;
     LstDrives: TCheckListBox;
+    LblSecWindowMode: TLabel;
+    RbWinOnly: TRadioButton;
+    RbWinTrayLed: TRadioButton;
+    RbTrayOnly: TRadioButton;
+    CardDisplayScale: TPanel;
+    LblSecDisplayScale: TLabel;
+    RbScaleAuto: TRadioButton;
+    RbScale100: TRadioButton;
+    RbScale150: TRadioButton;
+    RbScale200: TRadioButton;
     CardPing: TPanel;
     LblSecPing: TLabel;
     ChkPingEnabled: TCheckBox;
@@ -164,24 +174,51 @@ begin
   RebuildDriveList(CheckedDrives);
 end;
 
-{ Lists the drives that are present, plus any that are selected or currently
-  checked, keeping the check state the user has set. }
+function DriveTypeName(ADriveType: Cardinal): string;
+begin
+  case ADriveType of
+    DRIVE_FIXED: Result := S('drive.fixed');
+    DRIVE_REMOVABLE: Result := S('drive.removable');
+    DRIVE_CDROM: Result := S('drive.optical');
+    DRIVE_REMOTE: Result := S('drive.network');
+  else
+    Result := '';
+  end;
+end;
+
+{ Lists the drives that are present (PDH reports them), plus optical drives
+  (shown but unselectable: PDH and the disk IOCTL never report activity for
+  them), plus any that are selected or currently checked. Virtual or unmounted
+  letters are left out, so they never appear as dead entries. }
 procedure TOptionsForm.RebuildDriveList(const AChecked: TDriveFlags);
 var
   Letter: TDriveLetter;
-  Index: Integer;
+  Index, DriveType: Integer;
+  Optical: Boolean;
+  Text, TypeName: string;
 begin
   LstDrives.Items.BeginUpdate;
   try
     LstDrives.Items.Clear;
     for Letter := Low(TDriveLetter) to High(TDriveLetter) do
-      if FPresent[Letter] or FSettings.TrayLedDrives[Letter] or AChecked[Letter] then
-      begin
-        Index := LstDrives.Items.Add(Letter + ':');
-        if not FPresent[Letter] then
-          LstDrives.Items[Index] := Letter + ':' + S('opt.tray_drive_absent');
-        LstDrives.Checked[Index] := AChecked[Letter];
-      end;
+    begin
+      DriveType := Integer(GetDriveType(PChar(string(Letter) + ':\')));
+      Optical := DriveType = DRIVE_CDROM;
+      if not (FPresent[Letter] or Optical or FSettings.TrayLedDrives[Letter] or
+        AChecked[Letter]) then
+        Continue;
+      Text := Letter + ':';
+      TypeName := DriveTypeName(DriveType);
+      if TypeName <> '' then
+        Text := Text + ' ' + TypeName;
+      if Optical then
+        Text := Text + S('drive.unsupported')
+      else if not FPresent[Letter] then
+        Text := Text + S('opt.tray_drive_absent');
+      Index := LstDrives.Items.Add(Text);
+      LstDrives.ItemEnabled[Index] := not Optical;
+      LstDrives.Checked[Index] := AChecked[Letter] and (not Optical);
+    end;
   finally
     LstDrives.Items.EndUpdate;
   end;
@@ -255,6 +292,12 @@ begin
   LblSecTrayLedInfo.Caption := S('opt.tray_led_info');
   LblSecTrayDrives.Caption := S('opt.tray_drives');
   ChkLedTotal.Caption := S('opt.tray_drive_total');
+  LblSecWindowMode.Caption := S('opt.window_mode');
+  RbWinOnly.Caption := S('menu.window_only');
+  RbWinTrayLed.Caption := S('menu.window_tray_led');
+  RbTrayOnly.Caption := S('menu.tray_only');
+  LblSecDisplayScale.Caption := S('menu.scale');
+  RbScaleAuto.Caption := S('menu.scale_auto');
   ChkLedDisk.Caption := S('opt.tray_led_info_disk');
   ChkLedNet.Caption := S('opt.tray_led_info_net');
   LblSecPing.Caption := S('opt.group.ping');
@@ -451,6 +494,13 @@ begin
     ChkLedNet.OnClick := ChkLedNetClick;
   end;
   ChkLedTotal.Checked := FSettings.TrayLedTotal;
+  RbTrayOnly.Checked := FSettings.WindowHidden;
+  RbWinTrayLed.Checked := (not FSettings.WindowHidden) and FSettings.TrayLed;
+  RbWinOnly.Checked := (not FSettings.WindowHidden) and (not FSettings.TrayLed);
+  RbScale100.Checked := FSettings.Scale = 100;
+  RbScale150.Checked := FSettings.Scale = 150;
+  RbScale200.Checked := FSettings.Scale = 200;
+  RbScaleAuto.Checked := not (RbScale100.Checked or RbScale150.Checked or RbScale200.Checked);
   RebuildDriveList(FSettings.TrayLedDrives);
   ChkPingEnabled.Checked := FSettings.PingEnabled;
   ChkAutoGw.Checked := FSettings.PingAutoGateway;
@@ -590,6 +640,24 @@ begin
   FSettings.TrayLedNet := ChkLedNet.Checked;
   FSettings.TrayLedTotal := ChkLedTotal.Checked;
   FSettings.TrayLedDrives := CheckedDrives;
+  if RbTrayOnly.Checked then
+  begin
+    FSettings.WindowHidden := True;
+    FSettings.TrayLed := True;
+  end
+  else
+  begin
+    FSettings.WindowHidden := False;
+    FSettings.TrayLed := RbWinTrayLed.Checked;
+  end;
+  if RbScale100.Checked then
+    FSettings.Scale := 100
+  else if RbScale150.Checked then
+    FSettings.Scale := 150
+  else if RbScale200.Checked then
+    FSettings.Scale := 200
+  else
+    FSettings.Scale := 0;
   FSettings.PingEnabled := ChkPingEnabled.Checked;
   FSettings.PingAutoGateway := ChkAutoGw.Checked;
   FSettings.PingHost := Trim(EdHost.Text);

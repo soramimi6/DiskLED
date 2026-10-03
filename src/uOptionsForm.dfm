@@ -123,6 +123,43 @@ object OptionsForm: TOptionsForm
           Caption = 'Check for a new version at startup'
           TabOrder = 2
         end
+        object LblSecWindowMode: TLabel
+          Left = 20
+          Top = 200
+          Width = 60
+          Height = 17
+          Caption = 'Display mode'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Segoe UI'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object RbWinOnly: TRadioButton
+          Left = 20
+          Top = 226
+          Width = 360
+          Height = 21
+          Caption = 'Window Only'
+          TabOrder = 4
+        end
+        object RbWinTrayLed: TRadioButton
+          Left = 20
+          Top = 250
+          Width = 360
+          Height = 21
+          Caption = 'Window + Tray LED'
+          TabOrder = 5
+        end
+        object RbTrayOnly: TRadioButton
+          Left = 20
+          Top = 274
+          Width = 360
+          Height = 21
+          Caption = 'Tray LED Only'
+          TabOrder = 6
+        end
       end
     end
     object TsDisplay: TTabSheet
@@ -261,6 +298,62 @@ object OptionsForm: TOptionsForm
           Height = 21
           Caption = 'Logarithmic (small traffic more visible)'
           TabOrder = 1
+        end
+      end
+      object CardDisplayScale: TPanel
+        Left = 16
+        Top = 268
+        Width = 400
+        Height = 96
+        BevelOuter = bvNone
+        Color = clWhite
+        TabOrder = 1
+        object LblSecDisplayScale: TLabel
+          Left = 20
+          Top = 12
+          Width = 80
+          Height = 17
+          Caption = 'Display Scale'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Segoe UI'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object RbScaleAuto: TRadioButton
+          Left = 20
+          Top = 40
+          Width = 80
+          Height = 21
+          Caption = 'Auto'
+          Checked = True
+          TabOrder = 0
+          TabStop = True
+        end
+        object RbScale100: TRadioButton
+          Left = 110
+          Top = 40
+          Width = 80
+          Height = 21
+          Caption = '100%'
+          TabOrder = 1
+        end
+        object RbScale150: TRadioButton
+          Left = 200
+          Top = 40
+          Width = 80
+          Height = 21
+          Caption = '150%'
+          TabOrder = 2
+        end
+        object RbScale200: TRadioButton
+          Left = 290
+          Top = 40
+          Width = 80
+          Height = 21
+          Caption = '200%'
+          TabOrder = 3
         end
       end
     end

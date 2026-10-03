@@ -36,12 +36,18 @@ type
     FDigitTick: Cardinal;
     FHasDigitTick: Boolean;
     FLastSnap: TMetricsSnapshot;
+    FRates: TRateAverages;
+    FRatesAccum: TRateAverages;
+    FRatesWindowMs: Cardinal;
+    FRatesTick: Cardinal;
+    FHasRatesTick: Boolean;
     function AttackTau(const AParams: TBallisticParams): Double;
     function FallSpeedOf(AKind: TBallisticKind): Double;
     function Follow(ACurrent, ATarget: Double; const AParams: TBallisticParams;
       var ADir: TMeterFollowDir; ADtSec: Double): Double;
     function StartupProgress: Double;
     procedure RefreshDigits(AForce: Boolean);
+    procedure AccumulateRates(const ASnap: TMetricsSnapshot);
   public
     constructor Create;
     destructor Destroy; override;
@@ -51,6 +57,7 @@ type
     property State: TDisplayState read FState;
     property Normalized: TNormalizedMetrics read FNormalized;
     property LastSnap: TMetricsSnapshot read FLastSnap;
+    property Rates: TRateAverages read FRates;
   end;
 
 implementation
@@ -232,6 +239,52 @@ begin
   FHasDigitTick := True;
 end;
 
+{ Averages the per-tick rates over one-second windows for tooltips. The
+  byte totals are kept in FRatesAccum and divided by the elapsed window. }
+procedure TDisplayPipeline.AccumulateRates(const ASnap: TMetricsSnapshot);
+const
+  CWindowMs = 1000;
+var
+  Dt: Cardinal;
+  Sec, Scale: Double;
+  Letter: TDriveLetter;
+begin
+  if FHasRatesTick then
+  begin
+    Dt := ASnap.TickMs - FRatesTick;
+    Sec := Dt / 1000.0;
+    FRatesAccum.DiskReadBps := FRatesAccum.DiskReadBps + ASnap.DiskReadBps * Sec;
+    FRatesAccum.DiskWriteBps := FRatesAccum.DiskWriteBps + ASnap.DiskWriteBps * Sec;
+    FRatesAccum.NetInBps := FRatesAccum.NetInBps + ASnap.NetInBps * Sec;
+    FRatesAccum.NetOutBps := FRatesAccum.NetOutBps + ASnap.NetOutBps * Sec;
+    for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+    begin
+      FRatesAccum.DriveReadBps[Letter] := FRatesAccum.DriveReadBps[Letter] +
+        ASnap.DriveReadBps[Letter] * Sec;
+      FRatesAccum.DriveWriteBps[Letter] := FRatesAccum.DriveWriteBps[Letter] +
+        ASnap.DriveWriteBps[Letter] * Sec;
+    end;
+    FRatesWindowMs := FRatesWindowMs + Dt;
+    if FRatesWindowMs >= CWindowMs then
+    begin
+      Scale := 1000.0 / FRatesWindowMs;
+      FRates.DiskReadBps := FRatesAccum.DiskReadBps * Scale;
+      FRates.DiskWriteBps := FRatesAccum.DiskWriteBps * Scale;
+      FRates.NetInBps := FRatesAccum.NetInBps * Scale;
+      FRates.NetOutBps := FRatesAccum.NetOutBps * Scale;
+      for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+      begin
+        FRates.DriveReadBps[Letter] := FRatesAccum.DriveReadBps[Letter] * Scale;
+        FRates.DriveWriteBps[Letter] := FRatesAccum.DriveWriteBps[Letter] * Scale;
+      end;
+      FRatesAccum := Default(TRateAverages);
+      FRatesWindowMs := 0;
+    end;
+  end;
+  FRatesTick := ASnap.TickMs;
+  FHasRatesTick := True;
+end;
+
 procedure TDisplayPipeline.Update(const ASnap: TMetricsSnapshot);
 var
   CpuT, GpuT, MemT, SwapT: Double;
@@ -241,6 +294,7 @@ var
   Letter: TDriveLetter;
   DtSec: Double;
 begin
+  AccumulateRates(ASnap);
   FRange.Observe(ASnap);
   FLastSnap := ASnap;
 

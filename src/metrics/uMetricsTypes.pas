@@ -133,6 +133,16 @@ type
     PingPending: Boolean;
   end;
 
+  { One-second averages of the rates shown in tooltips. }
+  TRateAverages = record
+    DiskReadBps: Double;
+    DiskWriteBps: Double;
+    NetInBps: Double;
+    NetOutBps: Double;
+    DriveReadBps: TDriveRates;
+    DriveWriteBps: TDriveRates;
+  end;
+
   TNetAdapterInfo = record
     Index: Cardinal;
     FriendlyName: string;

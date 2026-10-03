@@ -94,6 +94,8 @@ type
     FGadgetDrag: TGadgetDragState;
     FVersionText: string;
     FHoverHeldText: string;
+    FDriveHintTick: Cardinal;
+    FHasDriveHint: Boolean;
     FHoverTextTick: Cardinal;
     FHasHoverText: Boolean;
     FMonitorDpi: Integer;
@@ -119,10 +121,6 @@ type
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
     FClosing: Boolean;
-    FMiWindowOnly: TMenuItem;
-    FMiWindowTrayLed: TMenuItem;
-    FMiTrayOnly: TMenuItem;
-    FMiScale: TMenuItem;
     FActivateMsg: Cardinal;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
@@ -141,8 +139,6 @@ type
     procedure Render;
     procedure SyncModeChecks;
     procedure SyncViewMenu;
-    procedure AddScaleMenuItem(const ACaption: string; APct: Integer);
-    procedure SyncScaleMenu;
     function PrimarySourceIsDisk: Boolean;
     function BothLedSourcesOn: Boolean;
     function TrayLedSourceOn: Boolean;
@@ -150,12 +146,8 @@ type
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
     procedure miFullClick(Sender: TObject);
-    procedure miWindowOnlyClick(Sender: TObject);
-    procedure miWindowTrayLedClick(Sender: TObject);
-    procedure miTrayOnlyClick(Sender: TObject);
-    procedure miScaleClick(Sender: TObject);
+    procedure ApplyScaleChange;
     procedure SetWindowTrayState(AHidden, ALed: Boolean);
-    procedure EnterTrayOnly;
     procedure LeaveTrayOnly;
     procedure ReloadTrayIcons;
     procedure CreateTraySlot(AIndex: Integer);
@@ -168,6 +160,7 @@ type
     procedure ReleaseDriveTrays;
     procedure SyncDriveTrays;
     procedure UpdateTrayLeds;
+    procedure RefreshDriveHints;
     procedure UpdateTrayLed(AIndex: Integer; AOn: Boolean);
     procedure ResetTrayToAppIcon;
     procedure RefreshTrayIconForState;
@@ -679,42 +672,10 @@ begin
   Sep.Caption := '-';
   FPopup.Items.Add(Sep);
 
-  { Window visibility and the tray LED are an orthogonal 3-way exclusive
-    choice, independent of the Compact/Full size above (GroupIndex 2). }
-  FMiWindowOnly := TMenuItem.Create(FPopup);
-  FMiWindowOnly.Caption := S('menu.window_only');
-  FMiWindowOnly.RadioItem := True;
-  FMiWindowOnly.GroupIndex := 4;
-  FMiWindowOnly.OnClick := miWindowOnlyClick;
-  FPopup.Items.Add(FMiWindowOnly);
-
-  FMiWindowTrayLed := TMenuItem.Create(FPopup);
-  FMiWindowTrayLed.Caption := S('menu.window_tray_led');
-  FMiWindowTrayLed.RadioItem := True;
-  FMiWindowTrayLed.GroupIndex := 4;
-  FMiWindowTrayLed.OnClick := miWindowTrayLedClick;
-  FPopup.Items.Add(FMiWindowTrayLed);
-
-  FMiTrayOnly := TMenuItem.Create(FPopup);
-  FMiTrayOnly.Caption := S('menu.tray_only');
-  FMiTrayOnly.RadioItem := True;
-  FMiTrayOnly.GroupIndex := 4;
-  FMiTrayOnly.OnClick := miTrayOnlyClick;
-  FPopup.Items.Add(FMiTrayOnly);
-
-  Sep := TMenuItem.Create(FPopup);
-  Sep.Caption := '-';
-  FPopup.Items.Add(Sep);
-
-  FMiScale := TMenuItem.Create(FPopup);
-  FMiScale.Caption := S('menu.scale');
-  FPopup.Items.Add(FMiScale);
-  { Children only: SyncModeChecks walks FPopup.Items (top level) and would
-    fight a radio item placed there. GroupIndex 3 keeps them their own group. }
-  AddScaleMenuItem(S('menu.scale_auto'), 0);
-  AddScaleMenuItem('100%', 100);
-  AddScaleMenuItem('150%', 150);
-  AddScaleMenuItem('200%', 200);
+  miResetPosition := TMenuItem.Create(FPopup);
+  miResetPosition.Caption := S('menu.reset_position');
+  miResetPosition.OnClick := miResetPositionClick;
+  FPopup.Items.Add(miResetPosition);
 
   miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.dashboard');
@@ -730,11 +691,6 @@ begin
   miOpt.Caption := S('menu.options');
   miOpt.OnClick := miOptionsClick;
   FPopup.Items.Add(miOpt);
-
-  miResetPosition := TMenuItem.Create(FPopup);
-  miResetPosition.Caption := S('menu.reset_position');
-  miResetPosition.OnClick := miResetPositionClick;
-  FPopup.Items.Add(miResetPosition);
 
   Sep := TMenuItem.Create(FPopup);
   Sep.Caption := '-';
@@ -1012,7 +968,7 @@ end;
 
 procedure TMainForm.SyncViewMenu;
 var
-  InFull, Hidden, Led: Boolean;
+  InFull: Boolean;
 begin
   if (FMiCompact = nil) or (FMiFull = nil) then
     Exit;
@@ -1024,48 +980,6 @@ begin
   InFull := UsingFullView;
   FMiCompact.Checked := not InFull;
   FMiFull.Checked := InFull;
-
-  Hidden := (FSettings <> nil) and FSettings.WindowHidden;
-  Led := (FSettings <> nil) and FSettings.TrayLed;
-  if FMiWindowOnly <> nil then
-    FMiWindowOnly.Checked := (not Hidden) and (not Led);
-  if FMiWindowTrayLed <> nil then
-    FMiWindowTrayLed.Checked := (not Hidden) and Led;
-  if FMiTrayOnly <> nil then
-    { Hidden implies Led (Normalize enforces it), so Hidden alone identifies
-      this choice. }
-    FMiTrayOnly.Checked := Hidden;
-
-  SyncScaleMenu;
-end;
-
-procedure TMainForm.AddScaleMenuItem(const ACaption: string; APct: Integer);
-var
-  mi: TMenuItem;
-begin
-  mi := TMenuItem.Create(FMiScale);
-  mi.Caption := ACaption;
-  mi.RadioItem := True;
-  mi.GroupIndex := 3;
-  mi.Tag := APct;
-  mi.OnClick := miScaleClick;
-  FMiScale.Add(mi);
-end;
-
-procedure TMainForm.SyncScaleMenu;
-var
-  i, Cur: Integer;
-begin
-  if FMiScale = nil then
-    Exit;
-  if FSettings <> nil then
-    Cur := FSettings.Scale
-  else
-    Cur := 0;
-  if not ((Cur = 100) or (Cur = 150) or (Cur = 200)) then
-    Cur := 0;
-  for i := 0 to FMiScale.Count - 1 do
-    FMiScale[i].Checked := (FMiScale[i].Tag = Cur);
 end;
 
 procedure TMainForm.Render;
@@ -1217,43 +1131,18 @@ begin
   SetCompactView(False);
 end;
 
-procedure TMainForm.miWindowOnlyClick(Sender: TObject);
-begin
-  SetWindowTrayState(False, False);
-end;
-
-procedure TMainForm.miWindowTrayLedClick(Sender: TObject);
-begin
-  SetWindowTrayState(False, True);
-end;
-
-procedure TMainForm.miTrayOnlyClick(Sender: TObject);
-begin
-  EnterTrayOnly;
-end;
-
-procedure TMainForm.miScaleClick(Sender: TObject);
+procedure TMainForm.ApplyScaleChange;
 var
   KeepLeft, KeepTop: Integer;
 begin
-  if FSettings = nil then
-    Exit;
-  if FSettings.Scale = TMenuItem(Sender).Tag then
-  begin
-    SyncScaleMenu;
-    Exit;
-  end;
   KeepLeft := Left;
   KeepTop := Top;
-  FSettings.Scale := TMenuItem(Sender).Tag;
   ApplyDpiScale;
   SetBounds(KeepLeft, KeepTop, Width, Height);
   ApplyWindowBounds;
-  SyncScaleMenu;
   FHasFp := False;
   Render;
   Invalidate;
-  PersistSettings;
 end;
 
 function TMainForm.PrimarySourceIsDisk: Boolean;
@@ -1520,6 +1409,32 @@ begin
   end
   else
     HideTraySlot(1);
+  RefreshDriveHints;
+end;
+
+procedure TMainForm.RefreshDriveHints;
+const
+  CDriveHintIntervalMs = 1000;
+var
+  I: Integer;
+  NowTick: Cardinal;
+  Letter: Char;
+begin
+  if FPipeline = nil then
+    Exit;
+  NowTick := GetTickCount;
+  if FHasDriveHint and ((NowTick - FDriveHintTick) < CDriveHintIntervalMs) then
+    Exit;
+  FDriveHintTick := NowTick;
+  FHasDriveHint := True;
+  for I := 2 to High(FTraySlots) do
+    if FTraySlots[I].DriveLetter <> #0 then
+    begin
+      Letter := FTraySlots[I].DriveLetter;
+      FTraySlots[I].Icon.Hint := Format(S('tray.drive_rate'), [string(Letter),
+        FormatRateBps(FPipeline.Rates.DriveReadBps[Letter]),
+        FormatRateBps(FPipeline.Rates.DriveWriteBps[Letter])]);
+    end;
 end;
 
 procedure TMainForm.RefreshTrayIconForState;
@@ -1562,11 +1477,6 @@ begin
   RefreshTrayIconForState;
   if not AHidden then
     BringWindowForward;
-end;
-
-procedure TMainForm.EnterTrayOnly;
-begin
-  SetWindowTrayState(True, True);
 end;
 
 procedure TMainForm.LeaveTrayOnly;
@@ -1626,9 +1536,13 @@ end;
 procedure TMainForm.miOptionsClick(Sender: TObject);
 var
   Applied: Boolean;
+  OldHidden: Boolean;
+  OldScale: Integer;
 begin
   if FSettings = nil then
     Exit;
+  OldHidden := FSettings.WindowHidden;
+  OldScale := FSettings.Scale;
   FOptionsOpen := True;
   try
     Applied := TOptionsForm.Execute(Self, FSettings, CurrentDrivePresence);
@@ -1638,7 +1552,15 @@ begin
   if Applied then
   begin
     ApplySettingsToUi;
+    if FSettings.Scale <> OldScale then
+      ApplyScaleChange;
     RefreshTrayIconForState;
+    if FSettings.WindowHidden <> OldHidden then
+    begin
+      Visible := not FSettings.WindowHidden;
+      if Visible then
+        BringWindowForward;
+    end;
     PersistSettings;
     if UpdateCheckEnabled then
       ScheduleUpdateCheck
@@ -1992,8 +1914,8 @@ begin
     MemPct := Round(Clamp01(FPipeline.State.MemDigit) * 100);
     SwapPct := Round(Clamp01(FPipeline.State.SwapDigit) * 100);
     Snap := FPipeline.LastSnap;
-    DiskIo := FormatRateBps(Snap.DiskReadBps + Snap.DiskWriteBps);
-    NetIo := FormatRateBps(Snap.NetInBps + Snap.NetOutBps);
+    DiskIo := FormatRateBps(FPipeline.Rates.DiskReadBps + FPipeline.Rates.DiskWriteBps);
+    NetIo := FormatRateBps(FPipeline.Rates.NetInBps + FPipeline.Rates.NetOutBps);
     Host := Trim(Snap.PingTarget);
     if not Snap.PingEnabled then
       PingLine := 'Ping: ' + S('hover.ping_off')
@@ -2053,6 +1975,8 @@ begin
     FHoverTip.UpdateText(Text);
   if FTraySlots[0].Icon <> nil then
     FTraySlots[0].Icon.Hint := Text;
+  if FTraySlots[1].Icon <> nil then
+    FTraySlots[1].Icon.Hint := Text;
 end;
 
 procedure TMainForm.HoverDelayTick(Sender: TObject);
