@@ -13,8 +13,8 @@
 | 4 | トレイアイコンの論理ドライブ別表示（C:／D: など、ドライブごとのアクセス LED） | 完了 | 高（PDH `LogicalDisk(*)` を実機確認済み） | 中〜高（収集は低〜中。台数可変のトレイアイコン管理・設定・アイコン描画が主） | 1〜1.5週間（項目3 の完了が前提） |
 | 5 | PC の稼働時間（起動からの経過時間）の取得・ダッシュボード表示 | 完了 | 高（`GetTickCount64` 1 本） | 低 | 0.5〜1日 |
 | 6 | ディスク／ネットの累積データ量（読み書き・送受信別）の取得・ダッシュボード表示 | 完了 | 高（OS の累積カウンタを直読み。実機で取得確認済み） | 低〜中（ネットは 64bit 化が要る）＋表示の設計 | 3〜4日 |
-| 7 | リソース別 TOP5 プロセス（CPU/メモリ/ディスク IO、専用ウィンドウ） | 未着手 | 中 | 高（プロセス列挙＋新規一覧 UI） | 1〜2週間 |
-| 8 | プロセス別 CPU／メモリ消費量（絶対値・割合）の取得・ダッシュボード表示（項目7と収集層を共有） | 未着手 | 中〜高（PDH `Process V2` で全プロセス取得を実機確認。Win10 は未確認） | 中〜高（収集 ＋ 一覧表示の新規 UI） | 収集 2〜3日（項目7と共有）＋表示 3〜5日 |
+| 7 | リソース別 TOP5 プロセス（CPU/メモリ/ディスク IO、ダッシュボードのプロセスページ） | 未着手 | 中〜高（PDH `Process V2` で全プロセス取得を実機確認。Win10 は未確認） | 高（プロセス収集＋ページ切替＋一覧描画） | 1〜2週間 |
+| 8 | プロセス別 CPU／メモリ消費量（絶対値・割合）の取得・ダッシュボード表示 | 項目7で実装 | 同上 | — | 項目7に含む |
 | 9 | ダッシュボード CRT/キャラクターベース表示タイプ | 未着手 | 高 | 中〜高（描画一式の並行実装。レンダラ抽象化の先行リファクタが要る） | 1〜2週間 |
 | 10 | 右クリックメニューの整理（表示モード3択・表示倍率をオプション画面へ移し、後半を並べ替え） | 完了 | 高（既存の設定・ハンドラを移すだけ。新機能なし） | 低〜中（オプション画面の配置変更と、既存ハンドラの呼び出し整理） | 1〜1.5日 |
 
@@ -25,7 +25,7 @@
 - **4**（1〜1.5週間）: 項目3（トレイアイコン1個ぶんの状態を型にまとめる共通化）を土台にして「N 個の可変スロット」へ広げる形になるため、項目3 の後でないと着手できない。
 - **5**（0.5〜1日）: 低コスト・低リスクで他項目に依存しない単独の新機能。
 - **6**（3〜4日）: 独立した新機能。ただし「累積」の定義（A/B/C案）はユーザー判断が要るため着手前に確定させる。
-- **7・8**（合計 1〜3週間）: 収集層を共有する一対の新機能。範囲が大きく実機検証（Win10 での `Process V2` 対応含む）が要るため、単独の低コスト項目より後。まず項目7（専用ウィンドウ）を作り、収集層を項目8（ダッシュボード表示）で再利用する順が手戻りが少ない。
+- **7・8**（1〜2週間）: 項目8 の表示は項目7 のプロセスページに含めて一度に作る。範囲が大きく実機検証（Win10 での `Process V2` 対応含む）が要るため、単独の低コスト項目より後。
 - **9**（1〜2週間、見積り未検証）: 見た目のみの追加で緊急性が低く、レンダラ抽象化を要する最大規模の項目のため最後。
 - **10**（1〜1.5日）: 既存機能の配置換えのみで他項目に依存しない。項目1 と同じ `uOptionsForm.dfm` を触るため、**項目1 の直後に続けて着手**するとオプション画面の実機確認を一度にまとめられる（番号は後付けの 10）。
 
@@ -209,28 +209,76 @@
 
 収集 1〜2 日（ディスク: `SumDiskPerformance` の公開化と低頻度呼び出し 0.5 日、ネット: 64bit 化 or 積算 1 日）、表示 1〜2 日。合計 3〜4 日。
 
-## 7. リソース別 TOP5 プロセス
+## 7. リソース別 TOP5 プロセス（ダッシュボードのプロセスページ）
 
-各リソース（CPU / メモリ / ディスク IO）ごとに、そのとき最も使っているプロセス上位 5 を表示する。**ネットは対象外**（プロセス別帯域の一般権限 API が無く簡易推定に留まるため）。
+各リソース（CPU / メモリ / ディスク IO）ごとに、そのとき最も使っているプロセス上位 5 を表示する。**ネットは対象外**（プロセス別帯域の一般権限 API が無く簡易推定に留まるため）。項目8（プロセス別の絶対値・割合）の表示もこのページで行う。
 
-### スコープ方針（着手時に詰める前提の大枠）
+### 決定事項
 
-- **対象は CPU・メモリ・ディスク IO の 3 種**。ネットは見送り。
-- **専用「プロセス」ウィンドウ**（3.1.2 新設の `TThemedHudForm`（`src/uThemedHudForm.pas`）を継承。Tracert 結果ウィンドウと同じ流儀）。ダッシュボードのセクションをその場で展開する案は採らない（下記理由）。
-- **プロセスアイコンも表示する**前提（処理負荷を実測して問題があれば名前のみに落とす）。
+- **表示場所は別ウィンドウではなく、ダッシュボード内のページ。** ヘッダー直下にタブ行（「概要」「プロセス」）を置き、クリックで本体の表示を切り替える。オプション画面のタブと同じ使い方。概要ページは現行のセクション×5＋サブセクション×5 で、変更しない。
+- **同名プロセスは名前で合算して 1 行**（例 `chrome (12)`）。順位は合算値で決める。
+- **配置は縦に 3 段**（上から CPU → メモリ → ディスク IO）、各 5 行。
+- **ディスク IO は読み＋書きの合計 B/s で順位を決め**、行には読み・書きを別々に出す。
+- プロセスアイコンを表示する。
 
-### 検証結果（`src/dashboard/*` / `src/metrics/*` を確認）
+### 現状（実ソース確認済み）
 
-- **プロセス列挙 API は現状ゼロ。** `psapi` は `GetPerformanceInfo`（システム全体）のみ（[uMemCollector.pas:37](../src/metrics/uMemCollector.pas#L37)）。プロセスアイコンは `SHGetFileInfo` / `ExtractIconEx`（新規）。
-- **取得経路は PDH `Process V2` を第一候補にする**（項目8 に実測を記載）。`OpenProcess` + `GetProcessTimes` / `GetProcessMemoryInfo` / `GetProcessIoCounters` の Win32 経路は非昇格だと約半数のプロセスしか開けず、全プロセスの TOP5 が正しく出ない。PDH は `\Process V2(*)\% Processor Time` / `Working Set - Private` / `IO Read Bytes/sec` / `IO Write Bytes/sec` が全プロセス分取れる（実機確認済み）。既存の PDH 利用（[uDiskCollector.pas:96-106](../src/metrics/uDiskCollector.pas#L96)、`uGpuCollector.pas`）と同じ作法で書ける。
-- **ダッシュボードへのその場展開は重い**: `TDashboardCard` は `TCustomControl`+`Paint` の固定描画で `OnClick`・行リスト・可変高さが無い。`LayoutContent` は 5 行ハードコード（`Heights: array[0..4]`、[uDashboardForm.pas:527](../src/dashboard/uDashboardForm.pas#L527)、右カラム 5 `TPaintBox` が左5行と 1:1 高さペア、[uDashboardForm.pas:522-587](../src/dashboard/uDashboardForm.pas#L522-L587)）。展開＝リフロー実装が要る。→ **別ウィンドウの方が侵襲が小さい。**
-- 全プロセスの毎ティック列挙はコストが高いので、1 Hz 程度の低頻度サンプリング（`docs/DESIGN.md` 8.6 の履歴 push と同程度）にする。
-- 収集層は項目8 と共通（二重実装しない）。
-- 見積り: 収集ロジック 2〜3 日、専用ウィンドウ UI（一覧描画・アイコン・ソート・更新）4〜6 日、調整・検証込みで 1〜2 週間。
+- **ダッシュボードにページの概念は無い。** 本体はヘッダー `FHeaderPaint`（`alTop`、[uDashboardForm.pas:137-141](../src/dashboard/uDashboardForm.pas#L137)）・左カラム `FCards[0..4]`・右カラムの `TPaintBox` 5 個で、`LayoutContent`（[uDashboardForm.pas:522-587](../src/dashboard/uDashboardForm.pas#L522)）が固定配置する。クリック処理（`OnClick`/`OnMouseDown`）はどこにも無い。
+- 更新は表示中だけ動く 2 本のタイマー: 1 Hz の `UiTimerTick` → `RefreshData`（[uDashboardForm.pas:604-649](../src/dashboard/uDashboardForm.pas#L604)）と、約 5 Hz の `MeterTimerTick`（ドーナツ、[uDashboardForm.pas:632-643](../src/dashboard/uDashboardForm.pas#L632)）。`FormShow`/`FormHide` で有効・無効を切り替える（[uDashboardForm.pas:734-753](../src/dashboard/uDashboardForm.pas#L734)）。履歴グラフ用の 1 Hz push は MainForm 側で、ダッシュボードの表示状態とは独立（`docs/DESIGN.md:330`）。
+- 最小サイズは 800×600 DIP が下限（`EffectiveMinSize`、[uDashboardForm.pas:273-292](../src/dashboard/uDashboardForm.pas#L273)）。
+- VCL の `TTabControl`/`TPageControl` はネイティブ描画で、ダッシュボードの HUD 配色（`HudPalette`、ライト／ダーク追従）に合わない。→ タブ行は自前描画にする。
+- **プロセス関連の収集コードは無い。** `psapi` は `GetPerformanceInfo`（システム全体）のみ（[uMemCollector.pas:37](../src/metrics/uMemCollector.pas#L37)）。取得経路は PDH `Process V2`（全プロセスが非昇格で取れる。実測は項目8）。
+- PDH ワイルドカード配列取得の先例は `uGpuCollector.pas`（API 宣言 [uGpuCollector.pas:93-105](../src/metrics/uGpuCollector.pas#L93)、失敗時の再初期化 `SuspendPdh` [uGpuCollector.pas:173-181](../src/metrics/uGpuCollector.pas#L173)）と `uDriveCollector.pas`（[uDriveCollector.pas:61-73](../src/metrics/uDriveCollector.pas#L61)）。PDH の `external` 宣言はユニットごとに個別に持つ流儀。
+- ワーカースレッドの先例は `TPingCollector`（`TThread` 派生＋`TCriticalSection`＋`TEvent`、[uPingCollector.pas:102-167](../src/metrics/uPingCollector.pas#L102)）。結果は `CopyPingHistory` のようにロック付きでコピーして UI へ渡す。
+- 割合の分母: 論理プロセッサ数はスナップショットの `CpuThreads`（[uCollector.pas:90](../src/metrics/uCollector.pas#L90)）、物理メモリ総量は `MemTotalBytes`（[uCollector.pas:104-105](../src/metrics/uCollector.pas#L104)）。
+
+### 方針
+
+**1. ページ切替（`uDashboardForm.pas`）**
+- `TDashboardPage = (dpOverview, dpProcess)` と `FPage` を持つ。ヘッダーの下にタブ行 `FTabPaint: TPaintBox`（`alTop`。高さは `THudMetrics` に `TabHeight` を足す、[uDashboardTheme.pas:213-222](../src/dashboard/uDashboardTheme.pas#L213) と同じ `ScalePx` 方式）を置き、自前描画する（選択中は `TextPrimary`＋アクセント色の下線、非選択は `TextMuted`）。`OnMouseDown` でタブの矩形を判定して `SetPage` を呼ぶ。Ctrl+Tab／Ctrl+Shift+Tab でも切り替える（`KeyPreview`）。
+- `SetPage` は概要ページの 10 個のコントロールとプロセスページのコントロールの `Visible` を入れ替え、`LayoutContent` をページ別に分岐させる。
+- 概要ページが非表示の間は、カードと右カラムの再描画（`RefreshData` の `Invalidate` 群、`MeterTimerTick`）を省く。履歴は MainForm 側で積まれ続けるので、概要に戻ったときグラフは途切れない。
+- 選んだページは ini に保存しない（ダッシュボードは常に概要ページで開く）。設定キーは増やさない。
+
+**2. 収集層（新規 `src/metrics/uProcessCollector.pas`）**
+- `TProcessCollector` は専用のワーカースレッドで、約 1 秒ごとに PDH の `\Process V2(*)\` から `% Processor Time`・`Working Set - Private`・`IO Read Bytes/sec`・`IO Write Bytes/sec` を `PdhGetFormattedCounterArrayW` で取る（バッファ拡張の作法は `uGpuCollector` と同じ）。
+- インスタンス名 `名前:PID` の最後の `:` より前を名前として合算し、件数も数える。`_Total`・`Idle` は除外する。合算後、3 種それぞれの上位 5 件と代表 PID を `TCriticalSection` 越しのコピー（`CopyTop`）で UI に渡す。
+- **プロセスページ表示中だけ収集する**（`SetActive`）。概要ページ表示中やダッシュボード非表示中は PDH クエリを閉じ、スレッドはイベント待ちで止める。平常時のコストはゼロ。
+- `TMetricsSnapshot` には入れない。スナップショットはガジェットのフレームごとの `Collect`（[uMainForm.pas:1031](../src/uMainForm.pas#L1031)）で回るため、1 Hz の別系統として `TDashboardForm` が所有し、破棄時にスレッドを止める。
+- `Process V2` のカウンタ追加に失敗した OS（Windows 10 の一部版の可能性、未確認）は旧 `\Process(*)` へフォールバックする。名前で合算するので、旧セットのインスタンス名の重複（項目8）は合算されるだけで問題にならない。アイコン用の PID は `\Process(*)\ID Process` を同じ配列添字で突き合わせる（要実機確認）。
+- 実行中の PDH 失敗は `uGpuCollector` と同じく連続失敗で再初期化する。
+
+**3. アイコン**
+- 名前ごとにキャッシュする。初回だけワーカーで代表 PID を `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`＋`QueryFullProcessImageNameW` で実行ファイルのパスにし、UI スレッドで `SHGetFileInfo` からアイコンを作る（COM 初期化済みのスレッドで呼ぶため）。開けないプロセス（非昇格で約半数、項目8）は既定のアプリアイコン（`SHGetStockIconInfo(SIID_APPLICATION)`）にする。
+- 高 DPI では大アイコンを取り、`DrawIconEx` で行の高さに合わせて描く。
+
+**4. 描画（`uDashboardPainter.pas`）**
+- `DrawProcessTop` を足す。カード枠（既存の `FillRoundRect`/`StrokeRoundRect`）＋見出し＋5 行で、1 段＝1 リソース。列は次のとおり（項目8 の「絶対値・割合」はここで満たす）:
+  - CPU: アイコン｜名前 (件数)｜システム比 %（`% Processor Time ÷ CpuThreads`）
+  - メモリ: アイコン｜名前 (件数)｜プライベート ワーキング セット（`FormatBytesGiB` 系）｜物理メモリ比 %
+  - ディスク IO: アイコン｜名前 (件数)｜読み｜書き（`FormatRateBps`、[uMetricsTypes.pas:205](../src/metrics/uMetricsTypes.pas#L205)）
+- 名前は既存の `Ellipsize`（[uDashboardPainter.pas:200-211](../src/dashboard/uDashboardPainter.pas#L200)）で切り詰める。初回 1 秒など値が無い間は行を「—」にする。
+- 文字列は `uAppStrings.pas` に JA/EN で足す（タブ名・段見出し・列見出し）。
+
+**5. 文書**
+- `docs/DESIGN.md` のダッシュボード節（`docs/DESIGN.md:300-336`）と `.cursor/rules/dashboard-regions.mdc` に、ページ（概要／プロセス）とタブ行を追記する。公開文書（`public_docs/` の FEATURES・USAGE、JA/EN）はリリース時に更新する。
+- ページ切替の仕組みは項目9（CRT 表示タイプ）でも使える可能性がある。CRT をページとして足すか、表示スタイルの切替にするかは項目9の着手時に決める。
+
+### 実機で見ること（実装時。Win64 Release を IDE でビルド）
+
+- タブのクリックと Ctrl+Tab で概要とプロセスが切り替わり、ちらつかないこと。概要に戻ったとき履歴グラフが途切れていないこと。
+- プロセスページの値が、タスクマネージャーの「プロセス」タブとおおむね一致すること（CPU はシステム比、メモリはプライベート ワーキング セット）。非昇格で `svchost` などのサービスも出ること。開けないプロセスは既定アイコンになること。
+- 概要ページ表示中とダッシュボード非表示中に、プロセス収集が止まっていること（DiskLED 自身の CPU 使用率が上がらない）。
+- ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で、3 段×5 行が崩れず収まること。
+- Windows 10 実機で `Process V2` が無い場合に、旧 `Process` へのフォールバックで表示されること。
+
+### 見積り
+
+ページ切替・タブ行 1〜2 日、収集層（ワーカー・PDH・合算・フォールバック）2〜3 日、描画・アイコン 2〜3 日、実機調整 1〜2 日。合計 1〜2 週間（項目8 の表示分を含む）。
 
 ## 8. プロセス別の CPU／メモリ消費量（絶対値・割合）
 
-各プロセスの CPU 使用率とメモリ使用量を、絶対値（%・MiB）と割合（システム全体に対する %）で取得し、主にダッシュボードで見せる。**項目7（リソース別 TOP5 プロセス）と収集層は同一**で、違いは「どこに見せるか」。収集層は 1 つだけ作り、項目7（専用ウィンドウ）と本項目（ダッシュボード）の両方から使う。
+各プロセスの CPU 使用率とメモリ使用量を、絶対値（%・MiB）と割合（システム全体に対する %）で取得し、ダッシュボードで見せる。**収集層・表示とも項目7で実装する**（項目7のプロセスページが CPU のシステム比、メモリのプライベート ワーキング セットと物理メモリ比を列に持つ）。本節は収集経路の実測記録。
 
 ### 検証結果（実機: Windows 11 26200・非昇格で実測。Windows 10 は未確認）
 
@@ -238,21 +286,13 @@
 - **PDH の `Process V2` なら全プロセスが取れる。** `\Process V2(*)\% Processor Time`・`Working Set - Private`・`Working Set`・`Private Bytes`・`IO Read Bytes/sec`・`IO Write Bytes/sec` が約 513 インスタンス分すべて有効（`PdhAddEnglishCounterW` は成功）。インスタンス名は **`名前:PID`**（例 `AdobeIPCBroker:1852`）で一意。`ID Process` カウンタは `Process V2` には無い（PID はインスタンス名から取る）。PowerShell の `Get-Counter` は無効サンプル混在で例外にするが、PDH API 直叩きでは各インスタンスの `CStatus` で個別に判定でき、問題なく取れた。
 - **旧 `Process` カウンタセットはインスタンス名が一意にならない。** 本機の `\Process(*)\...` は `svchost` が同名で複数並び（511 インスタンス・重複除去後 228 名、`#1` 等の接尾辞なし）、名前をキーにした辞書だと**衝突して欠落する**。旧セットを使う場合は `ID Process` と配列添字で突き合わせる必要があり、`Process V2` が無い OS のフォールバックとしてのみ検討する。`Process V2` が Windows 10 のどの版から使えるかは**未確認**（Microsoft の資料で要確認、または Win10 実機で確認）。
 - **PDH の CPU は「1 コア＝100%」**（本機で 1 コア飽和のプロセスが 100.0% を返した）。システム全体に対する割合は `÷ 論理プロセッサ数`（[uCpuCollector.pas:29](../src/metrics/uCpuCollector.pas#L29) の `Threads`）。メモリの割合は `Working Set - Private ÷ 物理メモリ総量`（`GlobalMemoryStatusEx`、[uMemCollector.pas:59](../src/metrics/uMemCollector.pas#L59)、スナップショットの `MemTotalBytes`）。タスクマネージャーのメモリ列と同じ「プライベート ワーキング セット」に相当。
-- **コスト:** PDH（3 カウンタ × 約 517 インスタンス）で `PdhCollectQueryData` 約 13 ms＋配列取得 約 3 ms（定常 1 サイクル平均 約 14 ms。PowerShell 経由の単発計測なので目安）。15 fps の表示タイマー（約 66 ms 周期）で毎フレーム回す量ではない。**1 Hz 程度で収集**する（項目7の「毎ティック列挙はコストが高いので 1 Hz」とも一致）。既存の GPU 収集は同種のワイルドカード PDH を UI スレッド上で 900 ms 間隔（[uGpuCollector.pas:62](../src/metrics/uGpuCollector.pas#L62) `CSampleIntervalMs`）で回しており、プロセス別も同じ間隔で足りるが、GPU 分と合わせて 1 サイクル約 30 ms を UI スレッドに載せることになるので、**ワーカースレッド化（Ping と同じ流儀）を第一候補**とする。参考: Win32 ループは開けた 275 プロセスで約 5 ms、`Process.GetProcesses`（`NtQuerySystemInformation` 系）は約 10 ms で 511/512 プロセスのワーキングセットが取れるが、後者は非公開色の強い API で、README の「一般権限・公式 API 優先」方針（[README.md:28](../README.md#L28)）から外れるため採らない。
-- 現状プロセス関連の収集コードは無い（項目7 参照）。新規ユニット（例 `uProcessCollector.pas`）を `src/metrics/` に置き、`uCollector.pas` から低頻度で呼ぶ。PDH の API 宣言は `uDiskCollector.pas`（[uDiskCollector.pas:96-106](../src/metrics/uDiskCollector.pas#L96-L106)）に個別の `external` 宣言があるが、ワイルドカードの配列取得 `PdhGetFormattedCounterArrayW` は新規に宣言が要る。GPU 使用率のワイルドカード PDH（3.2.0 項目4、`uGpuCollector.pas`）が動的インスタンス管理の先例になる。
-
-### 表示の候補（着手時に決める）
-
-- ダッシュボードは 5 行固定・カードは `OnClick`／行リスト／可変高さ無し（項目7 の検証結果）。**その場展開は重い**ので、まずは次のどちらか:
-  1. 右カラムの CPU パネル（`DrawCpuPanel`、[uDashboardPainter.pas:230](../src/dashboard/uDashboardPainter.pas#L230)）とメモリパネル（`DrawMemAmounts`、[uDashboardPainter.pas:427](../src/dashboard/uDashboardPainter.pas#L427)）の空きに TOP3 程度を行表示する（空き領域は実機で要確認）。
-  2. 項目7 の専用ウィンドウ（`TThemedHudForm` 継承）へ、絶対値・割合の両方の列を持たせる。ダッシュボードにはボタンで開く。
-- 「絶対値」は CPU が `%`（1 コア基準）またはコア換算、メモリは MiB／GiB。「割合」は上記のシステム全体比。両方を並べるか切替にするかは設計時に決める。
-- 同名プロセス（`chrome` 等）は合算して 1 行にするか、PID 別に出すか。名前でグルーピングすると一覧として読みやすいが、PID 別のほうが「どの 1 つか」が分かる。要判断。
+- **コスト:** PDH（3 カウンタ × 約 517 インスタンス）で `PdhCollectQueryData` 約 13 ms＋配列取得 約 3 ms（定常 1 サイクル平均 約 14 ms。PowerShell 経由の単発計測なので目安）。15 fps の表示タイマー（約 66 ms 周期）で毎フレーム回す量ではない。**1 Hz 程度で収集**する。既存の GPU 収集は同種のワイルドカード PDH を UI スレッド上で 900 ms 間隔（[uGpuCollector.pas:62](../src/metrics/uGpuCollector.pas#L62) `CSampleIntervalMs`）で回しており、プロセス別も同じ間隔で足りるが、GPU 分と合わせて 1 サイクル約 30 ms を UI スレッドに載せることになるので、**ワーカースレッド化（Ping と同じ流儀）を第一候補**とする。参考: Win32 ループは開けた 275 プロセスで約 5 ms、`Process.GetProcesses`（`NtQuerySystemInformation` 系）は約 10 ms で 511/512 プロセスのワーキングセットが取れるが、後者は非公開色の強い API で、README の「一般権限・公式 API 優先」方針（[README.md:28](../README.md#L28)）から外れるため採らない。
+- 収集ユニット・ワーカースレッド化・フォールバックの設計は項目7 の方針 2 を参照。
 - ダッシュボード以外（ガジェット本体・トレイ）へは出さない。
 
 ### 見積り
 
-収集層 2〜3 日（項目7 と共有。二重に数えない）＋ダッシュボード表示 3〜5 日（行表示の新設・DPI 対応・ライト／ダーク・実機確認が中心）。項目7 の専用ウィンドウ案を採る場合は、UI 分は項目7 の見積りに含まれる。
+項目7 に含む。
 
 ## 9. ダッシュボード CRT/キャラクターベース表示タイプ
 
