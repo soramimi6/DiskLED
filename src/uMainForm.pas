@@ -27,6 +27,21 @@ uses
   uUpdateCheck;
 
 type
+  { One tray icon with its LED state. Slot 0 is the primary icon (always shown,
+    falls back to the app icon); slot 1 is the net-only secondary icon, created
+    on demand and hidden when its icons are unavailable. Each slot has its own
+    click-delay timer so one icon's pending single-click is never cancelled by
+    the other's double-click. }
+  TTraySlot = record
+    Icon: TTrayIcon;
+    OffIcon: TIcon;
+    OnIcon: TIcon;
+    LedOn: Boolean;
+    HasState: Boolean;
+    ClickDelay: TTimer;
+    AppIconFallback: Boolean;
+  end;
+
   TMainForm = class(TForm)
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -48,7 +63,7 @@ type
     FHistory: THistoryBuffer;
     FTimer: TTimer;
     FSettings: TAppSettings;
-    FTray: TTrayIcon;
+    FTraySlots: array[0..1] of TTraySlot;
     FAssetsRoot: string;
     FReadyToPersist: Boolean;
     FLastGraphTick: Cardinal;
@@ -99,26 +114,7 @@ type
     FMiWindowTrayLed: TMenuItem;
     FMiTrayOnly: TMenuItem;
     FMiScale: TMenuItem;
-    FTrayOffIcon: TIcon;
-    FTrayOnIcon: TIcon;
-    FTrayLedOn: Boolean;
-    FHasTrayLedState: Boolean;
-    { Second tray icon, created on demand: shown only while both TrayLedDisk
-      and TrayLedNet are on, always displaying the net LED (the primary FTray
-      shows disk in that case -- see PrimarySourceIsDisk). }
-    FTray2: TTrayIcon;
-    FTrayOffIcon2: TIcon;
-    FTrayOnIcon2: TIcon;
-    FTrayLedOn2: Boolean;
-    FHasTrayLedState2: Boolean;
     FActivateMsg: Cardinal;
-    FTrayClickDelay: TTimer;
-    { Independent from FTrayClickDelay so a click on one tray icon can never
-      arm/cancel the other's pending single-click (they used to share one
-      timer via the same TrayClick/TrayDblClick handlers, which let a quick
-      double-click on FTray2 silently swallow a pending single-click on
-      FTray, or vice versa). Created lazily alongside FTray2. }
-    FTrayClickDelay2: TTimer;
     procedure BuildPopup;
     procedure ApplyMode(const AModeId: string);
     procedure ApplyViewSize;
@@ -141,9 +137,6 @@ type
     function PrimarySourceIsDisk: Boolean;
     function BothLedSourcesOn: Boolean;
     function TrayLedSourceOn: Boolean;
-    procedure EnsureSecondaryTray;
-    procedure HideSecondaryTray;
-    procedure UpdateTrayLed2(AOn: Boolean);
     procedure TimerTick(Sender: TObject);
     procedure miModeClick(Sender: TObject);
     procedure miCompactClick(Sender: TObject);
@@ -156,7 +149,11 @@ type
     procedure EnterTrayOnly;
     procedure LeaveTrayOnly;
     procedure ReloadTrayIcons;
-    procedure UpdateTrayLed(AOn: Boolean);
+    procedure CreateTraySlot(AIndex: Integer);
+    procedure EnsureTraySlot(AIndex: Integer);
+    procedure HideTraySlot(AIndex: Integer);
+    function TraySlotOf(ASender: TObject): Integer;
+    procedure UpdateTrayLed(AIndex: Integer; AOn: Boolean);
     procedure ResetTrayToAppIcon;
     procedure RefreshTrayIconForState;
     procedure miPingResultClick(Sender: TObject);
@@ -168,9 +165,6 @@ type
     procedure TrayDblClick(Sender: TObject);
     procedure TrayClick(Sender: TObject);
     procedure TrayClickDelayTick(Sender: TObject);
-    procedure TrayDblClick2(Sender: TObject);
-    procedure TrayClick2(Sender: TObject);
-    procedure TrayClickDelayTick2(Sender: TObject);
     procedure TrayBalloonClick(Sender: TObject);
     procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMNCHitTest(var Message: TWMNCHitTest); message WM_NCHITTEST;
@@ -438,10 +432,6 @@ begin
   FUpdateDelay.Interval := 5000;
   FUpdateDelay.OnTimer := UpdateDelayTick;
 
-  FTrayClickDelay := TTimer.Create(Self);
-  FTrayClickDelay.Enabled := False;
-  FTrayClickDelay.Interval := GetDoubleClickTime;
-  FTrayClickDelay.OnTimer := TrayClickDelayTick;
   { Menu item starts hidden (BuildPopup's default) and stays that way until
     this session's own check confirms a newer version via
     ApplyUpdateCheckResult -> SyncUpdateMenu. Do not call SyncUpdateMenu here:
@@ -466,14 +456,24 @@ end;
 procedure TMainForm.SetupTray;
 begin
   { Notification area only — not a hide-to-tray feature. Taskbar button stays off via WS_EX_TOOLWINDOW. }
-  FTray := TTrayIcon.Create(Self);
+  CreateTraySlot(0);
+  FTraySlots[0].Icon.OnBalloonClick := TrayBalloonClick;
   ResetTrayToAppIcon;
-  FTray.Hint := 'DiskLED';
-  FTray.PopupMenu := FPopup;
-  FTray.OnDblClick := TrayDblClick;
-  FTray.OnClick := TrayClick;
-  FTray.OnBalloonClick := TrayBalloonClick;
-  FTray.Visible := True;
+  FTraySlots[0].Icon.Visible := True;
+end;
+
+procedure TMainForm.CreateTraySlot(AIndex: Integer);
+begin
+  FTraySlots[AIndex].AppIconFallback := AIndex = 0;
+  FTraySlots[AIndex].Icon := TTrayIcon.Create(Self);
+  FTraySlots[AIndex].Icon.Hint := 'DiskLED';
+  FTraySlots[AIndex].Icon.PopupMenu := FPopup;
+  FTraySlots[AIndex].Icon.OnDblClick := TrayDblClick;
+  FTraySlots[AIndex].Icon.OnClick := TrayClick;
+  FTraySlots[AIndex].ClickDelay := TTimer.Create(Self);
+  FTraySlots[AIndex].ClickDelay.Enabled := False;
+  FTraySlots[AIndex].ClickDelay.Interval := GetDoubleClickTime;
+  FTraySlots[AIndex].ClickDelay.OnTimer := TrayClickDelayTick;
 end;
 
 procedure TMainForm.BringWindowForward;
@@ -585,10 +585,10 @@ begin
     FTimer.Enabled := False;
   FreeAndNil(FDashboardForm);
   FreeAndNil(FTraceRouteForm);
-  FreeAndNil(FTrayOffIcon);
-  FreeAndNil(FTrayOnIcon);
-  FreeAndNil(FTrayOffIcon2);
-  FreeAndNil(FTrayOnIcon2);
+  FreeAndNil(FTraySlots[0].OffIcon);
+  FreeAndNil(FTraySlots[0].OnIcon);
+  FreeAndNil(FTraySlots[1].OffIcon);
+  FreeAndNil(FTraySlots[1].OnIcon);
   FCollector.Free;
   FPipeline.Free;
   FHistory.Free;
@@ -1150,9 +1150,9 @@ begin
     or (checked at the settings layer) neither can be active at once. }
   if (FSettings <> nil) and FSettings.TrayLed then
   begin
-    UpdateTrayLed(TrayLedSourceOn);
+    UpdateTrayLed(0, TrayLedSourceOn);
     if BothLedSourcesOn then
-      UpdateTrayLed2(FPipeline.State.NetActivityOn);
+      UpdateTrayLed(1, FPipeline.State.NetActivityOn);
   end;
   if (FSettings = nil) or (not FSettings.WindowHidden) then
   begin
@@ -1244,8 +1244,8 @@ end;
 
 function TMainForm.PrimarySourceIsDisk: Boolean;
 begin
-  { Disk is the primary (FTray) source whenever it's on at all -- including
-    when both are on, in which case net becomes the secondary FTray2. Net is
+  { Disk is the primary (slot 0) source whenever it's on at all -- including
+    when both are on, in which case net becomes the secondary (slot 1). Net is
     primary only when it's the sole source selected. }
   Result := (FSettings = nil) or FSettings.TrayLedDisk;
 end;
@@ -1270,10 +1270,10 @@ procedure TMainForm.ReloadTrayIcons;
 var
   TypeDir, PrimarySrc: string;
 begin
-  FreeAndNil(FTrayOffIcon);
-  FreeAndNil(FTrayOnIcon);
-  FreeAndNil(FTrayOffIcon2);
-  FreeAndNil(FTrayOnIcon2);
+  FreeAndNil(FTraySlots[0].OffIcon);
+  FreeAndNil(FTraySlots[0].OnIcon);
+  FreeAndNil(FTraySlots[1].OffIcon);
+  FreeAndNil(FTraySlots[1].OnIcon);
   if FSettings = nil then
     Exit;
   { Skin-independent: assets/tray/<type>/<source>Off|On.ico, unrelated to the
@@ -1283,15 +1283,15 @@ begin
     PrimarySrc := 'disk'
   else
     PrimarySrc := 'net';
-  FTrayOffIcon := TAssetStore.LoadIconFile(
+  FTraySlots[0].OffIcon := TAssetStore.LoadIconFile(
     TAssetStore.BuildPath(FAssetsRoot, TypeDir, PrimarySrc + 'Off.ico'), LIM_SMALL);
-  FTrayOnIcon := TAssetStore.LoadIconFile(
+  FTraySlots[0].OnIcon := TAssetStore.LoadIconFile(
     TAssetStore.BuildPath(FAssetsRoot, TypeDir, PrimarySrc + 'On.ico'), LIM_SMALL);
   if BothLedSourcesOn then
   begin
-    FTrayOffIcon2 := TAssetStore.LoadIconFile(
+    FTraySlots[1].OffIcon := TAssetStore.LoadIconFile(
       TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOff.ico'), LIM_SMALL);
-    FTrayOnIcon2 := TAssetStore.LoadIconFile(
+    FTraySlots[1].OnIcon := TAssetStore.LoadIconFile(
       TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOn.ico'), LIM_SMALL);
   end;
 end;
@@ -1300,9 +1300,9 @@ procedure TMainForm.ResetTrayToAppIcon;
 var
   AppIcon: TIcon;
 begin
-  if FTray = nil then
+  if FTraySlots[0].Icon = nil then
     Exit;
-  FHasTrayLedState := False;
+  FTraySlots[0].HasState := False;
   AppIcon := TIcon.Create;
   try
     if FileExists(MainIconPath) then
@@ -1315,89 +1315,72 @@ begin
       AppIcon.Assign(Icon);
     except
     end;
-    { Assigning the whole property (not touching FTray.Icon in place) is
+    { Assigning the whole property (not touching the icon in place) is
       what makes TCustomTrayIcon.SetIcon sync FCurrentIcon and call
       Refresh; loading into the returned TIcon directly leaves the live
       tray icon (FCurrentIcon) stale until something else happens to
       refresh it. }
-    FTray.Icon := AppIcon;
+    FTraySlots[0].Icon.Icon := AppIcon;
   finally
     AppIcon.Free;
   end;
 end;
 
-procedure TMainForm.UpdateTrayLed(AOn: Boolean);
+procedure TMainForm.UpdateTrayLed(AIndex: Integer; AOn: Boolean);
 var
   Src: TIcon;
 begin
-  if FTray = nil then
+  if (FTraySlots[AIndex].Icon = nil) or (not FTraySlots[AIndex].Icon.Visible) then
     Exit;
-  if FHasTrayLedState and (FTrayLedOn = AOn) then
+  if FTraySlots[AIndex].HasState and (FTraySlots[AIndex].LedOn = AOn) then
     Exit;
   if AOn then
-    Src := FTrayOnIcon
+    Src := FTraySlots[AIndex].OnIcon
   else
-    Src := FTrayOffIcon;
+    Src := FTraySlots[AIndex].OffIcon;
   if (Src <> nil) and (not Src.Empty) then
-    FTray.Icon := Src
-  else
+    FTraySlots[AIndex].Icon.Icon := Src
+  else if FTraySlots[AIndex].AppIconFallback then
     { [Tray] missing or icon failed to load: fall back to the fixed app icon
       instead of leaving a stale or blank tray icon. }
-    ResetTrayToAppIcon;
-  FTrayLedOn := AOn;
-  FHasTrayLedState := True;
-end;
-
-procedure TMainForm.EnsureSecondaryTray;
-begin
-  if FTray2 = nil then
-  begin
-    FTray2 := TTrayIcon.Create(Self);
-    FTray2.Hint := 'DiskLED';
-    FTray2.PopupMenu := FPopup;
-    FTray2.OnDblClick := TrayDblClick2;
-    FTray2.OnClick := TrayClick2;
-    FTrayClickDelay2 := TTimer.Create(Self);
-    FTrayClickDelay2.Enabled := False;
-    FTrayClickDelay2.Interval := GetDoubleClickTime;
-    FTrayClickDelay2.OnTimer := TrayClickDelayTick2;
-  end;
-  FTray2.Visible := True;
-end;
-
-procedure TMainForm.HideSecondaryTray;
-begin
-  if FTray2 <> nil then
-    FTray2.Visible := False;
-  FHasTrayLedState2 := False;
-end;
-
-procedure TMainForm.UpdateTrayLed2(AOn: Boolean);
-var
-  Src: TIcon;
-begin
-  if (FTray2 = nil) or (not FTray2.Visible) then
-    Exit;
-  if FHasTrayLedState2 and (FTrayLedOn2 = AOn) then
-    Exit;
-  if AOn then
-    Src := FTrayOnIcon2
+    ResetTrayToAppIcon
   else
-    Src := FTrayOffIcon2;
-  if (Src = nil) or Src.Empty then
   begin
-    { The net Off/On icon under assets/tray/<type>/ is missing or failed to
-      load: there is no app-icon fallback for a second tray icon the way
-      FTray has one, so hide it instead of leaving a blank/default icon
-      parked in the tray. HideSecondaryTray already resets
-      FHasTrayLedState2 -- leave it as the not-shown state rather than
-      marking this failed attempt as applied. }
-    HideSecondaryTray;
+    { No app-icon fallback for a secondary icon: hide it rather than leave a
+      blank/default icon parked in the tray. HideTraySlot leaves the slot in
+      the not-shown state, so this failed attempt is not recorded as applied. }
+    HideTraySlot(AIndex);
     Exit;
   end;
-  FTray2.Icon := Src;
-  FTrayLedOn2 := AOn;
-  FHasTrayLedState2 := True;
+  FTraySlots[AIndex].LedOn := AOn;
+  FTraySlots[AIndex].HasState := True;
+end;
+
+procedure TMainForm.EnsureTraySlot(AIndex: Integer);
+begin
+  if FTraySlots[AIndex].Icon = nil then
+    CreateTraySlot(AIndex);
+  FTraySlots[AIndex].Icon.Visible := True;
+end;
+
+procedure TMainForm.HideTraySlot(AIndex: Integer);
+begin
+  if FTraySlots[AIndex].Icon <> nil then
+    FTraySlots[AIndex].Icon.Visible := False;
+  FTraySlots[AIndex].HasState := False;
+end;
+
+function TMainForm.TraySlotOf(ASender: TObject): Integer;
+var
+  I: Integer;
+begin
+  for I := 0 to High(FTraySlots) do
+    if (ASender = FTraySlots[I].Icon) or (ASender = FTraySlots[I].ClickDelay) then
+    begin
+      Result := I;
+      Exit;
+    end;
+  Result := -1;
 end;
 
 procedure TMainForm.RefreshTrayIconForState;
@@ -1412,21 +1395,21 @@ begin
   if not FSettings.TrayLed then
   begin
     ResetTrayToAppIcon;
-    HideSecondaryTray;
+    HideTraySlot(1);
     Exit;
   end;
   ReloadTrayIcons;
-  FHasTrayLedState := False;
-  UpdateTrayLed(TrayLedSourceOn);
+  FTraySlots[0].HasState := False;
+  UpdateTrayLed(0, TrayLedSourceOn);
   if BothLedSourcesOn then
   begin
-    EnsureSecondaryTray;
-    FHasTrayLedState2 := False;
+    EnsureTraySlot(1);
+    FTraySlots[1].HasState := False;
     if FPipeline <> nil then
-      UpdateTrayLed2(FPipeline.State.NetActivityOn);
+      UpdateTrayLed(1, FPipeline.State.NetActivityOn);
   end
   else
-    HideSecondaryTray;
+    HideTraySlot(1);
 end;
 
 procedure TMainForm.SetWindowTrayState(AHidden, ALed: Boolean);
@@ -1633,12 +1616,12 @@ end;
 
 procedure TMainForm.ShowUpdateBalloon(const AVersion: string);
 begin
-  if FTray = nil then
+  if FTraySlots[0].Icon = nil then
     Exit;
-  FTray.BalloonTitle := S('tray.update_title');
-  FTray.BalloonHint := Format(S('tray.update'), [AVersion]);
-  FTray.BalloonFlags := bfInfo;
-  FTray.ShowBalloonHint;
+  FTraySlots[0].Icon.BalloonTitle := S('tray.update_title');
+  FTraySlots[0].Icon.BalloonHint := Format(S('tray.update'), [AVersion]);
+  FTraySlots[0].Icon.BalloonFlags := bfInfo;
+  FTraySlots[0].Icon.ShowBalloonHint;
 end;
 
 procedure TMainForm.OpenUpdatePage;
@@ -1668,9 +1651,17 @@ begin
   Close;
 end;
 
+{ Shared by both tray icons; the slot is found from Sender so each icon keeps
+  its own click-delay timer. }
+
 procedure TMainForm.TrayDblClick(Sender: TObject);
+var
+  Index: Integer;
 begin
-  FTrayClickDelay.Enabled := False;
+  Index := TraySlotOf(Sender);
+  if Index < 0 then
+    Exit;
+  FTraySlots[Index].ClickDelay.Enabled := False;
   if (FSettings <> nil) and FSettings.WindowHidden then
     LeaveTrayOnly
   else
@@ -1678,40 +1669,26 @@ begin
 end;
 
 procedure TMainForm.TrayClick(Sender: TObject);
+var
+  Index: Integer;
 begin
+  Index := TraySlotOf(Sender);
+  if Index < 0 then
+    Exit;
   { Deferred so the first click of a double-click doesn't also open the
     dashboard: TrayDblClick cancels this timer before it fires. }
-  FTrayClickDelay.Enabled := False;
-  FTrayClickDelay.Enabled := True;
+  FTraySlots[Index].ClickDelay.Enabled := False;
+  FTraySlots[Index].ClickDelay.Enabled := True;
 end;
 
 procedure TMainForm.TrayClickDelayTick(Sender: TObject);
+var
+  Index: Integer;
 begin
-  FTrayClickDelay.Enabled := False;
-  ShowDashboard;
-end;
-
-{ FTray2's own click/double-click/timer handlers, kept fully independent of
-  FTray's (see FTrayClickDelay2's declaration comment). }
-
-procedure TMainForm.TrayDblClick2(Sender: TObject);
-begin
-  FTrayClickDelay2.Enabled := False;
-  if (FSettings <> nil) and FSettings.WindowHidden then
-    LeaveTrayOnly
-  else
-    BringWindowForward;
-end;
-
-procedure TMainForm.TrayClick2(Sender: TObject);
-begin
-  FTrayClickDelay2.Enabled := False;
-  FTrayClickDelay2.Enabled := True;
-end;
-
-procedure TMainForm.TrayClickDelayTick2(Sender: TObject);
-begin
-  FTrayClickDelay2.Enabled := False;
+  Index := TraySlotOf(Sender);
+  if Index < 0 then
+    Exit;
+  FTraySlots[Index].ClickDelay.Enabled := False;
   ShowDashboard;
 end;
 
@@ -1933,8 +1910,8 @@ begin
   FHasHoverText := True;
   if FHoverTip <> nil then
     FHoverTip.UpdateText(Text);
-  if FTray <> nil then
-    FTray.Hint := Text;
+  if FTraySlots[0].Icon <> nil then
+    FTraySlots[0].Icon.Hint := Text;
 end;
 
 procedure TMainForm.HoverDelayTick(Sender: TObject);
