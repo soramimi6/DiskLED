@@ -10,9 +10,13 @@ uses
   Vcl.ExtCtrls,
   Vcl.ComCtrls,
   Vcl.Graphics,
+  Vcl.CheckLst,
+  uMetricsTypes,
   uSettings;
 
 type
+  TDrivePresenceFunc = function: TDriveFlags of object;
+
   TOptionsForm = class(TForm)
     PageControl1: TPageControl;
     TsGeneral: TTabSheet;
@@ -53,6 +57,9 @@ type
     RbLedRed: TRadioButton;
     ChkLedDisk: TCheckBox;
     ChkLedNet: TCheckBox;
+    LblSecTrayDrives: TLabel;
+    ChkLedTotal: TCheckBox;
+    LstDrives: TCheckListBox;
     CardPing: TPanel;
     LblSecPing: TLabel;
     ChkPingEnabled: TCheckBox;
@@ -83,16 +90,23 @@ type
     procedure BtnOkClick(Sender: TObject);
   private
     FSettings: TAppSettings;
+    FPresent: TDriveFlags;
+    FDrivePresence: TDrivePresenceFunc;
+    FDriveTimer: TTimer;
+    procedure RebuildDriveList(const AChecked: TDriveFlags);
+    procedure DriveTimerTick(Sender: TObject);
     procedure ApplyCaptions;
     procedure LoadFromSettings;
+    function CheckedDrives: TDriveFlags;
     procedure LoadLedPreviewIcons;
     procedure SyncPingControlsEnabled;
     function TryParseInt(const S: string; out AValue: Integer): Boolean;
     function ValidateInputs(out AInterval, AFair, ASlow, ATimeout: Integer): Boolean;
     procedure ShowValidationError(const AMessage: string);
   public
-    procedure BindSettings(ASettings: TAppSettings);
-    class function Execute(AOwner: TComponent; ASettings: TAppSettings): Boolean; static;
+    procedure BindSettings(ASettings: TAppSettings; APresence: TDrivePresenceFunc);
+    class function Execute(AOwner: TComponent; ASettings: TAppSettings;
+      APresence: TDrivePresenceFunc): Boolean; static;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
   end;
@@ -111,7 +125,6 @@ uses
   uAppStrings,
   uStartup,
   uPackaging,
-  uMetricsTypes,
   uAssetStore;
 
 const
@@ -132,6 +145,46 @@ procedure TOptionsForm.FormCreate(Sender: TObject);
 begin
   SyncPingControlsEnabled;
   LoadLedPreviewIcons;
+  FDriveTimer := TTimer.Create(Self);
+  FDriveTimer.Enabled := False;
+  FDriveTimer.Interval := 1000;
+  FDriveTimer.OnTimer := DriveTimerTick;
+end;
+
+procedure TOptionsForm.DriveTimerTick(Sender: TObject);
+var
+  NewPresent: TDriveFlags;
+begin
+  if not Assigned(FDrivePresence) then
+    Exit;
+  NewPresent := FDrivePresence();
+  if CompareMem(@NewPresent, @FPresent, SizeOf(NewPresent)) then
+    Exit;
+  FPresent := NewPresent;
+  RebuildDriveList(CheckedDrives);
+end;
+
+{ Lists the drives that are present, plus any that are selected or currently
+  checked, keeping the check state the user has set. }
+procedure TOptionsForm.RebuildDriveList(const AChecked: TDriveFlags);
+var
+  Letter: TDriveLetter;
+  Index: Integer;
+begin
+  LstDrives.Items.BeginUpdate;
+  try
+    LstDrives.Items.Clear;
+    for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+      if FPresent[Letter] or FSettings.TrayLedDrives[Letter] or AChecked[Letter] then
+      begin
+        Index := LstDrives.Items.Add(Letter + ':');
+        if not FPresent[Letter] then
+          LstDrives.Items[Index] := Letter + ':' + S('opt.tray_drive_absent');
+        LstDrives.Checked[Index] := AChecked[Letter];
+      end;
+  finally
+    LstDrives.Items.EndUpdate;
+  end;
 end;
 
 procedure TOptionsForm.LoadLedPreviewIcons;
@@ -163,9 +216,15 @@ begin
   Load(ImgLedRed, 'red');
 end;
 
-procedure TOptionsForm.BindSettings(ASettings: TAppSettings);
+procedure TOptionsForm.BindSettings(ASettings: TAppSettings; APresence: TDrivePresenceFunc);
 begin
   FSettings := ASettings;
+  FDrivePresence := APresence;
+  if Assigned(FDrivePresence) then
+    FPresent := FDrivePresence()
+  else
+    FPresent := Default(TDriveFlags);
+  FDriveTimer.Enabled := True;
   ApplyCaptions;
   LoadFromSettings;
 end;
@@ -194,6 +253,8 @@ begin
   RbLedBlue.Caption := S('opt.tray_led_color_blue');
   RbLedRed.Caption := S('opt.tray_led_color_red');
   LblSecTrayLedInfo.Caption := S('opt.tray_led_info');
+  LblSecTrayDrives.Caption := S('opt.tray_drives');
+  ChkLedTotal.Caption := S('opt.tray_drive_total');
   ChkLedDisk.Caption := S('opt.tray_led_info_disk');
   ChkLedNet.Caption := S('opt.tray_led_info_net');
   LblSecPing.Caption := S('opt.group.ping');
@@ -258,6 +319,16 @@ procedure TOptionsForm.ChkLedNetClick(Sender: TObject);
 begin
   if (not ChkLedNet.Checked) and (not ChkLedDisk.Checked) then
     ChkLedNet.Checked := True;
+end;
+
+function TOptionsForm.CheckedDrives: TDriveFlags;
+var
+  I: Integer;
+begin
+  Result := Default(TDriveFlags);
+  for I := 0 to LstDrives.Items.Count - 1 do
+    if LstDrives.Checked[I] then
+      Result[LstDrives.Items[I][1]] := True;
 end;
 
 procedure TOptionsForm.BtnResetThresholdsClick(Sender: TObject);
@@ -379,6 +450,8 @@ begin
     ChkLedDisk.OnClick := ChkLedDiskClick;
     ChkLedNet.OnClick := ChkLedNetClick;
   end;
+  ChkLedTotal.Checked := FSettings.TrayLedTotal;
+  RebuildDriveList(FSettings.TrayLedDrives);
   ChkPingEnabled.Checked := FSettings.PingEnabled;
   ChkAutoGw.Checked := FSettings.PingAutoGateway;
   EdHost.Text := FSettings.PingHost;
@@ -515,6 +588,8 @@ begin
     just a backstop against the two ever both landing on False here. }
   FSettings.TrayLedDisk := ChkLedDisk.Checked;
   FSettings.TrayLedNet := ChkLedNet.Checked;
+  FSettings.TrayLedTotal := ChkLedTotal.Checked;
+  FSettings.TrayLedDrives := CheckedDrives;
   FSettings.PingEnabled := ChkPingEnabled.Checked;
   FSettings.PingAutoGateway := ChkAutoGw.Checked;
   FSettings.PingHost := Trim(EdHost.Text);
@@ -537,13 +612,14 @@ begin
   ModalResult := mrOk;
 end;
 
-class function TOptionsForm.Execute(AOwner: TComponent; ASettings: TAppSettings): Boolean;
+class function TOptionsForm.Execute(AOwner: TComponent; ASettings: TAppSettings;
+  APresence: TDrivePresenceFunc): Boolean;
 var
   Dlg: TOptionsForm;
 begin
   Dlg := TOptionsForm.Create(AOwner);
   try
-    Dlg.BindSettings(ASettings);
+    Dlg.BindSettings(ASettings, APresence);
     Result := Dlg.ShowModal = mrOk;
   finally
     Dlg.Free;

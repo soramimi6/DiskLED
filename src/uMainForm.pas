@@ -13,6 +13,7 @@ uses
   Vcl.Menus,
   Vcl.ExtCtrls,
   uLayoutTypes,
+  uMetricsTypes,
   uAssetStore,
   uCollector,
   uDisplayPipeline,
@@ -26,12 +27,17 @@ uses
   uWindowPlacement,
   uUpdateCheck;
 
+const
+  CMaxDriveTraySlots = 16;
+  CTraySlotCount = 2 + CMaxDriveTraySlots;
+
 type
   { One tray icon with its LED state. Slot 0 is the primary icon (always shown,
     falls back to the app icon); slot 1 is the net-only secondary icon, created
-    on demand and hidden when its icons are unavailable. Each slot has its own
-    click-delay timer so one icon's pending single-click is never cancelled by
-    the other's double-click. }
+    on demand and hidden when its icons are unavailable. Slots 2.. are per
+    logical drive, created while that drive is selected and present; DriveLetter
+    is #0 when the slot is unused. Each slot has its own click-delay timer so one
+    icon's pending single-click is never cancelled by another's double-click. }
   TTraySlot = record
     Icon: TTrayIcon;
     OffIcon: TIcon;
@@ -40,6 +46,7 @@ type
     HasState: Boolean;
     ClickDelay: TTimer;
     AppIconFallback: Boolean;
+    DriveLetter: Char;
   end;
 
   TMainForm = class(TForm)
@@ -63,7 +70,9 @@ type
     FHistory: THistoryBuffer;
     FTimer: TTimer;
     FSettings: TAppSettings;
-    FTraySlots: array[0..1] of TTraySlot;
+    FTraySlots: array[0..CTraySlotCount - 1] of TTraySlot;
+    FDriveOffIcon: TIcon;
+    FDriveOnIcon: TIcon;
     FAssetsRoot: string;
     FReadyToPersist: Boolean;
     FLastGraphTick: Cardinal;
@@ -153,11 +162,18 @@ type
     procedure EnsureTraySlot(AIndex: Integer);
     procedure HideTraySlot(AIndex: Integer);
     function TraySlotOf(ASender: TObject): Integer;
+    function DriveSlotIndex(ALetter: Char): Integer;
+    function FreeDriveSlotIndex: Integer;
+    procedure ReleaseTraySlot(AIndex: Integer);
+    procedure ReleaseDriveTrays;
+    procedure SyncDriveTrays;
+    procedure UpdateTrayLeds;
     procedure UpdateTrayLed(AIndex: Integer; AOn: Boolean);
     procedure ResetTrayToAppIcon;
     procedure RefreshTrayIconForState;
     procedure miPingResultClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
+    function CurrentDrivePresence: TDriveFlags;
     procedure miResetPositionClick(Sender: TObject);
     procedure miDashboardClick(Sender: TObject);
     procedure miUpdateClick(Sender: TObject);
@@ -229,8 +245,8 @@ uses
   uOptionsForm,
   uStartup,
   uPackaging,
-  uMetricsTypes,
   uDpiScale,
+  uTrayIconComposer,
   uSingleInstance,
   Winapi.CommCtrl,
   Winapi.ShellAPI;
@@ -589,6 +605,8 @@ begin
   FreeAndNil(FTraySlots[0].OnIcon);
   FreeAndNil(FTraySlots[1].OffIcon);
   FreeAndNil(FTraySlots[1].OnIcon);
+  FreeAndNil(FDriveOffIcon);
+  FreeAndNil(FDriveOnIcon);
   FCollector.Free;
   FPipeline.Free;
   FHistory.Free;
@@ -1149,11 +1167,7 @@ begin
   { Window rendering and the tray LED(s) are independent now: either, both,
     or (checked at the settings layer) neither can be active at once. }
   if (FSettings <> nil) and FSettings.TrayLed then
-  begin
-    UpdateTrayLed(0, TrayLedSourceOn);
-    if BothLedSourcesOn then
-      UpdateTrayLed(1, FPipeline.State.NetActivityOn);
-  end;
+    UpdateTrayLeds;
   if (FSettings = nil) or (not FSettings.WindowHidden) then
   begin
     if UsingFullView then
@@ -1274,6 +1288,8 @@ begin
   FreeAndNil(FTraySlots[0].OnIcon);
   FreeAndNil(FTraySlots[1].OffIcon);
   FreeAndNil(FTraySlots[1].OnIcon);
+  FreeAndNil(FDriveOffIcon);
+  FreeAndNil(FDriveOnIcon);
   if FSettings = nil then
     Exit;
   { Skin-independent: assets/tray/<type>/<source>Off|On.ico, unrelated to the
@@ -1294,6 +1310,10 @@ begin
     FTraySlots[1].OnIcon := TAssetStore.LoadIconFile(
       TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOn.ico'), LIM_SMALL);
   end;
+  FDriveOffIcon := TAssetStore.LoadIconFile(
+    TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'diskOff.ico'), LIM_SMALL);
+  FDriveOnIcon := TAssetStore.LoadIconFile(
+    TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'diskOn.ico'), LIM_SMALL);
 end;
 
 procedure TMainForm.ResetTrayToAppIcon;
@@ -1359,7 +1379,11 @@ end;
 procedure TMainForm.EnsureTraySlot(AIndex: Integer);
 begin
   if FTraySlots[AIndex].Icon = nil then
+  begin
     CreateTraySlot(AIndex);
+    if AIndex = 1 then
+      FTraySlots[AIndex].Icon.Hint := S('tray.hint_net');
+  end;
   FTraySlots[AIndex].Icon.Visible := True;
 end;
 
@@ -1383,6 +1407,121 @@ begin
   Result := -1;
 end;
 
+function TMainForm.DriveSlotIndex(ALetter: Char): Integer;
+var
+  I: Integer;
+begin
+  for I := 2 to High(FTraySlots) do
+    if FTraySlots[I].DriveLetter = ALetter then
+      Exit(I);
+  Result := -1;
+end;
+
+function TMainForm.FreeDriveSlotIndex: Integer;
+var
+  I: Integer;
+begin
+  for I := 2 to High(FTraySlots) do
+    if FTraySlots[I].DriveLetter = #0 then
+      Exit(I);
+  Result := -1;
+end;
+
+procedure TMainForm.ReleaseTraySlot(AIndex: Integer);
+begin
+  FreeAndNil(FTraySlots[AIndex].Icon);
+  FreeAndNil(FTraySlots[AIndex].OffIcon);
+  FreeAndNil(FTraySlots[AIndex].OnIcon);
+  FreeAndNil(FTraySlots[AIndex].ClickDelay);
+  FTraySlots[AIndex].OffIcon := nil;
+  FTraySlots[AIndex].OnIcon := nil;
+  FTraySlots[AIndex].LedOn := False;
+  FTraySlots[AIndex].HasState := False;
+  FTraySlots[AIndex].DriveLetter := #0;
+end;
+
+procedure TMainForm.ReleaseDriveTrays;
+var
+  I: Integer;
+begin
+  for I := 2 to High(FTraySlots) do
+    if FTraySlots[I].DriveLetter <> #0 then
+      ReleaseTraySlot(I);
+end;
+
+{ Creates a tray icon for each selected drive that PDH reports as present and
+  removes the ones whose drive is no longer wanted. Slots are capped at
+  CMaxDriveTraySlots; drives beyond the cap are not shown. }
+procedure TMainForm.SyncDriveTrays;
+var
+  Letter: TDriveLetter;
+  I, Idx: Integer;
+  Wanted: TDriveFlags;
+begin
+  for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+    Wanted[Letter] := FSettings.TrayLedDrives[Letter] and FPipeline.State.DrivePresent[Letter];
+  for I := 2 to High(FTraySlots) do
+    if (FTraySlots[I].DriveLetter <> #0) and (not Wanted[FTraySlots[I].DriveLetter]) then
+      ReleaseTraySlot(I);
+  for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+  begin
+    if not Wanted[Letter] then
+      Continue;
+    Idx := DriveSlotIndex(Letter);
+    if Idx < 0 then
+    begin
+      Idx := FreeDriveSlotIndex;
+      if Idx < 0 then
+        Exit;
+      CreateTraySlot(Idx);
+      FTraySlots[Idx].DriveLetter := Letter;
+      FTraySlots[Idx].Icon.Hint := 'DiskLED ' + Letter + ':';
+      FTraySlots[Idx].Icon.Visible := True;
+      FTraySlots[Idx].OffIcon := ComposeLetterIcon(FDriveOffIcon, Letter, GetSystemMetrics(SM_CXSMICON));
+      FTraySlots[Idx].OnIcon := ComposeLetterIcon(FDriveOnIcon, Letter, GetSystemMetrics(SM_CXSMICON));
+    end;
+    UpdateTrayLed(Idx, FPipeline.State.DriveOn[Letter]);
+  end;
+end;
+
+{ The aggregate disk LED is replaced by the per-drive LEDs while any drive is
+  selected, unless TrayLedTotal asks for it too. It stays visible when no drive
+  icon is shown, so the tray never ends up with no icon at all. }
+procedure TMainForm.UpdateTrayLeds;
+var
+  I, DriveShown: Integer;
+  Letter: TDriveLetter;
+  AnyDriveSelected, AggregateHidden: Boolean;
+begin
+  if FPipeline <> nil then
+    SyncDriveTrays;
+  DriveShown := 0;
+  for I := 2 to High(FTraySlots) do
+    if (FTraySlots[I].DriveLetter <> #0) and FTraySlots[I].Icon.Visible then
+      Inc(DriveShown);
+  AnyDriveSelected := False;
+  for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+    if FSettings.TrayLedDrives[Letter] then
+      AnyDriveSelected := True;
+  AggregateHidden := PrimarySourceIsDisk and AnyDriveSelected and
+    (not FSettings.TrayLedTotal) and (DriveShown > 0);
+  if AggregateHidden then
+    HideTraySlot(0)
+  else
+  begin
+    EnsureTraySlot(0);
+    UpdateTrayLed(0, TrayLedSourceOn);
+  end;
+  if BothLedSourcesOn then
+  begin
+    EnsureTraySlot(1);
+    if FPipeline <> nil then
+      UpdateTrayLed(1, FPipeline.State.NetActivityOn);
+  end
+  else
+    HideTraySlot(1);
+end;
+
 procedure TMainForm.RefreshTrayIconForState;
 begin
   { Shared by SetWindowTrayState, by Options (LED type/source), and by
@@ -1396,20 +1535,14 @@ begin
   begin
     ResetTrayToAppIcon;
     HideTraySlot(1);
+    ReleaseDriveTrays;
     Exit;
   end;
   ReloadTrayIcons;
   FTraySlots[0].HasState := False;
-  UpdateTrayLed(0, TrayLedSourceOn);
-  if BothLedSourcesOn then
-  begin
-    EnsureTraySlot(1);
-    FTraySlots[1].HasState := False;
-    if FPipeline <> nil then
-      UpdateTrayLed(1, FPipeline.State.NetActivityOn);
-  end
-  else
-    HideTraySlot(1);
+  FTraySlots[1].HasState := False;
+  ReleaseDriveTrays;
+  UpdateTrayLeds;
 end;
 
 procedure TMainForm.SetWindowTrayState(AHidden, ALed: Boolean);
@@ -1482,6 +1615,14 @@ begin
   BringWindowForward;
 end;
 
+function TMainForm.CurrentDrivePresence: TDriveFlags;
+begin
+  if FPipeline <> nil then
+    Result := FPipeline.State.DrivePresent
+  else
+    Result := Default(TDriveFlags);
+end;
+
 procedure TMainForm.miOptionsClick(Sender: TObject);
 var
   Applied: Boolean;
@@ -1490,7 +1631,7 @@ begin
     Exit;
   FOptionsOpen := True;
   try
-    Applied := TOptionsForm.Execute(Self, FSettings);
+    Applied := TOptionsForm.Execute(Self, FSettings, CurrentDrivePresence);
   finally
     FOptionsOpen := False;
   end;

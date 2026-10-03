@@ -25,6 +25,8 @@ type
     FTrayLedType: string;
     FTrayLedDisk: Boolean;
     FTrayLedNet: Boolean;
+    FTrayLedDrives: TDriveFlags;
+    FTrayLedTotal: Boolean;
     FGraphRateHz: Double;
     FSpeedScale: TSpeedScale;
     FPingEnabled: Boolean;
@@ -92,6 +94,8 @@ type
       whenever TrayLed is on. }
     property TrayLedDisk: Boolean read FTrayLedDisk write FTrayLedDisk;
     property TrayLedNet: Boolean read FTrayLedNet write FTrayLedNet;
+    property TrayLedDrives: TDriveFlags read FTrayLedDrives write FTrayLedDrives;
+    property TrayLedTotal: Boolean read FTrayLedTotal write FTrayLedTotal;
     property GraphRateHz: Double read FGraphRateHz write FGraphRateHz;
     property SpeedScale: TSpeedScale read FSpeedScale write FSpeedScale;
     property PingEnabled: Boolean read FPingEnabled write FPingEnabled;
@@ -136,6 +140,38 @@ begin
   Result := LowerCase(Trim(AValue));
   if (Result <> 'green') and (Result <> 'blue') and (Result <> 'red') then
     Result := 'green';
+end;
+
+{ Comma-separated drive letters such as 'C:,D:'; anything else is ignored. }
+function DriveFlagsFromString(const AValue: string): TDriveFlags;
+var
+  Part, Item: string;
+  Letter: Char;
+begin
+  Result := Default(TDriveFlags);
+  for Part in AValue.Split([',']) do
+  begin
+    Item := UpperCase(Trim(Part));
+    if (Length(Item) = 2) and (Item[2] = ':') and CharInSet(Item[1], ['A'..'Z']) then
+    begin
+      Letter := Item[1];
+      Result[Letter] := True;
+    end;
+  end;
+end;
+
+function DriveFlagsToString(const AFlags: TDriveFlags): string;
+var
+  Letter: TDriveLetter;
+begin
+  Result := '';
+  for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+    if AFlags[Letter] then
+    begin
+      if Result <> '' then
+        Result := Result + ',';
+      Result := Result + Letter + ':';
+    end;
 end;
 
 { Legacy 3.2.0-pre-release single-choice key ('disk' / 'net'), migrated into
@@ -243,6 +279,8 @@ begin
   FTrayLedType := 'green';
   FTrayLedDisk := True;
   FTrayLedNet := False;
+  FTrayLedDrives := Default(TDriveFlags);
+  FTrayLedTotal := False;
   FGraphRateHz := 1.0;
   FSpeedScale := ssLinear;
   FPingEnabled := True;
@@ -386,6 +424,8 @@ begin
       FTrayLedDisk := Ini.ReadBool('Tray', 'LedDisk', FTrayLedDisk);
       FTrayLedNet := Ini.ReadBool('Tray', 'LedNet', FTrayLedNet);
     end;
+    FTrayLedDrives := DriveFlagsFromString(Ini.ReadString('Tray', 'LedDrives', ''));
+    FTrayLedTotal := Ini.ReadBool('Tray', 'LedTotal', FTrayLedTotal);
     FGraphRateHz := Ini.ReadFloat('View', 'GraphRateHz', FGraphRateHz);
     if SameText(Trim(Ini.ReadString('View', 'SpeedScale', 'linear')), 'log') then
       FSpeedScale := ssLog
@@ -449,6 +489,8 @@ begin
     Ini.WriteString('Tray', 'LedType', FTrayLedType);
     Ini.WriteBool('Tray', 'LedDisk', FTrayLedDisk);
     Ini.WriteBool('Tray', 'LedNet', FTrayLedNet);
+    Ini.WriteString('Tray', 'LedDrives', DriveFlagsToString(FTrayLedDrives));
+    Ini.WriteBool('Tray', 'LedTotal', FTrayLedTotal);
     Ini.DeleteKey('Tray', 'LedSource');
     Ini.WriteFloat('View', 'GraphRateHz', FGraphRateHz);
     if FSpeedScale = ssLog then

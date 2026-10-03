@@ -68,6 +68,7 @@ begin
   AddStr('menu.update', '新しい DiskLED %s の情報を見る', 'View DiskLED %s release info');
   AddStr('tray.update_title', 'DiskLED からのお知らせ', 'A notice from DiskLED');
   AddStr('tray.update', 'DiskLED %s が公開されています', 'DiskLED %s is available');
+  AddStr('tray.hint_net', 'ネットアクセス', 'Network activity');
   AddStr('hover.ping_off', 'オフ', 'off');
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
@@ -128,6 +129,9 @@ begin
   AddStr('opt.tray_led_info', 'トレイ LED の情報', 'Tray LED Info');
   AddStr('opt.tray_led_info_disk', 'ディスク', 'Disk');
   AddStr('opt.tray_led_info_net', 'ネットワーク', 'Network');
+  AddStr('opt.tray_drives', 'ドライブ別 LED（ツールチップで識別）', 'Per-drive LEDs (identified by tooltip)');
+  AddStr('opt.tray_drive_total', '合算 LED も表示する', 'Also show the total LED');
+  AddStr('opt.tray_drive_absent', '（未接続）', ' (not connected)');
   AddStr('opt.ping_enabled', 'Ping を有効にする', 'Enable Ping');
   AddStr('opt.ping_auto_gw', 'デフォルトゲートウェイを使う', 'Use default gateway');
   AddStr('opt.ping_host', 'Ping ホスト', 'Ping host');

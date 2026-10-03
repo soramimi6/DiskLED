@@ -238,6 +238,7 @@ var
   DiskRT, DiskWT, DiskIoT, NetIT, NetOT, NetIoT, AudioT, AudioLT, AudioRT: Double;
   Progress: Double;
   NowTick: Cardinal;
+  Letter: TDriveLetter;
   DtSec: Double;
 begin
   FRange.Observe(ASnap);
@@ -279,6 +280,12 @@ begin
   FState.DiskReadOn := IsActiveBps(ASnap.DiskReadBps);
   FState.DiskWriteOn := IsActiveBps(ASnap.DiskWriteBps);
   FState.DiskRWOn := FState.DiskReadOn or FState.DiskWriteOn;
+  for Letter := Low(TDriveLetter) to High(TDriveLetter) do
+  begin
+    FState.DrivePresent[Letter] := ASnap.DrivePresent[Letter];
+    FState.DriveOn[Letter] := ASnap.DrivePresent[Letter] and
+      IsActiveBps(ASnap.DriveReadBps[Letter] + ASnap.DriveWriteBps[Letter]);
+  end;
   FState.NetInOn := IsActiveBps(ASnap.NetInBps);
   FState.NetOutOn := IsActiveBps(ASnap.NetOutBps);
   FState.NetActivityOn := FState.NetInOn or FState.NetOutOn;

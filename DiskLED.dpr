@@ -17,6 +17,7 @@ uses
   uGpuCollector in 'src\metrics\uGpuCollector.pas',
   uMemCollector in 'src\metrics\uMemCollector.pas',
   uDiskCollector in 'src\metrics\uDiskCollector.pas',
+  uDriveCollector in 'src\metrics\uDriveCollector.pas',
   uNetCollector in 'src\metrics\uNetCollector.pas',
   uIcmpApi in 'src\metrics\uIcmpApi.pas',
   uHostResolve in 'src\metrics\uHostResolve.pas',

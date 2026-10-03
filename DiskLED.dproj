@@ -132,6 +132,7 @@
         <DCCReference Include="src\metrics\uGpuCollector.pas"/>
         <DCCReference Include="src\metrics\uMemCollector.pas"/>
         <DCCReference Include="src\metrics\uDiskCollector.pas"/>
+        <DCCReference Include="src\metrics\uDriveCollector.pas"/>
         <DCCReference Include="src\metrics\uNetCollector.pas"/>
         <DCCReference Include="src\metrics\uIcmpApi.pas"/>
         <DCCReference Include="src\metrics\uHostResolve.pas"/>

@@ -4,7 +4,7 @@ object OptionsForm: TOptionsForm
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'DiskLED Options'
-  ClientHeight = 478
+  ClientHeight = 497
   ClientWidth = 460
   Color = 15921906
   Font.Charset = DEFAULT_CHARSET
@@ -22,10 +22,11 @@ object OptionsForm: TOptionsForm
     Left = 8
     Top = 8
     Width = 444
-    Height = 422
+    Height = 441
     ActivePage = TsGeneral
     Align = alClient
     TabOrder = 0
+    ExplicitHeight = 422
     object TsGeneral: TTabSheet
       Caption = 'General'
       object CardWindow: TPanel
@@ -269,7 +270,7 @@ object OptionsForm: TOptionsForm
         Left = 16
         Top = 16
         Width = 400
-        Height = 305
+        Height = 400
         BevelOuter = bvNone
         Color = clWhite
         TabOrder = 0
@@ -329,6 +330,19 @@ object OptionsForm: TOptionsForm
           Stretch = True
           Transparent = True
         end
+        object LblSecTrayDrives: TLabel
+          Left = 20
+          Top = 212
+          Width = 89
+          Height = 17
+          Caption = 'Per-drive LEDs'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Segoe UI'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
         object RbLedGreen: TRadioButton
           Left = 20
           Top = 47
@@ -374,6 +388,22 @@ object OptionsForm: TOptionsForm
           Caption = 'Network'
           TabOrder = 4
           OnClick = ChkLedNetClick
+        end
+        object ChkLedTotal: TCheckBox
+          Left = 20
+          Top = 236
+          Width = 360
+          Height = 21
+          Caption = 'Also show the total LED'
+          TabOrder = 5
+        end
+        object LstDrives: TCheckListBox
+          Left = 20
+          Top = 262
+          Width = 360
+          Height = 120
+          ItemHeight = 17
+          TabOrder = 6
         end
       end
     end
@@ -524,13 +554,14 @@ object OptionsForm: TOptionsForm
   end
   object PnlButtons: TPanel
     Left = 8
-    Top = 430
+    Top = 449
     Width = 444
     Height = 48
     Align = alBottom
     BevelOuter = bvNone
     Color = clWhite
     TabOrder = 1
+    ExplicitTop = 430
     object ShpButtonTop: TShape
       Left = 0
       Top = 0

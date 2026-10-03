@@ -8,6 +8,7 @@ uses
   uGpuCollector,
   uMemCollector,
   uDiskCollector,
+  uDriveCollector,
   uNetCollector,
   uPingCollector,
   uAudioCollector;
@@ -19,6 +20,7 @@ type
     FGpu: TGpuCollector;
     FMem: TMemCollector;
     FDisk: TDiskCollector;
+    FDrive: TDriveCollector;
     FNet: TNetCollector;
     FPing: TPingCollector;
     FAudio: TAudioCollector;
@@ -48,6 +50,7 @@ begin
   FGpu := TGpuCollector.Create;
   FMem := TMemCollector.Create;
   FDisk := TDiskCollector.Create;
+  FDrive := TDriveCollector.Create;
   FNet := TNetCollector.Create;
   FPing := TPingCollector.Create;
   FAudio := TAudioCollector.Create;
@@ -58,6 +61,7 @@ begin
   FAudio.Free;
   FPing.Free;
   FNet.Free;
+  FDrive.Free;
   FDisk.Free;
   FMem.Free;
   FGpu.Free;
@@ -121,6 +125,13 @@ begin
     Result.DiskWriteIops := 0;
     Result.DiskActivePct := -1;
     Result.DiskLatencyMs := -1;
+  end;
+  try
+    FDrive.Sample(Result);
+  except
+    FillChar(Result.DrivePresent, SizeOf(Result.DrivePresent), 0);
+    FillChar(Result.DriveReadBps, SizeOf(Result.DriveReadBps), 0);
+    FillChar(Result.DriveWriteBps, SizeOf(Result.DriveWriteBps), 0);
   end;
   try
     FNet.Sample(Result.NetInBps, Result.NetOutBps, Result.NetLinkSpeedBps);

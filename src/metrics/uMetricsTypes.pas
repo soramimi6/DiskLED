@@ -5,6 +5,9 @@ interface
 type
   TPingLevel = (plTimeout, plSlow, plFair, plNormal);
   TSpeedScale = (ssLinear, ssLog); { network meters/graphs only; disk stays linear }
+  TDriveLetter = 'A'..'Z';
+  TDriveFlags = array[TDriveLetter] of Boolean;
+  TDriveRates = array[TDriveLetter] of Double;
 
   TMetricsSnapshot = record
     CpuUsage: Double;
@@ -36,6 +39,9 @@ type
     DiskWriteIops: Double;
     DiskActivePct: Double; { 0..100; -1 unknown }
     DiskLatencyMs: Double; { Avg. Disk sec/Transfer, converted to ms }
+    DrivePresent: TDriveFlags; { logical drives PDH reports as valid (C:, D: ...) }
+    DriveReadBps: TDriveRates;
+    DriveWriteBps: TDriveRates;
     PowerAc: Boolean;
     PowerBatteryPresent: Boolean;
     PowerBatteryPercent: Integer; { 0..100; -1 unknown }
@@ -118,6 +124,8 @@ type
     DiskReadOn: Boolean;
     DiskWriteOn: Boolean;
     DiskRWOn: Boolean;
+    DrivePresent: TDriveFlags;
+    DriveOn: TDriveFlags;
     NetInOn: Boolean;
     NetOutOn: Boolean;
     NetActivityOn: Boolean;
