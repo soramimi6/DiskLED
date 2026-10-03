@@ -128,8 +128,7 @@ begin
     IntersectClipRect(Canvas.Handle, 0, 0, Met.MeterPaneWidth, Height);
   end;
   try
-  Canvas.Brush.Color := Pal.Bg;
-  Canvas.FillRect(ClientRect);
+  GpFillRect(Canvas, ClientRect, Pal.Bg);
   CardR := ClientRect;
   FillRoundRect(Canvas, CardR, Met.CardRadius, Pal.Card);
   StrokeRoundRect(Canvas, CardR, Met.CardRadius, Pal.CardBorder);
@@ -237,17 +236,13 @@ begin
     Tw := LeftR.Left;
     { Two stacked rows, bottom-aligned to the meter pane. }
     Th := LeftR.Bottom - LegendLineH * 2 + MulDiv(1, Met.Margin, 12);
-    Canvas.Brush.Color := FAccent;
-    Canvas.Pen.Color := FAccent;
-    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
+    GpFillRoundRect(Canvas, Rect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw), Pad, FAccent);
     Canvas.Brush.Style := bsClear;
     SetBkMode(Canvas.Handle, TRANSPARENT);
     Canvas.Font.Color := Pal.TextMuted;
     Canvas.TextOut(Tw + Sw + Pad, Th, FLegend1);
     Th := Th + LegendLineH;
-    Canvas.Brush.Color := FAccent2;
-    Canvas.Pen.Color := FAccent2;
-    Canvas.RoundRect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw, Pad, Pad);
+    GpFillRoundRect(Canvas, Rect(Tw, Th + Pad, Tw + Sw, Th + Pad + Sw), Pad, FAccent2);
     Canvas.Brush.Style := bsClear;
     SetBkMode(Canvas.Handle, TRANSPARENT);
     Canvas.Font.Color := Pal.TextMuted;

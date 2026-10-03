@@ -348,8 +348,7 @@ var
   Graphics: TGPGraphics;
   CanvasDc: HDC;
 begin
-  ACanvas.Brush.Color := APalette.Card;
-  ACanvas.FillRect(ARect);
+  GpFillRect(ACanvas, ARect, APalette.Card);
 
   if GGdiOk then
   begin
@@ -389,8 +388,7 @@ var
   Graphics: TGPGraphics;
   CanvasDc: HDC;
 begin
-  ACanvas.Brush.Color := APalette.Card;
-  ACanvas.FillRect(ARect);
+  GpFillRect(ACanvas, ARect, APalette.Card);
 
   if GGdiOk then
   begin
