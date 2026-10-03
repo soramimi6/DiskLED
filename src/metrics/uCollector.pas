@@ -76,6 +76,7 @@ begin
   Result := Default(TMetricsSnapshot);
   Result.DiskActivePct := -1;
   Result.DiskLatencyMs := -1;
+  Result.UptimeSec := GetTickCount64 div 1000;
   try
     Result.CpuUsage := FCpu.Sample;
     Result.CpuUserPct := FCpu.UserPct;

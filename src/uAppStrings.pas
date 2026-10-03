@@ -234,6 +234,9 @@ begin
   AddStr('dash.power_ac', 'AC', 'AC');
   AddStr('dash.power_battery', 'バッテリ', 'Battery');
   AddStr('dash.power_unknown', '不明', 'Unknown');
+  AddStr('dash.uptime', '稼働 %s', 'Uptime %s');
+  AddStr('dash.uptime_dhm', '%d日 %d時間 %d分', '%dd %dh %dm');
+  AddStr('dash.uptime_hm', '%d時間 %d分', '%dh %dm');
   AddStr('dash.power_remain', '残時間', 'Remaining');
   AddStr('dash.power_remain_h', '%d時間', '%dh');
   AddStr('dash.power_remain_m', '%d分', '%dmin');

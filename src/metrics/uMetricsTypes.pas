@@ -57,6 +57,7 @@ type
     AudioPeakR: Double; { 0..1 front right (channel 1); 0 if mono device }
     AudioDeviceName: string; { default render endpoint friendly name }
     TickMs: Cardinal;
+    UptimeSec: UInt64; { seconds since boot (GetTickCount64) }
   end;
 
   TBallisticKind = (bkVu, bkBar, bkPeak);

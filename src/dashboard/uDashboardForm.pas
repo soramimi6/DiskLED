@@ -648,10 +648,28 @@ begin
   RefreshData;
 end;
 
-procedure TDashboardForm.HeaderPaint(Sender: TObject);
+function UptimeText(ASec: UInt64): string;
+var
+  Days, Hours, Mins: UInt64;
 begin
+  Days := ASec div 86400;
+  Hours := (ASec div 3600) mod 24;
+  Mins := (ASec div 60) mod 60;
+  if Days > 0 then
+    Result := Format(S('dash.uptime'), [Format(S('dash.uptime_dhm'), [Days, Hours, Mins])])
+  else
+    Result := Format(S('dash.uptime'), [Format(S('dash.uptime_hm'), [Hours, Mins])]);
+end;
+
+procedure TDashboardForm.HeaderPaint(Sender: TObject);
+var
+  Uptime: UInt64;
+begin
+  Uptime := 0;
+  if FPipeline <> nil then
+    Uptime := FPipeline.LastSnap.UptimeSec;
   DrawHudHeader(FHeaderPaint.Canvas, FHeaderPaint.ClientRect,
-    'DISKLED HUD', S('dash.live'), ProductVersionText, FLiveOn,
+    'DISKLED HUD', S('dash.live'), ProductVersionText, UptimeText(Uptime), FLiveOn,
     HudPalette, CurrentMetrics);
 end;
 

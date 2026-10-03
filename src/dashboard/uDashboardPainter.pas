@@ -23,7 +23,7 @@ procedure DrawStatPill(ACanvas: TCanvas; const ARect: TRect; const ATitle: strin
   APct: Integer; AAccent: TColor; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
-  ALiveText, AVersion: string; ALiveOn: Boolean; const APalette: THudPalette;
+  ALiveText, AVersion, AUptimeText: string; ALiveOn: Boolean; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 procedure DrawCpuPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, ANameLbl, ATopoLbl, AClockLbl,
@@ -152,7 +152,7 @@ begin
 end;
 
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
-  ALiveText, AVersion: string; ALiveOn: Boolean; const APalette: THudPalette;
+  ALiveText, AVersion, AUptimeText: string; ALiveOn: Boolean; const APalette: THudPalette;
   const AMetrics: THudMetrics);
 var
   GradRect: TRect;
@@ -181,6 +181,8 @@ begin
   LiveX := ARect.Right - ACanvas.TextWidth(LiveTxt) - Dip(AMetrics, 16);
   ACanvas.Font.Color := APalette.TextMuted;
   ACanvas.TextOut(LiveX - Dip(AMetrics, 12) - ACanvas.TextWidth(AVersion), MetaY, AVersion);
+  ACanvas.TextOut(LiveX - Dip(AMetrics, 12) - ACanvas.TextWidth(AVersion) -
+    Dip(AMetrics, 16) - ACanvas.TextWidth(AUptimeText), MetaY, AUptimeText);
   if ALiveOn then
     ACanvas.Font.Color := APalette.Active
   else
