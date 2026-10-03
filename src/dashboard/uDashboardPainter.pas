@@ -75,24 +75,14 @@ end;
 
 procedure FillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
   AColor: TColor);
-var
-  R: TRect;
 begin
-  R := ARect;
-  ACanvas.Brush.Color := AColor;
-  ACanvas.Pen.Color := AColor;
-  ACanvas.RoundRect(R.Left, R.Top, R.Right, R.Bottom, ARadius, ARadius);
+  GpFillRoundRect(ACanvas, ARect, ARadius, AColor);
 end;
 
 procedure StrokeRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
   AColor: TColor);
 begin
-  ACanvas.Brush.Style := bsClear;
-  ACanvas.Pen.Color := AColor;
-  ACanvas.Pen.Width := 1;
-  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom,
-    ARadius, ARadius);
-  ACanvas.Brush.Style := bsSolid;
+  GpStrokeRoundRect(ACanvas, ARect, ARadius, AColor);
 end;
 
 procedure TextOutOutlined(ACanvas: TCanvas; AX, AY: Integer; const S: string;
@@ -125,8 +115,7 @@ begin
   Bar := Rect(ARect.Left + AMetrics.CardPad, ARect.Top + Dip(AMetrics, 6),
     ARect.Left + AMetrics.CardPad + Dip(AMetrics, 3),
     ARect.Top + AMetrics.CardHeaderHeight);
-  ACanvas.Brush.Color := AAccent;
-  ACanvas.FillRect(Bar);
+  GpFillRect(ACanvas, Bar, AAccent);
   TransparentText(ACanvas);
   ACanvas.Font.Name := 'Segoe UI';
   ACanvas.Font.Style := [fsBold];
@@ -170,12 +159,10 @@ var
   LiveTxt: string;
   BandTop, BandH, TitleY, MetaY, LiveX: Integer;
 begin
-  ACanvas.Brush.Color := APalette.Bg;
-  ACanvas.FillRect(ARect);
+  GpFillRect(ACanvas, ARect, APalette.Bg);
   GradRect := Rect(ARect.Left, ARect.Top, ARect.Right,
     ARect.Top + AMetrics.AccentLine);
-  ACanvas.Brush.Color := APalette.AccentStart;
-  ACanvas.FillRect(GradRect);
+  GpFillRect(ACanvas, GradRect, APalette.AccentStart);
   BandTop := ARect.Top + AMetrics.AccentLine;
   BandH := ARect.Bottom - BandTop;
 
@@ -305,9 +292,7 @@ begin
   MinSeg := ARadius div 2;
   if MinSeg < 1 then
     MinSeg := 1;
-  ACanvas.Brush.Color := AFreeC;
-  ACanvas.Pen.Color := AFreeC;
-  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom, ARadius, ARadius);
+  GpFillRoundRect(ACanvas, ARect, ARadius, AFreeC);
   Total := AUsed + AStandby + AFree;
   if Total = 0 then
     Exit;
@@ -323,16 +308,12 @@ begin
   X := ARect.Left;
   if Wu > 0 then
   begin
-    ACanvas.Brush.Color := AUsedC;
-    ACanvas.Pen.Color := AUsedC;
-    ACanvas.FillRect(Rect(X, ARect.Top, X + Wu, ARect.Bottom));
+    GpFillRect(ACanvas, Rect(X, ARect.Top, X + Wu, ARect.Bottom), AUsedC);
     Inc(X, Wu);
   end;
   if Ws > 0 then
   begin
-    ACanvas.Brush.Color := AStandbyC;
-    ACanvas.Pen.Color := AStandbyC;
-    ACanvas.FillRect(Rect(X, ARect.Top, X + Ws, ARect.Bottom));
+    GpFillRect(ACanvas, Rect(X, ARect.Top, X + Ws, ARect.Bottom), AStandbyC);
   end;
 end;
 
@@ -344,16 +325,12 @@ var
 begin
   if ARadius < 1 then
     ARadius := 1;
-  ACanvas.Brush.Color := ATrack;
-  ACanvas.Pen.Color := ATrack;
-  ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom, ARadius, ARadius);
+  GpFillRoundRect(ACanvas, ARect, ARadius, ATrack);
   W := Round((ARect.Right - ARect.Left) * Clamp01(ALevel));
   if W < 1 then
     Exit;
   FillR := Rect(ARect.Left, ARect.Top, ARect.Left + W, ARect.Bottom);
-  ACanvas.Brush.Color := AFill;
-  ACanvas.Pen.Color := AFill;
-  ACanvas.RoundRect(FillR.Left, FillR.Top, FillR.Right, FillR.Bottom, ARadius, ARadius);
+  GpFillRoundRect(ACanvas, FillR, ARadius, AFill);
 end;
 
 procedure DrawNicList(ACanvas: TCanvas; const ARect: TRect;
@@ -670,8 +647,7 @@ begin
     end
     else
       C := APalette.VolOff;
-    ACanvas.Brush.Color := C;
-    ACanvas.FillRect(R);
+    GpFillRect(ACanvas, R, C);
     X := R.Right + Gap;
   end;
   ACanvas.Pen.Style := psSolid;
@@ -691,9 +667,8 @@ var
   NameY, NameH, NameW, MaxNameW, LblY, InnerTop, InnerBot, BlockH, TitleH: Integer;
   LeftR, RightR: TRect;
 begin
-  ACanvas.Brush.Color := APalette.Bg;
+  GpFillRect(ACanvas, ARect, APalette.Bg);
   ACanvas.Pen.Color := APalette.Bg;
-  ACanvas.FillRect(ARect);
   Gap := AMetrics.CardGap;
   Mid := ARect.Left + (ARect.Right - ARect.Left) div 2;
   LeftR := Rect(ARect.Left, ARect.Top, Mid - Gap div 2, ARect.Bottom);

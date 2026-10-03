@@ -30,6 +30,11 @@ procedure DrawConcentricMeter(ACanvas: TCanvas; const ARect: TRect;
 procedure DrawDualConcentricMeter(ACanvas: TCanvas; const ARect: TRect;
   AOuterLevel, AInnerLevel: Double; AOuterAccent, AInnerAccent: TColor;
   const APalette: THudPalette; const AMetrics: THudMetrics);
+procedure GpFillRect(ACanvas: TCanvas; const ARect: TRect; AColor: TColor);
+procedure GpFillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
+  AColor: TColor);
+procedure GpStrokeRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
+  AColor: TColor);
 
 implementation
 
@@ -75,6 +80,125 @@ begin
   Result := MulDiv(V, AMetrics.Margin, 12);
   if (V > 0) and (Result < 1) then
     Result := 1;
+end;
+
+procedure AddRoundRectPath(APath: TGPGraphicsPath; X, Y, W, H, ADiameter: Single);
+var
+  D: Single;
+begin
+  D := ADiameter;
+  if D > W then
+    D := W;
+  if D > H then
+    D := H;
+  APath.AddArc(X, Y, D, D, 180, 90);
+  APath.AddArc(X + W - D, Y, D, D, 270, 90);
+  APath.AddArc(X + W - D, Y + H - D, D, D, 0, 90);
+  APath.AddArc(X, Y + H - D, D, D, 90, 90);
+  APath.CloseFigure;
+end;
+
+procedure GpFillRect(ACanvas: TCanvas; const ARect: TRect; AColor: TColor);
+var
+  G: TGPGraphics;
+  Brush: TGPSolidBrush;
+begin
+  ACanvas.Brush.Color := AColor;
+  if not GGdiOk then
+  begin
+    ACanvas.FillRect(ARect);
+    Exit;
+  end;
+  G := TGPGraphics.Create(ACanvas.Handle);
+  try
+    Brush := TGPSolidBrush.Create(MakeColor(255, GetRValue(AColor),
+      GetGValue(AColor), GetBValue(AColor)));
+    try
+      G.FillRectangle(Brush, Single(ARect.Left), Single(ARect.Top),
+        Single(ARect.Width), Single(ARect.Height));
+    finally
+      Brush.Free;
+    end;
+  finally
+    G.Free;
+  end;
+end;
+
+procedure GpFillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
+  AColor: TColor);
+var
+  G: TGPGraphics;
+  Path: TGPGraphicsPath;
+  Brush: TGPSolidBrush;
+begin
+  ACanvas.Brush.Color := AColor;
+  ACanvas.Pen.Color := AColor;
+  if not GGdiOk then
+  begin
+    ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom,
+      ARadius, ARadius);
+    Exit;
+  end;
+  G := TGPGraphics.Create(ACanvas.Handle);
+  try
+    G.SetSmoothingMode(SmoothingModeAntiAlias);
+    Path := TGPGraphicsPath.Create;
+    try
+      AddRoundRectPath(Path, ARect.Left, ARect.Top, ARect.Width, ARect.Height,
+        ARadius);
+      Brush := TGPSolidBrush.Create(MakeColor(255, GetRValue(AColor),
+        GetGValue(AColor), GetBValue(AColor)));
+      try
+        G.FillPath(Brush, Path);
+      finally
+        Brush.Free;
+      end;
+    finally
+      Path.Free;
+    end;
+  finally
+    G.Free;
+  end;
+end;
+
+procedure GpStrokeRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
+  AColor: TColor);
+var
+  G: TGPGraphics;
+  Path: TGPGraphicsPath;
+  Pen: TGPPen;
+begin
+  ACanvas.Brush.Style := bsClear;
+  ACanvas.Pen.Color := AColor;
+  ACanvas.Pen.Width := 1;
+  if not GGdiOk then
+  begin
+    ACanvas.RoundRect(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom,
+      ARadius, ARadius);
+    ACanvas.Brush.Style := bsSolid;
+    Exit;
+  end;
+  G := TGPGraphics.Create(ACanvas.Handle);
+  try
+    G.SetSmoothingMode(SmoothingModeAntiAlias);
+    Path := TGPGraphicsPath.Create;
+    try
+      AddRoundRectPath(Path, ARect.Left + 0.5, ARect.Top + 0.5,
+        ARect.Width - 1, ARect.Height - 1, ARadius);
+      Pen := TGPPen.Create(MakeColor(255, GetRValue(AColor), GetGValue(AColor),
+        GetBValue(AColor)), 1.0);
+      try
+        G.DrawPath(Pen, Path);
+      finally
+        Pen.Free;
+      end;
+    finally
+      Path.Free;
+    end;
+  finally
+    G.Free;
+  end;
+  ACanvas.Brush.Style := bsSolid;
 end;
 
 procedure DrawGridGdi(AGraphics: TGPGraphics; const ARect: TRect;
