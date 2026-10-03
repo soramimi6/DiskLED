@@ -13,7 +13,7 @@
 | 4 | トレイアイコンの論理ドライブ別表示（C:／D: など、ドライブごとのアクセス LED） | 完了 | 高（PDH `LogicalDisk(*)` を実機確認済み） | 中〜高（収集は低〜中。台数可変のトレイアイコン管理・設定・アイコン描画が主） | 1〜1.5週間（項目3 の完了が前提） |
 | 5 | PC の稼働時間（起動からの経過時間）の取得・ダッシュボード表示 | 完了 | 高（`GetTickCount64` 1 本） | 低 | 0.5〜1日 |
 | 6 | ディスク／ネットの累積データ量（読み書き・送受信別）の取得・ダッシュボード表示 | 完了 | 高（OS の累積カウンタを直読み。実機で取得確認済み） | 低〜中（ネットは 64bit 化が要る）＋表示の設計 | 3〜4日 |
-| 7 | リソース別 TOP5 プロセス（CPU/メモリ/ディスク IO、ダッシュボードのプロセスページ） | 未着手 | 中〜高（PDH `Process V2` で全プロセス取得を実機確認。Win10 は未確認） | 高（プロセス収集＋ページ切替＋一覧描画） | 1〜2週間 |
+| 7 | リソース別 TOP5 プロセス（CPU/メモリ/I/O、ダッシュボードのプロセスページ） | 未着手 | 中〜高（PDH `Process V2` で全プロセス取得を実機確認。Win10 は未確認） | 高（プロセス収集＋ページ切替＋一覧描画） | 1〜2週間 |
 | 8 | プロセス別 CPU／メモリ消費量（絶対値・割合）の取得・ダッシュボード表示 | 項目7で実装 | 同上 | — | 項目7に含む |
 | 9 | ダッシュボード CRT/キャラクターベース表示タイプ | 未着手 | 高 | 中〜高（描画一式の並行実装。レンダラ抽象化の先行リファクタが要る） | 1〜2週間 |
 | 10 | 右クリックメニューの整理（表示モード3択・表示倍率をオプション画面へ移し、後半を並べ替え） | 完了 | 高（既存の設定・ハンドラを移すだけ。新機能なし） | 低〜中（オプション画面の配置変更と、既存ハンドラの呼び出し整理） | 1〜1.5日 |
@@ -211,15 +211,17 @@
 
 ## 7. リソース別 TOP5 プロセス（ダッシュボードのプロセスページ）
 
-各リソース（CPU / メモリ / ディスク IO）ごとに、そのとき最も使っているプロセス上位 5 を表示する。**ネットは対象外**（プロセス別帯域の一般権限 API が無く簡易推定に留まるため）。項目8（プロセス別の絶対値・割合）の表示もこのページで行う。
+各リソース（CPU / メモリ / I/O）ごとに、そのとき最も使っているプロセス上位 5 を表示する。**ネット帯域の段は作らない**（プロセス別帯域の一般権限 API が無く簡易推定に留まるため）。項目8（プロセス別の絶対値・割合）の表示もこのページで行う。
 
 ### 決定事項
 
 - **表示場所は別ウィンドウではなく、ダッシュボード内のページ。** ヘッダー直下にタブ行（「概要」「プロセス」）を置き、クリックで本体の表示を切り替える。オプション画面のタブと同じ使い方。概要ページは現行のセクション×5＋サブセクション×5 で、変更しない。
 - **同名プロセスは名前で合算して 1 行**（例 `chrome (12)`）。順位は合算値で決める。
-- **配置は縦に 3 段**（上から CPU → メモリ → ディスク IO）、各 5 行。
-- **ディスク IO は読み＋書きの合計 B/s で順位を決め**、行には読み・書きを別々に出す。
+- **配置は縦に 3 段**（上から CPU → メモリ → I/O）、各 5 行。
+- **3 段目の見出しは「I/O」。** 値は PDH の `IO Read Bytes/sec`・`IO Write Bytes/sec` で、ファイル・ネットワーク・デバイスの全 I/O を数える（ディスクだけの値ではない）ため「ディスク」とは呼ばない。タスクマネージャーの「ディスク」列とは一致しない。
+- **I/O は読み＋書きの合計 B/s で順位を決め**、行には読み・書きを別々に出す。
 - プロセスアイコンを表示する。
+- **旧 `\Process(*)` へフォールバックした OS では、全行を既定のアプリアイコンにする**（PID の突き合わせをしない）。
 
 ### 現状（実ソース確認済み）
 
@@ -231,43 +233,69 @@
 - PDH ワイルドカード配列取得の先例は `uGpuCollector.pas`（API 宣言 [uGpuCollector.pas:93-105](../src/metrics/uGpuCollector.pas#L93)、失敗時の再初期化 `SuspendPdh` [uGpuCollector.pas:173-181](../src/metrics/uGpuCollector.pas#L173)）と `uDriveCollector.pas`（[uDriveCollector.pas:61-73](../src/metrics/uDriveCollector.pas#L61)）。PDH の `external` 宣言はユニットごとに個別に持つ流儀。
 - ワーカースレッドの先例は `TPingCollector`（`TThread` 派生＋`TCriticalSection`＋`TEvent`、[uPingCollector.pas:102-167](../src/metrics/uPingCollector.pas#L102)）。結果は `CopyPingHistory` のようにロック付きでコピーして UI へ渡す。
 - 割合の分母: 論理プロセッサ数はスナップショットの `CpuThreads`（[uCollector.pas:90](../src/metrics/uCollector.pas#L90)）、物理メモリ総量は `MemTotalBytes`（[uCollector.pas:104-105](../src/metrics/uCollector.pas#L104)）。
+- **`TDashboardForm` に破棄処理が無い。** デストラクタも `OnDestroy` も無く（`.dfm` のイベントは `OnClose`/`OnCloseQuery`/`OnCreate`/`OnResize`/`OnShow`/`OnHide` のみ、[uDashboardForm.dfm:17-22](../src/dashboard/uDashboardForm.dfm#L17)）、フォームの解放は MainForm の `FreeAndNil(FDashboardForm)`（[uMainForm.pas:595](../src/uMainForm.pas#L595)）。
+- **閉じる操作は `caHide`**（[uDashboardForm.pas:771](../src/dashboard/uDashboardForm.pas#L771)）で、フォームのフィールドは次の表示まで残る。
+- `.dfm` に `KeyPreview` も `OnKeyDown` も無い。
+- ヘッダーの高さを決めているのは `FormCreate`（[uDashboardForm.pas:140](../src/dashboard/uDashboardForm.pas#L140)）と `ApplyDpiChromeFor`（[uDashboardForm.pas:328-329](../src/dashboard/uDashboardForm.pas#L328)）の 2 か所。本体の上端は `LayoutContent` の `BodyTop := FHeaderPaint.Height + Met.Margin`（[uDashboardForm.pas:547](../src/dashboard/uDashboardForm.pas#L547)）。テーマ切替時の再描画は `ApplyTheme` の `Invalidate` 群（[uDashboardForm.pas:501-512](../src/dashboard/uDashboardForm.pas#L501)）。
+- **`FormatBytesGiB` は常に GB 表記**（[uMetricsTypes.pas:257-268](../src/metrics/uMetricsTypes.pas#L257)）。数十 MB のプロセスは「0.05 GB」になるため、プロセスのメモリ列には使えない。
+- **PDH の整形値は既定で 100 に切り詰められる。** `uGpuCollector` は `PDH_FMT_DOUBLE` 単独で配列を取っている（[uGpuCollector.pas:216](../src/metrics/uGpuCollector.pas#L216)）。`% Processor Time` は 1 コア＝100% なので、複数コアを使うプロセスは `PDH_FMT_NOCAP100` を付けないと 100 で頭打ちになる。
+- ユニットの登録は `DiskLED.dpr` の `uses` と `DiskLED.dproj` の `<DCCReference>`（[DiskLED.dproj:132-139](../DiskLED.dproj#L132)）の両方。
 
 ### 方針
 
 **1. ページ切替（`uDashboardForm.pas`）**
 - `TDashboardPage = (dpOverview, dpProcess)` と `FPage` を持つ。ヘッダーの下にタブ行 `FTabPaint: TPaintBox`（`alTop`。高さは `THudMetrics` に `TabHeight` を足す、[uDashboardTheme.pas:213-222](../src/dashboard/uDashboardTheme.pas#L213) と同じ `ScalePx` 方式）を置き、自前描画する（選択中は `TextPrimary`＋アクセント色の下線、非選択は `TextMuted`）。`OnMouseDown` でタブの矩形を判定して `SetPage` を呼ぶ。Ctrl+Tab／Ctrl+Shift+Tab でも切り替える（`KeyPreview`）。
 - `SetPage` は概要ページの 10 個のコントロールとプロセスページのコントロールの `Visible` を入れ替え、`LayoutContent` をページ別に分岐させる。
+- タブ行の高さは `FormCreate`・`ApplyDpiChromeFor`・`LayoutContent` の `BodyTop` の 3 か所に反映する。`alTop` が 2 つ並ぶので、`FTabPaint.Top` をヘッダーの下に置いてから `Align` を設定し、並び順を固定する。`ApplyTheme` の `Invalidate` 群にタブ行とプロセスページを足す。
+- Ctrl+Tab は `KeyPreview := True`＋`OnKeyDown` で受ける。フォームに届かない場合は `CM_DIALOGKEY` のメッセージハンドラで受ける（`TPageControl` と同じ方式。要実機確認）。
 - 概要ページが非表示の間は、カードと右カラムの再描画（`RefreshData` の `Invalidate` 群、`MeterTimerTick`）を省く。履歴は MainForm 側で積まれ続けるので、概要に戻ったときグラフは途切れない。
-- 選んだページは ini に保存しない（ダッシュボードは常に概要ページで開く）。設定キーは増やさない。
+- 選んだページは ini に保存しない（ダッシュボードは常に概要ページで開く）。閉じても `FPage` は残るので、`FormShow` で概要ページに戻す。設定キーは増やさない。
 
 **2. 収集層（新規 `src/metrics/uProcessCollector.pas`）**
-- `TProcessCollector` は専用のワーカースレッドで、約 1 秒ごとに PDH の `\Process V2(*)\` から `% Processor Time`・`Working Set - Private`・`IO Read Bytes/sec`・`IO Write Bytes/sec` を `PdhGetFormattedCounterArrayW` で取る（バッファ拡張の作法は `uGpuCollector` と同じ）。
+- `TProcessCollector` は専用のワーカースレッドで、約 1 秒ごとに PDH の `\Process V2(*)\` から `% Processor Time`・`Working Set - Private`・`IO Read Bytes/sec`・`IO Write Bytes/sec` を `PdhGetFormattedCounterArrayW` で取る（バッファ拡張の作法は `uGpuCollector` と同じ）。`% Processor Time` は `PDH_FMT_DOUBLE or PDH_FMT_NOCAP100` で取り、100 を超える値をそのまま受ける（定数値は Windows SDK の `pdh.h` で確認して宣言する）。
 - インスタンス名 `名前:PID` の最後の `:` より前を名前として合算し、件数も数える。`_Total`・`Idle` は除外する。合算後、3 種それぞれの上位 5 件と代表 PID を `TCriticalSection` 越しのコピー（`CopyTop`）で UI に渡す。
 - **プロセスページ表示中だけ収集する**（`SetActive`）。概要ページ表示中やダッシュボード非表示中は PDH クエリを閉じ、スレッドはイベント待ちで止める。平常時のコストはゼロ。
-- `TMetricsSnapshot` には入れない。スナップショットはガジェットのフレームごとの `Collect`（[uMainForm.pas:1031](../src/uMainForm.pas#L1031)）で回るため、1 Hz の別系統として `TDashboardForm` が所有し、破棄時にスレッドを止める。
-- `Process V2` のカウンタ追加に失敗した OS（Windows 10 の一部版の可能性、未確認）は旧 `\Process(*)` へフォールバックする。名前で合算するので、旧セットのインスタンス名の重複（項目8）は合算されるだけで問題にならない。アイコン用の PID は `\Process(*)\ID Process` を同じ配列添字で突き合わせる（要実機確認）。
+- `TMetricsSnapshot` には入れない。スナップショットはガジェットのフレームごとの `Collect`（[uMainForm.pas:1031](../src/uMainForm.pas#L1031)）で回るため、1 Hz の別系統として `TDashboardForm` が所有する。`TDashboardForm` に `destructor Destroy; override` を足し、そこでスレッドを止めて待ち合わせてから解放する（`TPingCollector.Destroy` と同じ手順）。`FormHide` でも `SetActive(False)` にする。
+- `Process V2` のカウンタ追加に失敗した OS（Windows 10 の一部版の可能性、未確認）は旧 `\Process(*)` へフォールバックする。名前で合算するので、旧セットのインスタンス名の重複（項目8）は合算されるだけで問題にならない。フォールバック時は PID を取らず、アイコンは全行を既定のアプリアイコンにする。
 - 実行中の PDH 失敗は `uGpuCollector` と同じく連続失敗で再初期化する。
+- `uProcessCollector.pas` は `DiskLED.dpr` の `uses` と `DiskLED.dproj` の `<DCCReference>` の両方に足す。
 
 **3. アイコン**
 - 名前ごとにキャッシュする。初回だけワーカーで代表 PID を `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`＋`QueryFullProcessImageNameW` で実行ファイルのパスにし、UI スレッドで `SHGetFileInfo` からアイコンを作る（COM 初期化済みのスレッドで呼ぶため）。開けないプロセス（非昇格で約半数、項目8）は既定のアプリアイコン（`SHGetStockIconInfo(SIID_APPLICATION)`）にする。
 - 高 DPI では大アイコンを取り、`DrawIconEx` で行の高さに合わせて描く。
+- キャッシュした `HICON` はフォーム破棄時に `DestroyIcon` で解放する。`QueryFullProcessImageNameW` などの API 宣言は、PDH と同じくユニット内に `external` で持つ。
 
 **4. 描画（`uDashboardPainter.pas`）**
 - `DrawProcessTop` を足す。カード枠（既存の `FillRoundRect`/`StrokeRoundRect`）＋見出し＋5 行で、1 段＝1 リソース。列は次のとおり（項目8 の「絶対値・割合」はここで満たす）:
   - CPU: アイコン｜名前 (件数)｜システム比 %（`% Processor Time ÷ CpuThreads`）
-  - メモリ: アイコン｜名前 (件数)｜プライベート ワーキング セット（`FormatBytesGiB` 系）｜物理メモリ比 %
-  - ディスク IO: アイコン｜名前 (件数)｜読み｜書き（`FormatRateBps`、[uMetricsTypes.pas:205](../src/metrics/uMetricsTypes.pas#L205)）
+  - メモリ: アイコン｜名前 (件数)｜プライベート ワーキング セット（MB／GB を切り替える整形関数を `uMetricsTypes.pas` に新設）｜物理メモリ比 %
+  - I/O: アイコン｜名前 (件数)｜読み｜書き（`FormatRateBps`、[uMetricsTypes.pas:205](../src/metrics/uMetricsTypes.pas#L205)）
 - 名前は既存の `Ellipsize`（[uDashboardPainter.pas:200-211](../src/dashboard/uDashboardPainter.pas#L200)）で切り詰める。初回 1 秒など値が無い間は行を「—」にする。
+- 列見出しは独立した行にせず、段の見出し行の右側に載せる（最小サイズ 800×600 DIP で 3 段×5 行の行高を確保するため）。
 - 文字列は `uAppStrings.pas` に JA/EN で足す（タブ名・段見出し・列見出し）。
 
 **5. 文書**
 - `docs/DESIGN.md` のダッシュボード節（`docs/DESIGN.md:300-336`）と `.cursor/rules/dashboard-regions.mdc` に、ページ（概要／プロセス）とタブ行を追記する。公開文書（`public_docs/` の FEATURES・USAGE、JA/EN）はリリース時に更新する。
 - ページ切替の仕組みは項目9（CRT 表示タイプ）でも使える可能性がある。CRT をページとして足すか、表示スタイルの切替にするかは項目9の着手時に決める。
 
+### 実装ステップ
+
+ブランチは `work/3.3.0-7-process-page`。各ステップの終わりに IDE で Win64 Release をビルドして確認する。
+
+| # | 内容 | 主なファイル | ビルド後に見ること |
+|---|---|---|---|
+| 1 | ページ切替とタブ行（プロセスページは空の枠だけ） | `uDashboardForm.pas`、`uDashboardTheme.pas`（`TabHeight`）、`uDashboardPainter.pas`（タブ行の描画）、`uAppStrings.pas` | クリックと Ctrl+Tab で切り替わる。概要に戻って履歴が途切れない。DPI 変更で崩れない |
+| 2 | 収集層（`Process V2` のみ。NOCAP100・名前合算・上位 5・`SetActive`） | 新規 `uProcessCollector.pas`、`DiskLED.dpr`、`DiskLED.dproj`、`TDashboardForm` のデストラクタ | 終了時に固まらない。概要表示中は収集が止まる |
+| 3 | 3 段×5 行の描画（アイコンなし） | `uDashboardPainter.pas`（`DrawProcessTop`）、`uMetricsTypes.pas`（MB／GB 整形） | タスクマネージャーとの比較。ライト／ダーク。最小サイズ |
+| 4 | アイコン | `uProcessCollector.pas`、`uDashboardForm.pas`、`uDashboardPainter.pas` | 開けないプロセスが既定アイコンになる。125〜200% でにじまない |
+| 5 | 旧 `\Process(*)` へのフォールバック（アイコンは既定のみ） | `uProcessCollector.pas` | Windows 10 実機で表示される |
+| 6 | 文書 | `docs/DESIGN.md`、`.cursor/rules/dashboard-regions.mdc` | — |
+
 ### 実機で見ること（実装時。Win64 Release を IDE でビルド）
 
 - タブのクリックと Ctrl+Tab で概要とプロセスが切り替わり、ちらつかないこと。概要に戻ったとき履歴グラフが途切れていないこと。
-- プロセスページの値が、タスクマネージャーの「プロセス」タブとおおむね一致すること（CPU はシステム比、メモリはプライベート ワーキング セット）。非昇格で `svchost` などのサービスも出ること。開けないプロセスは既定アイコンになること。
+- プロセスページの CPU とメモリの値が、タスクマネージャーの「プロセス」タブとおおむね一致すること（CPU はシステム比、メモリはプライベート ワーキング セット）。I/O の段は全 I/O の値なので、タスクマネージャーの「ディスク」列とは比べない。
+- 複数コアを使い切るプロセス（動画エンコード等）で、CPU のシステム比が「100 ÷ 論理プロセッサ数」% を超えて表示されること（100 で頭打ちになっていないこと）。非昇格で `svchost` などのサービスも出ること。開けないプロセスは既定アイコンになること。
 - 概要ページ表示中とダッシュボード非表示中に、プロセス収集が止まっていること（DiskLED 自身の CPU 使用率が上がらない）。
 - ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で、3 段×5 行が崩れず収まること。
 - Windows 10 実機で `Process V2` が無い場合に、旧 `Process` へのフォールバックで表示されること。
@@ -285,7 +313,7 @@
 - **Win32 経路（`OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` ＋ `GetProcessTimes`/`GetProcessMemoryInfo`）は全プロセスを取れない。** 523 プロセス中 284（約 54%）しか開けず、残り 238 は開けなかった（サービス・別セッション・保護プロセス等）。開けたものは `GetProcessTimes`・`QueryProcessCycleTime`・`GetProcessIoCounters`・`GetProcessMemoryInfo`（`PROCESS_MEMORY_COUNTERS_EX2` の `PrivateWorkingSetSize` 含む）がすべて成功した。→ 一覧の約半数が「取得不可」になり、TOP5 にもならない。
 - **PDH の `Process V2` なら全プロセスが取れる。** `\Process V2(*)\% Processor Time`・`Working Set - Private`・`Working Set`・`Private Bytes`・`IO Read Bytes/sec`・`IO Write Bytes/sec` が約 513 インスタンス分すべて有効（`PdhAddEnglishCounterW` は成功）。インスタンス名は **`名前:PID`**（例 `AdobeIPCBroker:1852`）で一意。`ID Process` カウンタは `Process V2` には無い（PID はインスタンス名から取る）。PowerShell の `Get-Counter` は無効サンプル混在で例外にするが、PDH API 直叩きでは各インスタンスの `CStatus` で個別に判定でき、問題なく取れた。
 - **旧 `Process` カウンタセットはインスタンス名が一意にならない。** 本機の `\Process(*)\...` は `svchost` が同名で複数並び（511 インスタンス・重複除去後 228 名、`#1` 等の接尾辞なし）、名前をキーにした辞書だと**衝突して欠落する**。旧セットを使う場合は `ID Process` と配列添字で突き合わせる必要があり、`Process V2` が無い OS のフォールバックとしてのみ検討する。`Process V2` が Windows 10 のどの版から使えるかは**未確認**（Microsoft の資料で要確認、または Win10 実機で確認）。
-- **PDH の CPU は「1 コア＝100%」**（本機で 1 コア飽和のプロセスが 100.0% を返した）。システム全体に対する割合は `÷ 論理プロセッサ数`（[uCpuCollector.pas:29](../src/metrics/uCpuCollector.pas#L29) の `Threads`）。メモリの割合は `Working Set - Private ÷ 物理メモリ総量`（`GlobalMemoryStatusEx`、[uMemCollector.pas:59](../src/metrics/uMemCollector.pas#L59)、スナップショットの `MemTotalBytes`）。タスクマネージャーのメモリ列と同じ「プライベート ワーキング セット」に相当。
+- **PDH の CPU は「1 コア＝100%」**（本機で 1 コア飽和のプロセスが 100.0% を返した。この実測は `PDH_FMT_NOCAP100` 無しのため、複数コア使用時に 100 を超える値は未確認。項目7 の実装で `PDH_FMT_NOCAP100` を付けて確認する）。システム全体に対する割合は `÷ 論理プロセッサ数`（[uCpuCollector.pas:29](../src/metrics/uCpuCollector.pas#L29) の `Threads`）。メモリの割合は `Working Set - Private ÷ 物理メモリ総量`（`GlobalMemoryStatusEx`、[uMemCollector.pas:59](../src/metrics/uMemCollector.pas#L59)、スナップショットの `MemTotalBytes`）。タスクマネージャーのメモリ列と同じ「プライベート ワーキング セット」に相当。
 - **コスト:** PDH（3 カウンタ × 約 517 インスタンス）で `PdhCollectQueryData` 約 13 ms＋配列取得 約 3 ms（定常 1 サイクル平均 約 14 ms。PowerShell 経由の単発計測なので目安）。15 fps の表示タイマー（約 66 ms 周期）で毎フレーム回す量ではない。**1 Hz 程度で収集**する。既存の GPU 収集は同種のワイルドカード PDH を UI スレッド上で 900 ms 間隔（[uGpuCollector.pas:62](../src/metrics/uGpuCollector.pas#L62) `CSampleIntervalMs`）で回しており、プロセス別も同じ間隔で足りるが、GPU 分と合わせて 1 サイクル約 30 ms を UI スレッドに載せることになるので、**ワーカースレッド化（Ping と同じ流儀）を第一候補**とする。参考: Win32 ループは開けた 275 プロセスで約 5 ms、`Process.GetProcesses`（`NtQuerySystemInformation` 系）は約 10 ms で 511/512 プロセスのワーキングセットが取れるが、後者は非公開色の強い API で、README の「一般権限・公式 API 優先」方針（[README.md:28](../README.md#L28)）から外れるため採らない。
 - 収集ユニット・ワーカースレッド化・フォールバックの設計は項目7 の方針 2 を参照。
 - ダッシュボード以外（ガジェット本体・トレイ）へは出さない。
