@@ -541,8 +541,8 @@ object OptionsForm: TOptionsForm
       ExplicitWidth = 460
     end
     object BtnOk: TButton
-      Left = 256
-      Top = 12
+      Left = 240
+      Top = 7
       Width = 96
       Height = 32
       Caption = 'Apply'
@@ -551,8 +551,8 @@ object OptionsForm: TOptionsForm
       OnClick = BtnOkClick
     end
     object BtnCancel: TButton
-      Left = 360
-      Top = 12
+      Left = 350
+      Top = 7
       Width = 88
       Height = 32
       Cancel = True
