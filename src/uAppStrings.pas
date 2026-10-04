@@ -205,7 +205,7 @@ begin
   AddStr('dash.cpu_clock', 'クロック', 'Clock');
   AddStr('dash.mem', 'メモリ', 'Memory');
   AddStr('dash.swap', 'SWAP', 'SWAP');
-  AddStr('dash.disk_read', 'ディスク読取', 'Disk Read');
+  AddStr('dash.disk_read', 'ディスク読込', 'Disk Read');
   AddStr('dash.disk_write', 'ディスク書込', 'Disk Write');
   AddStr('dash.disk', 'ディスク', 'Disk');
   AddStr('dash.net', 'ネット', 'Net');
@@ -218,7 +218,7 @@ begin
   AddStr('dash.mem_used', '使用中', 'In use');
   AddStr('dash.mem_standby', 'スタンバイ', 'Standby');
   AddStr('dash.mem_free', '空き', 'Free');
-  AddStr('dash.lg_read', '読取', 'Read');
+  AddStr('dash.lg_read', '読込', 'Read');
   AddStr('dash.lg_write', '書込', 'Write');
   AddStr('dash.lg_in', 'In', 'In');
   AddStr('dash.lg_out', 'Out', 'Out');
@@ -226,7 +226,7 @@ begin
   AddStr('dash.queue', 'ディスク情報', 'Disk Info');
   AddStr('dash.queue_depth', 'Queue', 'Queue');
   AddStr('dash.queue_word', 'キュー', 'Queue');
-  AddStr('dash.iops_read', '読取 IOPS', 'Read IOPS');
+  AddStr('dash.iops_read', '読込 IOPS', 'Read IOPS');
   AddStr('dash.iops_write', '書込 IOPS', 'Write IOPS');
   AddStr('dash.latency', 'レイテンシ', 'Latency');
   AddStr('dash.power', '電源', 'Power');
@@ -237,7 +237,7 @@ begin
   AddStr('dash.uptime', '稼働 %s', 'Uptime %s');
   AddStr('dash.uptime_dhm', '%d日 %d時間 %d分', '%dd %dh %dm');
   AddStr('dash.uptime_hm', '%d時間 %d分', '%dh %dm');
-  AddStr('dash.cum', 'ディスク累計 読 %s 書 %s ・ ネット累計 受 %s 送 %s',
+  AddStr('dash.cum', 'ディスク累計 読込 %s 書込 %s ・ ネット累計 受 %s 送 %s',
     'Disk total R %s W %s · Net total In %s Out %s');
   AddStr('dash.power_remain', '残時間', 'Remaining');
   AddStr('dash.power_remain_h', '%d時間', '%dh');
@@ -259,6 +259,33 @@ begin
   AddStr('dash.ping_rtt', 'RTT', 'RTT');
   AddStr('dash.ping_status', '状態', 'Status');
   AddStr('dash.live', 'LIVE', 'LIVE');
+  AddStr('dash.tab_overview', '概要', 'Overview');
+  AddStr('dash.tab_process', 'プロセス', 'Processes');
+  AddStr('dash.proc_cpu', 'CPU使用率の高い順', 'By CPU usage');
+  AddStr('dash.proc_mem', 'メモリ使用量の多い順', 'By memory used');
+  AddStr('dash.proc_io', 'I/O量の多い順', 'By I/O (read + write)');
+  AddStr('dash.proc_col_usage', '使用率', 'Usage');
+  AddStr('dash.proc_col_used', '使用量', 'Used');
+  AddStr('dash.proc_col_share', '割合', 'Share');
+  AddStr('dash.proc_col_read', '読込', 'Read');
+  AddStr('dash.proc_col_write', '書込', 'Write');
+  AddStr('dash.proc_interval', '更新', 'Refresh');
+  AddStr('dash.proc_sec', '%d秒', '%ds');
+  AddStr('dash.proc_stop', '停止', 'Stop');
+  AddStr('dash.proc_noaccess', '詳細を取得できません', 'Details not available');
+  AddStr('dash.proc_user_admin', '%s（管理者）', '%s (admin)');
+  AddStr('dash.tip_window', 'ウィンドウ', 'Window');
+  AddStr('dash.tip_desc', '説明', 'Description');
+  AddStr('dash.tip_product', '製品名', 'Product');
+  AddStr('dash.tip_company', '会社名', 'Company');
+  AddStr('dash.tip_version', 'バージョン', 'Version');
+  AddStr('dash.tip_copyright', '著作権', 'Copyright');
+  AddStr('dash.tip_user', 'ユーザー', 'User');
+  AddStr('dash.tip_bitness', '種類', 'Type');
+  AddStr('dash.tip_commit', 'コミット', 'Commit');
+  AddStr('dash.tip_handles', 'ハンドル', 'Handles');
+  AddStr('dash.tip_threads', 'スレッド', 'Threads');
+  AddStr('dash.tip_path', 'パス', 'Path');
   AddStr('dash.axis_now', '現在', 'now');
   AddStr('dash.axis_5m', '5分', '5m');
 

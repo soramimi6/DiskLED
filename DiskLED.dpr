@@ -23,6 +23,7 @@ uses
   uHostResolve in 'src\metrics\uHostResolve.pas',
   uPingCollector in 'src\metrics\uPingCollector.pas',
   uTracertCollector in 'src\metrics\uTracertCollector.pas',
+  uProcessCollector in 'src\metrics\uProcessCollector.pas',
   uAudioCollector in 'src\metrics\uAudioCollector.pas',
   uRangeEngine in 'src\metrics\uRangeEngine.pas',
   uHistoryBuffer in 'src\metrics\uHistoryBuffer.pas',

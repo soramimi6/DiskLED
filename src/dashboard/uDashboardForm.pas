@@ -7,6 +7,7 @@ uses
   Winapi.Messages,
   System.SysUtils,
   System.Classes,
+  System.Types,
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
@@ -21,14 +22,21 @@ uses
   uSettings,
   uMetricsTypes,
   uDpiScale,
+  uProcessCollector,
+  uHoverTip,
   uThemedHudForm;
 
 { Dashboard regions (docs/DESIGN.md, .cursor/rules/dashboard-regions.mdc):
   ヘッダー
-  左カラム — セクション × 5 (ドーナツグラフ | 履歴グラフ)
-  右カラム — サブセクション × 5 (CPU / メモリ / 電源（左：電源 | 右：音量） / ディスクキュー / Ping)
+  タブ行 (概要 / プロセス)
+  概要ページ:
+    左カラム — セクション × 5 (ドーナツグラフ | 履歴グラフ)
+    右カラム — サブセクション × 5 (CPU / メモリ / 電源（左：電源 | 右：音量） / ディスクキュー / Ping)
+  プロセスページ: リソース別 TOP5
   Do not put subsection facts inside a left-column section. }
 type
+  TDashboardPage = (dpOverview, dpProcess);
+
   TDashboardForm = class(TThemedHudForm)
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -42,6 +50,26 @@ type
     FCollector: TMetricsCollector;
     FSettings: TAppSettings;
     FHeaderPaint: TPaintBox;
+    FTabPaint: TPaintBox;
+    FTabRects: TArray<TRect>;
+    FIntervalRects: TArray<TRect>;
+    FPage: TDashboardPage;
+    FProcessPaint: TPaintBox;
+    FProcess: TProcessCollector;
+    FProcessIcons: TProcessIconCache;
+    { Per column, rectangle and tooltip of each drawn entry (from the last
+      ProcessPaint) for hover hints. }
+    FProcRects: array[TProcessResource] of TArray<TRect>;
+    FProcTips: array[TProcessResource] of TArray<string>;
+    FProcessPaintWndProc: TWndMethod;
+    { Native tracked tooltip shared with the gadget window's look (uHoverTip).
+      FProcHoverKey = Ord(resource) * CProcessTopMax + row, -1 when none. }
+    FProcTip: THoverTip;
+    FProcTipDelay: TTimer;
+    FProcHoverKey: Integer;
+    { "Stop" chosen in the refresh choice: the list stays frozen until another
+      period is picked or the page is left. Not saved. }
+    FProcPaused: Boolean;
     FCpuPaint: TPaintBox;
     FMemPaint: TPaintBox;
     FQueuePaint: TPaintBox;
@@ -53,9 +81,21 @@ type
     FLiveOn: Boolean;
     FPingHistory: TArray<TPingHistoryEntry>;
     FWindowDpi: Integer;
+    procedure ProcessMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure ProcessPaintWndProc(var Message: TMessage);
+    procedure ProcTipDelayTick(Sender: TObject);
+    procedure HideProcTip;
+    function ProcTipText(AKey: Integer): string;
     procedure UiTimerTick(Sender: TObject);
     procedure MeterTimerTick(Sender: TObject);
     procedure HeaderPaint(Sender: TObject);
+    procedure TabPaint(Sender: TObject);
+    procedure TabMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure SetPage(APage: TDashboardPage);
+    procedure ApplyPageVisibility;
+    procedure ProcessPaint(Sender: TObject);
     procedure CpuPaint(Sender: TObject);
     procedure MemPaint(Sender: TObject);
     procedure QueuePaint(Sender: TObject);
@@ -84,6 +124,7 @@ type
     constructor Create(AOwner: TComponent; APipeline: TDisplayPipeline;
       AHistory: TDashboardHistory; ACollector: TMetricsCollector;
       ASettings: TAppSettings); reintroduce;
+    destructor Destroy; override;
     procedure PersistDashboardDip;
     { Bring the window back onto a visible monitor if a display change left it
       off-screen. No-op while maximized/minimized. Called on every show and from
@@ -100,6 +141,12 @@ uses
   uAppStrings,
   uWindowPlacement;
 
+const
+  { Process page refresh choices in seconds (uSettings normalizes to these). }
+  CProcessIntervals: array[0..2] of Integer = (3, 5, 10);
+  { Entries per process column at the default size and below. }
+  CProcessTopShown = 5;
+
 constructor TDashboardForm.Create(AOwner: TComponent; APipeline: TDisplayPipeline;
   AHistory: TDashboardHistory; ACollector: TMetricsCollector;
   ASettings: TAppSettings);
@@ -109,6 +156,16 @@ begin
   FCollector := ACollector;
   FSettings := ASettings;
   inherited Create(AOwner);
+end;
+
+destructor TDashboardForm.Destroy;
+begin
+  { Stops and joins the worker thread. Done before inherited so a late
+    FormHide during teardown sees nil rather than a freed collector. }
+  FreeAndNil(FProcess);
+  FreeAndNil(FProcessIcons);
+  FreeAndNil(FProcTip);
+  inherited;
 end;
 
 procedure TDashboardForm.FormCreate(Sender: TObject);
@@ -139,6 +196,19 @@ begin
   FHeaderPaint.Align := alTop;
   FHeaderPaint.Height := CurrentMetrics.HeaderHeight + CurrentMetrics.AccentLine;
   FHeaderPaint.OnPaint := HeaderPaint;
+
+  { Two alTop controls: place the tab row below the header before aligning it so
+    the VCL keeps header-then-tabs order. }
+  FTabPaint := TPaintBox.Create(Self);
+  FTabPaint.Parent := Self;
+  FTabPaint.Top := FHeaderPaint.Top + FHeaderPaint.Height;
+  FTabPaint.Height := CurrentMetrics.TabHeight;
+  FTabPaint.Align := alTop;
+  FTabPaint.OnPaint := TabPaint;
+  FTabPaint.OnMouseDown := TabMouseDown;
+  FPage := dpOverview;
+  KeyPreview := True;
+  OnKeyDown := FormKeyDown;
 
   for i := 0 to 4 do
   begin
@@ -200,6 +270,26 @@ begin
   FPingPaint := TPaintBox.Create(Self);
   FPingPaint.Parent := Self;
   FPingPaint.OnPaint := PingPaint;
+  FProcessPaint := TPaintBox.Create(Self);
+  FProcessPaint.Parent := Self;
+  FProcessPaint.OnPaint := ProcessPaint;
+  FProcessPaint.OnMouseMove := ProcessMouseMove;
+  FProcessPaintWndProc := FProcessPaint.WindowProc;
+  FProcessPaint.WindowProc := ProcessPaintWndProc;
+  FProcTip := THoverTip.Create;
+  FProcTipDelay := TTimer.Create(Self);
+  FProcTipDelay.Enabled := False;
+  if Application.HintPause > 0 then
+    FProcTipDelay.Interval := Application.HintPause
+  else
+    FProcTipDelay.Interval := 500;
+  FProcTipDelay.OnTimer := ProcTipDelayTick;
+  FProcHoverKey := -1;
+  FProcess := TProcessCollector.Create;
+  FProcessIcons := TProcessIconCache.Create;
+  if FSettings <> nil then
+    FProcess.SetInterval(FSettings.DashboardProcessIntervalSec);
+  ApplyPageVisibility;
 
   FUiTimer := TTimer.Create(Self);
   FUiTimer.Enabled := False;
@@ -327,6 +417,8 @@ begin
   Constraints.MinHeight := MinH;
   if FHeaderPaint <> nil then
     FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
+  if FTabPaint <> nil then
+    FTabPaint.Height := Met.TabHeight;
 end;
 
 procedure TDashboardForm.ApplySavedDipBounds;
@@ -500,6 +592,10 @@ begin
   end;
   if FHeaderPaint <> nil then
     FHeaderPaint.Invalidate;
+  if FTabPaint <> nil then
+    FTabPaint.Invalidate;
+  if FProcessPaint <> nil then
+    FProcessPaint.Invalidate;
   if FCpuPaint <> nil then
     FCpuPaint.Invalidate;
   if FMemPaint <> nil then
@@ -526,8 +622,8 @@ var
   Extra, MinRight, MinLeft, MinBody, MinRow, MinGraph: Integer;
   Heights: array[0..4] of Integer;
 begin
-  if (FHeaderPaint = nil) or (FCards[0] = nil) or (FCpuPaint = nil) or
-    (FPingPaint = nil) then
+  if (FHeaderPaint = nil) or (FTabPaint = nil) or (FCards[0] = nil) or
+    (FCpuPaint = nil) or (FPingPaint = nil) or (FProcessPaint = nil) then
     Exit;
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
@@ -544,7 +640,7 @@ begin
   LeftColW := ClientWidth - Met.Margin * 2 - Met.CardGap - RightColW;
   if LeftColW < MinLeft then
     LeftColW := MinLeft;
-  BodyTop := FHeaderPaint.Height + Met.Margin;
+  BodyTop := FHeaderPaint.Height + FTabPaint.Height + Met.Margin;
   BodyH := ClientHeight - BodyTop - Met.Margin;
   if BodyH < MinBody then
     BodyH := MinBody;
@@ -578,12 +674,420 @@ begin
   Inc(Y, Heights[0] + Met.CardGap);
   FMemPaint.SetBounds(SideX, Y, RightColW, Heights[1]);
   Inc(Y, Heights[1] + Met.CardGap);
-  FPowerPaint.Visible := True;
   FPowerPaint.SetBounds(SideX, Y, RightColW, Heights[2]);
   Inc(Y, Heights[2] + Met.CardGap);
   FQueuePaint.SetBounds(SideX, Y, RightColW, Heights[3]);
   Inc(Y, Heights[3] + Met.CardGap);
   FPingPaint.SetBounds(SideX, Y, RightColW, Heights[4]);
+
+  { The process page spans both columns of the same body area. }
+  FProcessPaint.SetBounds(Met.Margin, BodyTop,
+    LeftColW + Met.CardGap + RightColW, BodyH);
+end;
+
+procedure TDashboardForm.ApplyPageVisibility;
+var
+  i: Integer;
+  Overview: Boolean;
+begin
+  Overview := FPage = dpOverview;
+  for i := 0 to 4 do
+    if FCards[i] <> nil then
+      FCards[i].Visible := Overview;
+  if FCpuPaint <> nil then
+    FCpuPaint.Visible := Overview;
+  if FMemPaint <> nil then
+    FMemPaint.Visible := Overview;
+  if FPowerPaint <> nil then
+    FPowerPaint.Visible := Overview;
+  if FQueuePaint <> nil then
+    FQueuePaint.Visible := Overview;
+  if FPingPaint <> nil then
+    FPingPaint.Visible := Overview;
+  if FProcessPaint <> nil then
+    FProcessPaint.Visible := not Overview;
+end;
+
+procedure TDashboardForm.SetPage(APage: TDashboardPage);
+begin
+  if APage = FPage then
+    Exit;
+  FPage := APage;
+  ApplyPageVisibility;
+  HideProcTip;
+  { Process sampling runs only while its page is on screen. Leaving the page
+    discards the list, so a pause doesn't outlive it either. }
+  FProcPaused := False;
+  if FProcess <> nil then
+  begin
+    FProcess.SetPaused(False);
+    FProcess.SetActive(FPage = dpProcess);
+  end;
+  if FTabPaint <> nil then
+    FTabPaint.Invalidate;
+  { Overview widgets skipped repaints while hidden; bring them up to date now. }
+  if FPage = dpOverview then
+    RefreshData;
+end;
+
+procedure TDashboardForm.TabMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  i: Integer;
+begin
+  if Button <> mbLeft then
+    Exit;
+  for i := 0 to High(FTabRects) do
+    if (i <= Ord(High(TDashboardPage))) and PtInRect(FTabRects[i], Point(X, Y)) then
+    begin
+      SetPage(TDashboardPage(i));
+      Exit;
+    end;
+  if FPage <> dpProcess then
+    Exit;
+  for i := 0 to High(FIntervalRects) do
+    if PtInRect(FIntervalRects[i], Point(X, Y)) then
+    begin
+      if i > High(CProcessIntervals) then
+        { The trailing "Stop" option freezes the list as it is. }
+        FProcPaused := True
+      else
+      begin
+        FProcPaused := False;
+        if FSettings <> nil then
+          FSettings.DashboardProcessIntervalSec := CProcessIntervals[i];
+        if FProcess <> nil then
+          FProcess.SetInterval(CProcessIntervals[i]);
+      end;
+      if FProcess <> nil then
+        FProcess.SetPaused(FProcPaused);
+      FTabPaint.Invalidate;
+      Exit;
+    end;
+end;
+
+procedure TDashboardForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  N: Integer;
+begin
+  if (Key <> VK_TAB) or not (ssCtrl in Shift) then
+    Exit;
+  N := Ord(High(TDashboardPage)) + 1;
+  if ssShift in Shift then
+    SetPage(TDashboardPage((Ord(FPage) + N - 1) mod N))
+  else
+    SetPage(TDashboardPage((Ord(FPage) + 1) mod N));
+  Key := 0;
+end;
+
+procedure TDashboardForm.TabPaint(Sender: TObject);
+var
+  { The periods, then "Stop". }
+  Opts: array[0..High(CProcessIntervals) + 1] of string;
+  i, Active, Sec: Integer;
+begin
+  DrawTabRow(FTabPaint.Canvas, FTabPaint.ClientRect,
+    [S('dash.tab_overview'), S('dash.tab_process')], Ord(FPage), HudPalette,
+    CurrentMetrics, FTabRects);
+  if FPage <> dpProcess then
+  begin
+    FIntervalRects := nil;
+    Exit;
+  end;
+  Sec := 3;
+  if FSettings <> nil then
+    Sec := FSettings.DashboardProcessIntervalSec;
+  Active := 0;
+  for i := 0 to High(CProcessIntervals) do
+  begin
+    Opts[i] := Format(S('dash.proc_sec'), [CProcessIntervals[i]]);
+    if CProcessIntervals[i] = Sec then
+      Active := i;
+  end;
+  Opts[High(Opts)] := S('dash.proc_stop');
+  if FProcPaused then
+    Active := High(Opts);
+  DrawTabChoice(FTabPaint.Canvas, FTabPaint.ClientRect, S('dash.proc_interval'),
+    Opts, Active, HudPalette, CurrentMetrics, FIntervalRects);
+end;
+
+{ "chrome (12)" for a merged row, the bare name for a single process. }
+function ProcessRowName(const AEntry: TProcessTopEntry): string;
+begin
+  if AEntry.Count > 1 then
+    Result := Format('%s (%d)', [AEntry.Name, AEntry.Count])
+  else
+    Result := AEntry.Name;
+end;
+
+{ Non-empty parts joined with a middle dot. }
+function JoinDot(const AParts: TArray<string>): string;
+var
+  Part: string;
+begin
+  Result := '';
+  for Part in AParts do
+  begin
+    if Part = '' then
+      Continue;
+    if Result <> '' then
+      Result := Result + '  ' + #$00B7 + '  ';
+    Result := Result + Part;
+  end;
+end;
+
+function GroupedCount(AValue: Int64): string;
+begin
+  Result := Format('%.0n', [AValue * 1.0]);
+end;
+
+function ProcessUserText(const AEntry: TProcessTopEntry): string;
+begin
+  Result := '';
+  if not (AEntry.HasDetail and AEntry.Detail.HasToken) then
+    Exit;
+  if AEntry.Detail.Elevated then
+    Result := Format(S('dash.proc_user_admin'), [AEntry.Detail.UserName])
+  else
+    Result := AEntry.Detail.UserName;
+end;
+
+{ Line 2, "what is it": window title, else description, else product name;
+  then the company. }
+function ProcessRowWhat(const AEntry: TProcessTopEntry): string;
+var
+  What: string;
+begin
+  What := AEntry.WindowTitle;
+  if AEntry.HasDetail then
+  begin
+    if What = '' then
+      What := AEntry.Detail.Description;
+    if What = '' then
+      What := AEntry.Detail.ProductName;
+    Result := JoinDot([What, AEntry.Detail.Company]);
+  end
+  else if What <> '' then
+    Result := What
+  else
+    Result := S('dash.proc_noaccess');
+end;
+
+{ Line 3, "state": user (admin), commit, handles, threads. }
+function ProcessRowStatus(const AEntry: TProcessTopEntry): string;
+begin
+  Result := JoinDot([ProcessUserText(AEntry),
+    S('dash.tip_commit') + ' ' + FormatBytesMB(AEntry.CommitBytes),
+    S('dash.tip_handles') + ' ' + GroupedCount(AEntry.Handles),
+    S('dash.tip_threads') + ' ' + GroupedCount(AEntry.Threads)]);
+end;
+
+{ Everything known about the row, one "label: value" per line. }
+function ProcessTooltip(const AEntry: TProcessTopEntry): string;
+var
+  Lines: TStringList;
+
+  procedure Add(const AKey, AValue: string);
+  begin
+    if AValue <> '' then
+      Lines.Add(S(AKey) + ': ' + AValue);
+  end;
+
+begin
+  Lines := TStringList.Create;
+  try
+    Lines.Add(ProcessRowName(AEntry));
+    Add('dash.tip_window', AEntry.WindowTitle);
+    if AEntry.HasDetail then
+    begin
+      Add('dash.tip_desc', AEntry.Detail.Description);
+      Add('dash.tip_product', AEntry.Detail.ProductName);
+      Add('dash.tip_company', AEntry.Detail.Company);
+      Add('dash.tip_version', AEntry.Detail.Version);
+      Add('dash.tip_copyright', AEntry.Detail.Copyright);
+      Add('dash.tip_user', ProcessUserText(AEntry));
+      if AEntry.Detail.HasBitness then
+        if AEntry.Detail.Is32Bit then
+          Add('dash.tip_bitness', '32bit')
+        else
+          Add('dash.tip_bitness', '64bit');
+    end
+    else
+      Lines.Add(S('dash.proc_noaccess'));
+    Add('dash.tip_commit', FormatBytesMB(AEntry.CommitBytes));
+    Add('dash.tip_handles', GroupedCount(AEntry.Handles));
+    Add('dash.tip_threads', GroupedCount(AEntry.Threads));
+    if AEntry.HasDetail then
+      Add('dash.tip_path', AEntry.Detail.Path);
+    Result := TrimRight(Lines.Text);
+  finally
+    Lines.Free;
+  end;
+end;
+
+procedure TDashboardForm.ProcessPaint(Sender: TObject);
+var
+  Pal: THudPalette;
+  Met: THudMetrics;
+  ProcTop: TProcessTop;
+  Snap: TMetricsSnapshot;
+  Rows: TArray<TProcessRowText>;
+  Res: TProcessResource;
+  i, ColW, X, Slots: Integer;
+  Threads: Integer;
+  E: TProcessTopEntry;
+  SecRect: TRect;
+begin
+  Pal := HudPalette;
+  Met := CurrentMetrics;
+  ProcTop := Default(TProcessTop);
+  if FProcess <> nil then
+    FProcess.CopyTop(ProcTop);
+  Snap := Default(TMetricsSnapshot);
+  if FPipeline <> nil then
+    Snap := FPipeline.LastSnap;
+  { PDH reports one busy core as 100%; divide by logical processors for the
+    share of the whole machine, as Task Manager's Processes tab does. }
+  Threads := Snap.CpuThreads;
+  if Threads < 1 then
+    Threads := 1;
+
+  { Three tall columns side by side: CPU | Memory | I/O. }
+  ColW := (FProcessPaint.ClientWidth - Met.CardGap * 2) div 3;
+  X := 0;
+  for Res := Low(TProcessResource) to High(TProcessResource) do
+  begin
+    if Res = High(TProcessResource) then
+      SecRect := Rect(X, 0, FProcessPaint.ClientWidth, FProcessPaint.ClientHeight)
+    else
+      SecRect := Rect(X, 0, X + ColW, FProcessPaint.ClientHeight);
+    Inc(X, ColW + Met.CardGap);
+    { Five entries by default, more as the window grows taller. Only the
+      shown ones are formatted (and get an icon). }
+    Slots := ProcessRowSlots(SecRect, CProcessTopShown, CProcessTopMax, Met);
+    if Length(ProcTop.Items[Res]) < Slots then
+      SetLength(Rows, Length(ProcTop.Items[Res]))
+    else
+      SetLength(Rows, Slots);
+    SetLength(FProcTips[Res], Length(Rows));
+    for i := 0 to High(Rows) do
+    begin
+      E := ProcTop.Items[Res][i];
+      Rows[i].Name := ProcessRowName(E);
+      Rows[i].Detail := ProcessRowWhat(E);
+      Rows[i].Status := ProcessRowStatus(E);
+      if E.HasDetail then
+        Rows[i].Path := E.Detail.Path;
+      FProcTips[Res][i] := ProcessTooltip(E);
+      { The painter draws the icon about two text lines tall (~32 DIP); ask for
+        that pixel size so it isn't stretched from 32 px at high DPI. An empty
+        path gets the stock application icon. }
+      if FProcessIcons <> nil then
+        Rows[i].Icon := FProcessIcons.IconFor(Rows[i].Path, ScalePx(32, WindowDpi));
+      case Res of
+        prCpu:
+          Rows[i].Values := [Format('%.1f%%', [E.CpuPct / Threads])];
+        prMem:
+          begin
+            if Snap.MemTotalBytes > 0 then
+              Rows[i].Values := [FormatBytesMB(E.MemBytes),
+                Format('%.1f%%', [E.MemBytes / Snap.MemTotalBytes * 100])]
+            else
+              Rows[i].Values := [FormatBytesMB(E.MemBytes), string(#$2014)];
+          end;
+      else
+        Rows[i].Values := [FormatRateBps(E.IoReadBps), FormatRateBps(E.IoWriteBps)];
+      end;
+    end;
+    case Res of
+      prCpu:
+        DrawProcessTop(FProcessPaint.Canvas, SecRect, S('dash.proc_cpu'),
+          [S('dash.proc_col_usage')], Rows, ProcTop.Valid, Slots,
+          Pal.Cpu, Pal, Met, FProcRects[Res]);
+      prMem:
+        DrawProcessTop(FProcessPaint.Canvas, SecRect, S('dash.proc_mem'),
+          [S('dash.proc_col_used'), S('dash.proc_col_share')], Rows,
+          ProcTop.Valid, Slots, Pal.Mem, Pal, Met, FProcRects[Res]);
+    else
+      DrawProcessTop(FProcessPaint.Canvas, SecRect, S('dash.proc_io'),
+        [S('dash.proc_col_read'), S('dash.proc_col_write')], Rows,
+        ProcTop.Valid, Slots, Pal.Disk, Pal, Met, FProcRects[Res]);
+    end;
+  end;
+  { Keep an open tooltip in step with the refreshed values. }
+  if (FProcTip <> nil) and FProcTip.Visible then
+    FProcTip.UpdateText(ProcTipText(FProcHoverKey));
+end;
+
+{ Tooltip text of the entry under the hover key, '' if it no longer exists. }
+function TDashboardForm.ProcTipText(AKey: Integer): string;
+var
+  Res: TProcessResource;
+  i: Integer;
+begin
+  Result := '';
+  if AKey < 0 then
+    Exit;
+  Res := TProcessResource(AKey div CProcessTopMax);
+  i := AKey mod CProcessTopMax;
+  if i <= High(FProcTips[Res]) then
+    Result := FProcTips[Res][i];
+end;
+
+procedure TDashboardForm.ProcessMouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+var
+  Res: TProcessResource;
+  i, Key: Integer;
+begin
+  Key := -1;
+  for Res := Low(TProcessResource) to High(TProcessResource) do
+    for i := 0 to High(FProcRects[Res]) do
+      if PtInRect(FProcRects[Res][i], Point(X, Y)) then
+        Key := Ord(Res) * CProcessTopMax + i;
+  if Key < 0 then
+  begin
+    HideProcTip;
+    Exit;
+  end;
+  if Key = FProcHoverKey then
+    Exit;
+  { Moved onto another entry: hide, then show its tip after the usual hint
+    pause -- the same native tooltip and timing as the gadget window. }
+  FProcHoverKey := Key;
+  if FProcTip <> nil then
+    FProcTip.Hide;
+  FProcTipDelay.Enabled := False;
+  FProcTipDelay.Enabled := True;
+end;
+
+procedure TDashboardForm.ProcTipDelayTick(Sender: TObject);
+var
+  Tip: string;
+begin
+  FProcTipDelay.Enabled := False;
+  Tip := ProcTipText(FProcHoverKey);
+  if (Tip = '') or (FProcTip = nil) then
+    Exit;
+  FProcTip.SetOwner(Handle);
+  FProcTip.ShowAtCursor(Tip);
+end;
+
+procedure TDashboardForm.HideProcTip;
+begin
+  FProcHoverKey := -1;
+  if FProcTipDelay <> nil then
+    FProcTipDelay.Enabled := False;
+  if FProcTip <> nil then
+    FProcTip.Hide;
+end;
+
+procedure TDashboardForm.ProcessPaintWndProc(var Message: TMessage);
+begin
+  if Message.Msg = CM_MOUSELEAVE then
+    HideProcTip;
+  FProcessPaintWndProc(Message);
 end;
 
 procedure TDashboardForm.ApplyDonutLevels;
@@ -619,6 +1123,14 @@ begin
   FCards[4].Value2 := FormatRateBps(Snap.NetOutBps);
   ApplyDonutLevels;
   FCollector.CopyPingHistory(FPingHistory);
+  FHeaderPaint.Invalidate;
+  { Hidden overview widgets need no repaint; SetPage refreshes them on return.
+    History keeps accumulating on the MainForm side, so graphs stay continuous. }
+  if FPage <> dpOverview then
+  begin
+    FProcessPaint.Invalidate;
+    Exit;
+  end;
   for i := 0 to 4 do
     FCards[i].Invalidate;
   FCpuPaint.Invalidate;
@@ -626,14 +1138,13 @@ begin
   FQueuePaint.Invalidate;
   FPowerPaint.Invalidate;
   FPingPaint.Invalidate;
-  FHeaderPaint.Invalidate;
 end;
 
 procedure TDashboardForm.MeterTimerTick(Sender: TObject);
 var
   i: Integer;
 begin
-  if not Visible then
+  if not Visible or (FPage <> dpOverview) then
     Exit;
   ApplyDonutLevels;
   for i := 0 to 4 do
@@ -735,6 +1246,8 @@ procedure TDashboardForm.FormShow(Sender: TObject);
 begin
   { A monitor may have been removed/rearranged while the window was hidden. }
   ClampIntoView;
+  { Always open on the overview; FPage survives a caHide close. }
+  SetPage(dpOverview);
   FUiTimer.Enabled := True;
   FMeterTimer.Enabled := True;
   RefreshData;
@@ -744,6 +1257,13 @@ procedure TDashboardForm.FormHide(Sender: TObject);
 begin
   FUiTimer.Enabled := False;
   FMeterTimer.Enabled := False;
+  HideProcTip;
+  FProcPaused := False;
+  if FProcess <> nil then
+  begin
+    FProcess.SetPaused(False);
+    FProcess.SetActive(False);
+  end;
   PersistDashboardDip;
   if FSettings <> nil then
   try

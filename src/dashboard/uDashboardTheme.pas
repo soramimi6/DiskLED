@@ -41,6 +41,7 @@ type
   THudMetrics = record
     Margin: Integer;
     HeaderHeight: Integer;
+    TabHeight: Integer;
     AccentLine: Integer;
     CardRadius: Integer;
     CardGap: Integer;
@@ -211,6 +212,7 @@ begin
     ADpi := 96;
   Result.Margin := ScalePx(12, ADpi);
   Result.HeaderHeight := ScalePx(44, ADpi);
+  Result.TabHeight := ScalePx(30, ADpi);
   Result.AccentLine := ScalePx(2, ADpi);
   Result.CardRadius := ScalePx(8, ADpi);
   Result.CardGap := ScalePx(8, ADpi);
