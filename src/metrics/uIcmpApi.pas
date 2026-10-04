@@ -1,8 +1,8 @@
 unit uIcmpApi;
 
 { Shared ICMP (iphlpapi.dll) declarations, used by both the ping collector
-  (default TTL, no route info) and the on-demand tracert collector
-  (per-hop TTL via IP_OPTION_INFORMATION). Record types and IP_STATUS
+  (default TTL, no route info) and the dashboard's route collector
+  (per-hop TTL via IP_OPTION_INFORMATION, asynchronous IcmpSendEcho2). Record types and IP_STATUS
   constants come from the RTL's Winapi.IpExport. }
 
 interface

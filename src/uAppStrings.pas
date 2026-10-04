@@ -75,20 +75,6 @@ begin
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
 
-  AddStr('trace.title', 'Ping結果表示', 'Trace Route Result');
-  AddStr('trace.target', '宛先', 'Target');
-  AddStr('trace.hops', 'ホップ数', 'Hops');
-  AddStr('trace.total', '合計時間', 'Total');
-  AddStr('trace.measured_at', '計測日時', 'Measured at');
-  AddStr('trace.col_ttl', 'TTL', 'TTL');
-  AddStr('trace.col_ip', 'IP', 'IP');
-  AddStr('trace.col_host', 'ホスト名', 'Host');
-  AddStr('trace.col_rtt', 'RTT', 'RTT');
-  AddStr('trace.refresh', 'Ping/経路 更新', 'Refresh Ping/Trace');
-  AddStr('trace.close', '閉じる', 'Close');
-  AddStr('trace.running', '計測中…', 'Tracing…');
-  AddStr('trace.unreachable', '到達できませんでした', 'Destination unreachable');
-  AddStr('trace.error', 'エラーが発生しました（名前解決または通信の初期化に失敗）', 'An error occurred (name resolution or setup failed)');
 
   AddStr('opt.title', 'DiskLED オプション', 'DiskLED Options');
   AddStr('opt.tab.general', '全般', 'General');
