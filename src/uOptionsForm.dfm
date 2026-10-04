@@ -404,7 +404,7 @@ object OptionsForm: TOptionsForm
           Transparent = True
         end
         object ImgLedBlue: TImage
-          Left = 152
+          Left = 128
           Top = 74
           Width = 48
           Height = 48
@@ -414,7 +414,17 @@ object OptionsForm: TOptionsForm
           Transparent = True
         end
         object ImgLedRed: TImage
-          Left = 268
+          Left = 220
+          Top = 74
+          Width = 48
+          Height = 48
+          Center = True
+          Proportional = True
+          Stretch = True
+          Transparent = True
+        end
+        object ImgLedYellow: TImage
+          Left = 312
           Top = 74
           Width = 48
           Height = 48
@@ -439,7 +449,7 @@ object OptionsForm: TOptionsForm
         object RbLedGreen: TRadioButton
           Left = 20
           Top = 47
-          Width = 110
+          Width = 88
           Height = 21
           Caption = 'Green'
           Checked = True
@@ -447,20 +457,28 @@ object OptionsForm: TOptionsForm
           TabStop = True
         end
         object RbLedBlue: TRadioButton
-          Left = 136
+          Left = 112
           Top = 47
-          Width = 110
+          Width = 88
           Height = 21
           Caption = 'Blue'
           TabOrder = 1
         end
         object RbLedRed: TRadioButton
-          Left = 252
+          Left = 204
           Top = 47
-          Width = 110
+          Width = 88
           Height = 21
           Caption = 'Red'
           TabOrder = 2
+        end
+        object RbLedYellow: TRadioButton
+          Left = 296
+          Top = 47
+          Width = 88
+          Height = 21
+          Caption = 'Yellow'
+          TabOrder = 3
         end
         object ChkLedDisk: TCheckBox
           Left = 20
@@ -470,7 +488,7 @@ object OptionsForm: TOptionsForm
           Caption = 'Disk'
           Checked = True
           State = cbChecked
-          TabOrder = 3
+          TabOrder = 4
           OnClick = ChkLedDiskClick
         end
         object ChkLedNet: TCheckBox
@@ -479,7 +497,7 @@ object OptionsForm: TOptionsForm
           Width = 120
           Height = 21
           Caption = 'Network'
-          TabOrder = 4
+          TabOrder = 5
           OnClick = ChkLedNetClick
         end
         object ChkLedTotal: TCheckBox
@@ -488,7 +506,7 @@ object OptionsForm: TOptionsForm
           Width = 360
           Height = 21
           Caption = 'Also show the total LED'
-          TabOrder = 5
+          TabOrder = 6
         end
         object LstDrives: TCheckListBox
           Left = 20
@@ -496,7 +514,7 @@ object OptionsForm: TOptionsForm
           Width = 360
           Height = 120
           ItemHeight = 17
-          TabOrder = 6
+          TabOrder = 7
         end
       end
     end

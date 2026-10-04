@@ -128,6 +128,7 @@ begin
   AddStr('opt.tray_led_color_green', '緑', 'Green');
   AddStr('opt.tray_led_color_blue', '青', 'Blue');
   AddStr('opt.tray_led_color_red', '赤', 'Red');
+  AddStr('opt.tray_led_color_yellow', '黄', 'Yellow');
   AddStr('opt.tray_led_info', 'トレイ LED の情報', 'Tray LED Info');
   AddStr('opt.tray_led_info_disk', 'ディスク', 'Disk');
   AddStr('opt.tray_led_info_net', 'ネットワーク', 'Network');
