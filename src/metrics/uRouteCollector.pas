@@ -18,6 +18,9 @@ unit uRouteCollector;
   the previous hop's EffectiveMs, and anything above it is that router's own
   reply delay (ExcessMs), shown differently.
 
+  IPv4 normally; IPv6 (ICMPv6, hop limit for TTL) only when the target has
+  no IPv4 address. Addresses are carried as text either way.
+
   Runs only while the page is shown (SetActive), on demand (RunNow, and once
   on activation) and optionally every N minutes. Nothing is sent otherwise.
   Reverse DNS runs per new address on fire-and-forget threads into a shared,
@@ -98,11 +101,16 @@ type
     Country: string;
   end;
 
+  TRouteAsState = (
+    asNone,     { never looked up }
+    asPending,  { lookup running }
+    asFound,    { AInfo holds the AS }
+    asFailed);  { no answer / not announced (retried after a while) }
+
   { AS lookups (Team Cymru DNS), shared with their threads like the names. }
   IRouteAsCache = interface
     ['{8E1F4C27-3A9D-4B65-B2C0-7D5E9A1F3C48}']
-    { False while the lookup is pending. }
-    function TryGet(const AAddr: string; out AInfo: TRouteAsInfo): Boolean;
+    function Lookup(const AAddr: string; out AInfo: TRouteAsInfo): TRouteAsState;
   end;
 
   TRouteCollector = class
@@ -142,6 +150,11 @@ type
       query per new address). Off: nothing is sent. Takes effect from the
       next measurement. }
     procedure SetLookupAs(AEnabled: Boolean);
+    { Starts AS lookups for the global addresses among AAddrs that have none
+      yet (or whose last one failed a while ago). The UI calls this while the
+      switch is on, so the shown result gets its operators whatever order the
+      switch, the target and the measurements changed in. }
+    procedure EnsureAsLookups(const AAddrs: TArray<string>);
     property Names: IRouteNameCache read FNames;
     property AsInfo: IRouteAsCache read FAs;
   end;
@@ -190,11 +203,12 @@ type
     constructor Create(AOwner: TRouteCollector);
   end;
 
-  { One probe's outcome. }
+  { One probe's outcome. Addr is the replying address as text (IPv4 or
+    IPv6), '' when none replied. ReplyTtl is 0 for IPv6 (not reported). }
   TProbe = record
     Replied: Boolean;
     Status: Cardinal;
-    Addr: Cardinal;
+    Addr: string;
     RttMs: Double;
     ReplyTtl: Integer;
   end;
@@ -269,11 +283,98 @@ function GetNameInfoW(pSockaddr: PSockAddr; SockaddrLength: Integer;
 
 const
   NI_NAMEREQD = $04;
+  AF_INET6_ = 23;
+
+type
+  TIn6Bytes = array[0..15] of Byte;
+
+  TSockAddrIn6_ = record
+    sin6_family: Word;
+    sin6_port: Word;
+    sin6_flowinfo: Cardinal;
+    sin6_addr: TIn6Bytes;
+    sin6_scope_id: Cardinal;
+  end;
+
+  PAddrInfoW_ = ^TAddrInfoW_;
+  TAddrInfoW_ = record
+    ai_flags: Integer;
+    ai_family: Integer;
+    ai_socktype: Integer;
+    ai_protocol: Integer;
+    ai_addrlen: NativeUInt;
+    ai_canonname: PWideChar;
+    ai_addr: Pointer;
+    ai_next: PAddrInfoW_;
+  end;
+
+function GetAddrInfoW_(pNodeName, pServiceName: PWideChar; pHints: PAddrInfoW_;
+  out ppResult: PAddrInfoW_): Integer; stdcall;
+  external 'ws2_32.dll' name 'GetAddrInfoW';
+procedure FreeAddrInfoW_(pAddrInfo: PAddrInfoW_); stdcall;
+  external 'ws2_32.dll' name 'FreeAddrInfoW';
+function InetNtopW_(Family: Integer; pAddr: Pointer; pStringBuf: PWideChar;
+  StringBufSize: NativeUInt): PWideChar; stdcall;
+  external 'ws2_32.dll' name 'InetNtopW';
+function InetPtonW_(Family: Integer; pszAddrString: PWideChar; pAddrBuf: Pointer): Integer;
+  stdcall; external 'ws2_32.dll' name 'InetPtonW';
+
+{ ICMPv6 counterparts of IcmpCreateFile / IcmpSendEcho2 / IcmpParseReplies
+  (not declared by the RTL). RequestOptions.Ttl is the hop limit. }
+function Icmp6CreateFile: THandle; stdcall;
+  external 'iphlpapi.dll' name 'Icmp6CreateFile';
+function Icmp6SendEcho2(IcmpHandle: THandle; Event: THandle; ApcRoutine: Pointer;
+  ApcContext: Pointer; SourceAddress: Pointer; DestinationAddress: Pointer;
+  RequestData: Pointer; RequestSize: Word; RequestOptions: PIpOptionInformation;
+  ReplyBuffer: Pointer; ReplySize: DWORD; Timeout: DWORD): DWORD; stdcall;
+  external 'iphlpapi.dll' name 'Icmp6SendEcho2';
+function Icmp6ParseReplies(ReplyBuffer: Pointer; ReplySize: DWORD): DWORD; stdcall;
+  external 'iphlpapi.dll' name 'Icmp6ParseReplies';
+
+function IsV6Text(const AAddr: string): Boolean;
+begin
+  Result := Pos(':', AAddr) > 0;
+end;
+
+function Addr6ToStr(const AAddr: TIn6Bytes): string;
+var
+  Buf: array[0..63] of WideChar;
+begin
+  if InetNtopW_(AF_INET6_, @AAddr[0], @Buf[0], Length(Buf)) <> nil then
+    Result := Buf
+  else
+    Result := '';
+end;
+
+{ The first IPv6 address of AHost (used only when it has no IPv4 one). }
+function ResolveIPv6(const AHost: string; out AAddr: TIn6Bytes): Boolean;
+var
+  Hints: TAddrInfoW_;
+  Res: PAddrInfoW_;
+begin
+  Result := False;
+  FillChar(AAddr, SizeOf(AAddr), 0);
+  FillChar(Hints, SizeOf(Hints), 0);
+  Hints.ai_family := AF_INET6_;
+  Res := nil;
+  if GetAddrInfoW_(PWideChar(AHost), nil, @Hints, Res) <> 0 then
+    Exit;
+  try
+    if (Res <> nil) and (Res^.ai_addr <> nil) and
+      (Res^.ai_addrlen >= SizeOf(TSockAddrIn6_)) then
+    begin
+      AAddr := TSockAddrIn6_(Res^.ai_addr^).sin6_addr;
+      Result := True;
+    end;
+  finally
+    if Res <> nil then
+      FreeAddrInfoW_(Res);
+  end;
+end;
 
 { Resolves on its own thread into ACache; NI_NAMEREQD makes a missing PTR
   record a failure (stored as '') instead of echoing the address back. }
-procedure StartReverseLookup(const ACache: IRouteNameCache; const AAddrText: string;
-  AAddr: Cardinal);
+procedure StartReverseLookup(const ACache: IRouteNameCache; const AAddrText: string);
 var
   Cache: IRouteNameCache;
   AddrText: string;
@@ -284,19 +385,54 @@ begin
   TThread.CreateAnonymousThread(
     procedure
     var
-      SockAddr: TSockAddrIn;
+      Sa4: TSockAddrIn;
+      Sa6: TSockAddrIn6_;
       Buf: array[0..1024] of WideChar;
       Name: string;
+      Ok: Boolean;
     begin
-      FillChar(SockAddr, SizeOf(SockAddr), 0);
-      SockAddr.sin_family := AF_INET;
-      SockAddr.sin_addr.S_addr := AAddr;
       Name := '';
-      if GetNameInfoW(@SockAddr, SizeOf(SockAddr), @Buf[0], Length(Buf), nil, 0,
-        NI_NAMEREQD) = 0 then
+      if IsV6Text(AddrText) then
+      begin
+        FillChar(Sa6, SizeOf(Sa6), 0);
+        Sa6.sin6_family := AF_INET6_;
+        Ok := (InetPtonW_(AF_INET6_, PWideChar(AddrText), @Sa6.sin6_addr[0]) = 1) and
+          (GetNameInfoW(@Sa6, SizeOf(Sa6), @Buf[0], Length(Buf), nil, 0, NI_NAMEREQD) = 0);
+      end
+      else
+      begin
+        FillChar(Sa4, SizeOf(Sa4), 0);
+        Sa4.sin_family := AF_INET;
+        Ok := (InetPtonW_(AF_INET, PWideChar(AddrText), @Sa4.sin_addr) = 1) and
+          (GetNameInfoW(@Sa4, SizeOf(Sa4), @Buf[0], Length(Buf), nil, 0, NI_NAMEREQD) = 0);
+      end;
+      if Ok then
         Name := Buf;
       (Cache as TRouteNameCache).Put(AddrText, Name);
     end).Start;
+end;
+
+function RouteAddrClass6(const AAddr: string): TRouteAddrClass;
+var
+  B: TIn6Bytes;
+  i: Integer;
+  AllZero: Boolean;
+begin
+  Result := acUnknown;
+  if InetPtonW_(AF_INET6_, PWideChar(AAddr), @B[0]) <> 1 then
+    Exit;
+  AllZero := True;
+  for i := 0 to 14 do
+    if B[i] <> 0 then
+      AllZero := False;
+  if AllZero and (B[15] = 1) then
+    Result := acLoopback
+  else if (B[0] and $FE) = $FC then
+    Result := acLan { unique local fc00::/7 }
+  else if (B[0] = $FE) and ((B[1] and $C0) = $80) then
+    Result := acLinkLocal { fe80::/10 }
+  else if (B[0] and $E0) = $20 then
+    Result := acGlobal; { global unicast 2000::/3 }
 end;
 
 function RouteAddrClass(const AAddr: string): TRouteAddrClass;
@@ -305,6 +441,8 @@ var
   A, B: Integer;
 begin
   Result := acUnknown;
+  if IsV6Text(AAddr) then
+    Exit(RouteAddrClass6(AAddr));
   Parts := AAddr.Split(['.']);
   if (Length(Parts) <> 4) or not TryStrToInt(Parts[0], A) or
     not TryStrToInt(Parts[1], B) then
@@ -400,9 +538,77 @@ begin
       Echo := PIcmpEchoReply(@Bufs[Ttl][0]);
       AProbes[Ttl].Replied := True;
       AProbes[Ttl].Status := Echo^.Status;
-      AProbes[Ttl].Addr := Echo^.Address;
+      AProbes[Ttl].Addr := AddrToStr(Echo^.Address);
       AProbes[Ttl].RttMs := Echo^.RoundTripTime;
       AProbes[Ttl].ReplyTtl := Echo^.Options.Ttl;
+    end;
+    CloseHandle(Events[Ttl]);
+  end;
+end;
+
+{ ICMPv6 status sanity: success or one of the IP_STATUS codes (11000+). }
+function PlausibleStatus(AValue: Cardinal): Boolean;
+begin
+  Result := (AValue = 0) or ((AValue >= 11000) and (AValue < 11100));
+end;
+
+{ IPv6 version of ProbeRound. ICMPV6_ECHO_REPLY starts with a packed
+  IPV6_ADDRESS_EX (port 2, flowinfo 4, address 16 at offset 6, scope 4), so
+  the replying address is at offset 6; Status follows at offset 28 when the
+  reply struct is naturally aligned, 26 if packed -- the plausible one wins. }
+procedure ProbeRound6(AIcmp: THandle; const ADest: TIn6Bytes; AMaxTtl: Integer;
+  out AProbes: TArray<TProbe>);
+var
+  Events: array[1..CMaxTtl] of THandle;
+  Bufs: array[1..CMaxTtl] of array[0..CReplyBufSize - 1] of Byte;
+  Opts: array[1..CMaxTtl] of TIpOptionInformation;
+  Req: array[0..CRequestSize - 1] of Byte;
+  Pending: array[1..CMaxTtl] of Boolean;
+  Src, Dst: TSockAddrIn6_;
+  Ttl, StatusOfs: Integer;
+  Addr: TIn6Bytes;
+begin
+  SetLength(AProbes, AMaxTtl + 1);
+  FillChar(Req, SizeOf(Req), $5A);
+  FillChar(Src, SizeOf(Src), 0);
+  Src.sin6_family := AF_INET6_;
+  FillChar(Dst, SizeOf(Dst), 0);
+  Dst.sin6_family := AF_INET6_;
+  Dst.sin6_addr := ADest;
+  for Ttl := 1 to AMaxTtl do
+  begin
+    AProbes[Ttl] := Default(TProbe);
+    Pending[Ttl] := False;
+    Events[Ttl] := CreateEvent(nil, True, False, nil);
+    if Events[Ttl] = 0 then
+      Continue;
+    FillChar(Opts[Ttl], SizeOf(Opts[Ttl]), 0);
+    Opts[Ttl].Ttl := Ttl;
+    FillChar(Bufs[Ttl], SizeOf(Bufs[Ttl]), 0);
+    Icmp6SendEcho2(AIcmp, Events[Ttl], nil, nil, @Src, @Dst, @Req[0], CRequestSize,
+      @Opts[Ttl], @Bufs[Ttl][0], CReplyBufSize, CReplyTimeoutMs);
+    Pending[Ttl] := GetLastError = ERROR_IO_PENDING;
+    if Ttl < AMaxTtl then
+      Sleep(CStaggerMs);
+  end;
+  for Ttl := 1 to AMaxTtl do
+  begin
+    if Events[Ttl] = 0 then
+      Continue;
+    if Pending[Ttl] and
+      (WaitForSingleObject(Events[Ttl], CReplyTimeoutMs + 500) = WAIT_OBJECT_0) and
+      (Icmp6ParseReplies(@Bufs[Ttl][0], CReplyBufSize) > 0) then
+    begin
+      if PlausibleStatus(PCardinal(@Bufs[Ttl][28])^) then
+        StatusOfs := 28
+      else
+        StatusOfs := 26;
+      Move(Bufs[Ttl][6], Addr[0], SizeOf(Addr));
+      AProbes[Ttl].Replied := True;
+      AProbes[Ttl].Status := PCardinal(@Bufs[Ttl][StatusOfs])^;
+      AProbes[Ttl].RttMs := PCardinal(@Bufs[Ttl][StatusOfs + 4])^;
+      AProbes[Ttl].Addr := Addr6ToStr(Addr);
+      AProbes[Ttl].ReplyTtl := 0;
     end;
     CloseHandle(Events[Ttl]);
   end;
@@ -416,6 +622,9 @@ end;
 
 const
   DNS_TYPE_TEXT = $0010;
+  { A failed AS lookup (resolver hiccup, unannounced address) is retried
+    after this long. }
+  CAsRetryMs = 60000;
   DNS_QUERY_STANDARD = 0;
   DnsFreeRecordList = 1;
 
@@ -447,12 +656,15 @@ type
     { Address -> info; absent = never asked, Pending = being looked up. }
     FInfo: TDictionary<string, TRouteAsInfo>;
     FPending: TDictionary<string, Boolean>;
+    { Address -> tick of a failed lookup, so it is retried after a while
+      instead of staying "unknown" for the session. }
+    FFailedAt: TDictionary<string, Cardinal>;
     { ASN -> operator name and country, so each AS is named once. }
     FAsNames: TDictionary<Cardinal, TRouteAsInfo>;
   public
     constructor Create;
     destructor Destroy; override;
-    function TryGet(const AAddr: string; out AInfo: TRouteAsInfo): Boolean;
+    function Lookup(const AAddr: string; out AInfo: TRouteAsInfo): TRouteAsState;
     function Claim(const AAddr: string): Boolean;
     procedure Put(const AAddr: string; const AInfo: TRouteAsInfo);
     function TryGetAsName(AAsn: Cardinal; out AInfo: TRouteAsInfo): Boolean;
@@ -465,37 +677,61 @@ begin
   FLock := TCriticalSection.Create;
   FInfo := TDictionary<string, TRouteAsInfo>.Create;
   FPending := TDictionary<string, Boolean>.Create;
+  FFailedAt := TDictionary<string, Cardinal>.Create;
   FAsNames := TDictionary<Cardinal, TRouteAsInfo>.Create;
 end;
 
 destructor TRouteAsCache.Destroy;
 begin
   FAsNames.Free;
+  FFailedAt.Free;
   FPending.Free;
   FInfo.Free;
   FLock.Free;
   inherited;
 end;
 
-function TRouteAsCache.TryGet(const AAddr: string; out AInfo: TRouteAsInfo): Boolean;
+function TRouteAsCache.Lookup(const AAddr: string; out AInfo: TRouteAsInfo): TRouteAsState;
 begin
+  AInfo := Default(TRouteAsInfo);
   FLock.Enter;
   try
-    Result := FInfo.TryGetValue(AAddr, AInfo);
+    if FPending.ContainsKey(AAddr) then
+      Result := asPending
+    else if FInfo.TryGetValue(AAddr, AInfo) then
+    begin
+      if AInfo.Asn <> 0 then
+        Result := asFound
+      else
+        Result := asFailed;
+    end
+    else
+      Result := asNone;
   finally
     FLock.Leave;
   end;
-  if not Result then
-    AInfo := Default(TRouteAsInfo);
 end;
 
 function TRouteAsCache.Claim(const AAddr: string): Boolean;
+var
+  Info: TRouteAsInfo;
+  FailedAt: Cardinal;
 begin
   FLock.Enter;
   try
-    Result := not FInfo.ContainsKey(AAddr) and not FPending.ContainsKey(AAddr);
-    if Result then
-      FPending.Add(AAddr, True);
+    if FPending.ContainsKey(AAddr) then
+      Exit(False);
+    if FInfo.TryGetValue(AAddr, Info) then
+    begin
+      { Found: done. Failed: retry once the retry interval has passed. }
+      if (Info.Asn <> 0) or not FFailedAt.TryGetValue(AAddr, FailedAt) or
+        (GetTickCount - FailedAt < CAsRetryMs) then
+        Exit(False);
+      FInfo.Remove(AAddr);
+      FFailedAt.Remove(AAddr);
+    end;
+    FPending.Add(AAddr, True);
+    Result := True;
   finally
     FLock.Leave;
   end;
@@ -507,6 +743,10 @@ begin
   try
     FPending.Remove(AAddr);
     FInfo.AddOrSetValue(AAddr, AInfo);
+    if AInfo.Asn = 0 then
+      FFailedAt.AddOrSetValue(AAddr, GetTickCount)
+    else
+      FFailedAt.Remove(AAddr);
   finally
     FLock.Leave;
   end;
@@ -587,17 +827,35 @@ begin
     var
       Octets, Fields, AsnWords: TArray<string>;
       Info, Named: TRouteAsInfo;
-      Asn: Integer;
+      Asn, k: Integer;
       C: TRouteAsCache;
+      Bytes6: TIn6Bytes;
+      Query: string;
     begin
       C := Cache as TRouteAsCache;
       Info := Default(TRouteAsInfo);
       try
-        Octets := Addr.Split(['.']);
-        if Length(Octets) = 4 then
+        Fields := nil;
+        if IsV6Text(Addr) then
         begin
-          Fields := SplitBar(QueryTxt(Octets[3] + '.' + Octets[2] + '.' + Octets[1] +
-            '.' + Octets[0] + '.origin.asn.cymru.com'));
+          { IPv6: the 32 nibbles reversed, under origin6. }
+          if InetPtonW_(AF_INET6_, PWideChar(Addr), @Bytes6[0]) = 1 then
+          begin
+            Query := '';
+            for k := 15 downto 0 do
+              Query := Query + IntToHex(Bytes6[k] and $F, 1) + '.' +
+                IntToHex(Bytes6[k] shr 4, 1) + '.';
+            Fields := SplitBar(QueryTxt(LowerCase(Query) + 'origin6.asn.cymru.com'));
+          end;
+        end
+        else
+        begin
+          Octets := Addr.Split(['.']);
+          if Length(Octets) = 4 then
+            Fields := SplitBar(QueryTxt(Octets[3] + '.' + Octets[2] + '.' + Octets[1] +
+              '.' + Octets[0] + '.origin.asn.cymru.com'));
+        end;
+        begin
           { An address announced by several ASes lists them space-separated;
             the first is enough here. }
           if Length(Fields) >= 3 then
@@ -730,6 +988,15 @@ begin
   end;
 end;
 
+procedure TRouteCollector.EnsureAsLookups(const AAddrs: TArray<string>);
+var
+  A: string;
+begin
+  for A in AAddrs do
+    if (RouteAddrClass(A) = acGlobal) and (FAs as TRouteAsCache).Claim(A) then
+      StartAsLookup(FAs, A);
+end;
+
 procedure TRouteCollector.RunNow;
 begin
   FLock.Enter;
@@ -775,13 +1042,15 @@ end;
 function TRouteCollector.Measure(const AHost: string; out AResult: TRouteResult): Boolean;
 var
   Dest: Cardinal;
+  Dest6: TIn6Bytes;
+  IsV6: Boolean;
   Icmp: THandle;
   Rounds: array[1..CRounds] of TArray<TProbe>;
   R, Ttl, MaxTtl, LastReplied, i, j, Best, Cnt: Integer;
   Hop: TRouteHop;
   Rtts: TArray<Double>;
-  AddrCount: TDictionary<Cardinal, Integer>;
-  AddrKey: Cardinal;
+  AddrCount: TDictionary<string, Integer>;
+  AddrKey: string;
   Prev: TRouteResult;
   PrevMap: TDictionary<Integer, TRouteHop>;
   PrevHop: TRouteHop;
@@ -798,14 +1067,33 @@ begin
   AResult := Default(TRouteResult);
   AResult.Target := AHost;
   AResult.MeasuredAt := Now;
-  if (not FWSAOk) or (AHost = '') or not ResolveIPv4(AHost, Dest) then
+  { IPv4 when the host has an IPv4 address (as the periodic Ping does); IPv6
+    only for a host that has nothing else. }
+  IsV6 := False;
+  Dest := 0;
+  if (not FWSAOk) or (AHost = '') then
   begin
     AResult.Failed := True;
     AResult.Valid := True;
     Exit(True);
   end;
-  AResult.TargetIp := AddrToStr(Dest);
-  Icmp := IcmpCreateFile;
+  if ResolveIPv4(AHost, Dest) then
+    AResult.TargetIp := AddrToStr(Dest)
+  else if ResolveIPv6(AHost, Dest6) then
+  begin
+    IsV6 := True;
+    AResult.TargetIp := Addr6ToStr(Dest6);
+  end
+  else
+  begin
+    AResult.Failed := True;
+    AResult.Valid := True;
+    Exit(True);
+  end;
+  if IsV6 then
+    Icmp := Icmp6CreateFile
+  else
+    Icmp := IcmpCreateFile;
   if (Icmp = 0) or (Icmp = INVALID_HANDLE_VALUE) then
   begin
     AResult.Failed := True;
@@ -820,7 +1108,10 @@ begin
     begin
       if not StillWanted then
         Exit(False);
-      ProbeRound(Icmp, Dest, MaxTtl, Rounds[R]);
+      if IsV6 then
+        ProbeRound6(Icmp, Dest6, MaxTtl, Rounds[R])
+      else
+        ProbeRound(Icmp, Dest, MaxTtl, Rounds[R]);
       if R = 1 then
       begin
         LastReplied := 0;
@@ -846,7 +1137,7 @@ begin
 
   CopyResult(Prev);
   PrevMap := TDictionary<Integer, TRouteHop>.Create;
-  AddrCount := TDictionary<Cardinal, Integer>.Create;
+  AddrCount := TDictionary<string, Integer>.Create;
   try
     for PrevHop in Prev.Hops do
       PrevMap.AddOrSetValue(PrevHop.Ttl, PrevHop);
@@ -883,14 +1174,14 @@ begin
           if AddrCount[AddrKey] > Best then
           begin
             Best := AddrCount[AddrKey];
-            Hop.Addr := AddrToStr(AddrKey);
+            Hop.Addr := AddrKey;
           end;
         for AddrKey in AddrCount.Keys do
-          if AddrToStr(AddrKey) <> Hop.Addr then
-            Hop.OtherAddrs := Hop.OtherAddrs + [AddrToStr(AddrKey)];
+          if AddrKey <> Hop.Addr then
+            Hop.OtherAddrs := Hop.OtherAddrs + [AddrKey];
         for R := 1 to CRounds do
           if (Ttl <= High(Rounds[R])) and Rounds[R][Ttl].Replied and
-            (AddrToStr(Rounds[R][Ttl].Addr) = Hop.Addr) then
+            (Rounds[R][Ttl].Addr = Hop.Addr) then
           begin
             Hop.Kind := KindOf(Rounds[R][Ttl].Status);
             Hop.ReplyTtl := Rounds[R][Ttl].ReplyTtl;
@@ -915,7 +1206,7 @@ begin
         end;
         if (Hop.AddrClass <> acUnknown) and
           (FNames as TRouteNameCache).Claim(Hop.Addr) then
-          StartReverseLookup(FNames, Hop.Addr, inet_addr(PAnsiChar(AnsiString(Hop.Addr))));
+          StartReverseLookup(FNames, Hop.Addr);
         { AS lookups only when enabled, and only for global addresses (LAN /
           CGNAT ones are never announced and would leak nothing useful). }
         if LookupAs and (Hop.AddrClass = acGlobal) and

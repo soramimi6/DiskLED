@@ -282,6 +282,8 @@ begin
   AddStr('dash.route_kind_other', 'その他', 'Other');
   AddStr('dash.route_as', '事業者名を表示', 'Show network operators');
   AddStr('dash.route_tip_operator', '事業者', 'Operator');
+  AddStr('dash.route_as_pending', '事業者名を取得中…', 'Looking up operator…');
+  AddStr('dash.route_as_unknown', '事業者不明', 'Operator unknown');
   AddStr('dash.route_as_tip',
     '経路上の各ホップを運用しているネットワーク事業者名（AS 番号）を表示します。' + sLineBreak +
     'オンの間、経路上のグローバル IP アドレスを外部の DNS サービス（Team Cymru）に問い合わせます。' +

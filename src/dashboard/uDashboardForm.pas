@@ -111,6 +111,8 @@ type
     procedure HeaderPaint(Sender: TObject);
     procedure TabPaint(Sender: TObject);
     procedure TabPaintRoute;
+    procedure SyncRoute;
+    procedure EnsureRouteAs;
     procedure TabMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure TabPaintWndProc(var Message: TMessage);
     procedure TabMouseDown(Sender: TObject; Button: TMouseButton;
@@ -161,6 +163,9 @@ type
     procedure ClampIntoView;
     { Shows the dashboard on APage (or switches to it if already open). }
     procedure ShowPage(APage: TDashboardPage);
+    { Settings may have changed elsewhere (Options): bring the collectors and
+      the page controls in line with them. }
+    procedure SettingsChanged;
   end;
 
 implementation
@@ -791,10 +796,7 @@ begin
     measures once. }
   if FRoute <> nil then
   begin
-    if (FPage = dpRoute) and (FCollector <> nil) then
-      FRoute.SetTarget(FCollector.CurrentPingTarget);
-    if FSettings <> nil then
-      FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
+    SyncRoute;
     FRoute.SetActive(FPage = dpRoute);
   end;
   if FTabPaint <> nil then
@@ -824,28 +826,20 @@ begin
       begin
         FSettings.DashboardRouteLookupAs := not FSettings.DashboardRouteLookupAs;
         HideProcTip;
+        SyncRoute;
+        { Turning it on names the hops already shown (no re-measure needed);
+          turning it off hides the names at once and sends nothing more. }
+        EnsureRouteAs;
         FTabPaint.Invalidate;
         FRoutePaint.Invalidate;
-        if FRoute <> nil then
-        begin
-          FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
-          { Turning it on looks up the hops now rather than at the next
-            scheduled measurement. }
-          if FSettings.DashboardRouteLookupAs then
-          begin
-            FRoute.SetTarget(FCollector.CurrentPingTarget);
-            FRoute.RunNow;
-          end;
-        end;
         Exit;
       end;
     for i := 0 to High(FRouteNowRects) do
       if PtInRect(FRouteNowRects[i], Point(X, Y)) and (FRoute <> nil) then
       begin
-        FRoute.SetTarget(FCollector.CurrentPingTarget);
-        if FSettings <> nil then
-          FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
+        SyncRoute;
         FRoute.RunNow;
+        FRoutePaint.Invalidate;
         Exit;
       end;
     for i := 0 to High(FIntervalRects) do
@@ -853,8 +847,7 @@ begin
       begin
         if FSettings <> nil then
           FSettings.DashboardRouteIntervalMin := CRouteIntervals[i];
-        if FRoute <> nil then
-          FRoute.SetIntervalMin(CRouteIntervals[i]);
+        SyncRoute;
         FTabPaint.Invalidate;
         Exit;
       end;
@@ -935,6 +928,62 @@ begin
     Active := -1;
   DrawTabChoice(FTabPaint.Canvas, R, '', [S('dash.route_as')], Active, HudPalette, Met,
     FRouteAsRects);
+end;
+
+{ Pushes the current settings and Ping target into the route collector. The
+  only place that does, so the page controls (drawn from the settings) and
+  what the collector does cannot drift apart. A target that differs from the
+  shown result's is measured right away while the page is on screen, so the
+  page never keeps showing a route to a host that is no longer the target. }
+procedure TDashboardForm.SyncRoute;
+var
+  Target: string;
+  Res: TRouteResult;
+begin
+  if (FRoute = nil) or (FSettings = nil) then
+    Exit;
+  Target := '';
+  if FCollector <> nil then
+    Target := FCollector.CurrentPingTarget;
+  FRoute.SetTarget(Target);
+  FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
+  FRoute.SetIntervalMin(FSettings.DashboardRouteIntervalMin);
+  if (FPage = dpRoute) and Visible and (Target <> '') and not FRoute.Running then
+  begin
+    FRoute.CopyResult(Res);
+    if Res.Valid and not SameText(Res.Target, Target) then
+      FRoute.RunNow;
+  end;
+end;
+
+{ With the operator switch on, makes sure every global hop of the shown
+  result has (or is getting) its AS. Nothing is looked up while it is off. }
+procedure TDashboardForm.EnsureRouteAs;
+var
+  Res: TRouteResult;
+  Addrs: TArray<string>;
+  H: TRouteHop;
+begin
+  if (FRoute = nil) or (FSettings = nil) or not FSettings.DashboardRouteLookupAs then
+    Exit;
+  FRoute.CopyResult(Res);
+  Addrs := nil;
+  for H in Res.Hops do
+    if (H.Received > 0) and (H.AddrClass = acGlobal) then
+      Addrs := Addrs + [H.Addr];
+  FRoute.EnsureAsLookups(Addrs);
+end;
+
+procedure TDashboardForm.SettingsChanged;
+begin
+  SyncRoute;
+  EnsureRouteAs;
+  if FProcess <> nil then
+    FProcess.SetInterval(FSettings.DashboardProcessIntervalSec);
+  if FTabPaint <> nil then
+    FTabPaint.Invalidate;
+  if FRoutePaint <> nil then
+    FRoutePaint.Invalidate;
 end;
 
 procedure TDashboardForm.TabMouseMove(Sender: TObject; Shift: TShiftState;
@@ -1285,12 +1334,26 @@ begin
     AsShort := '';
     AsLong := '';
     AsInfo := Default(TRouteAsInfo);
-    if ShowAs and (Res.Hops[i].AddrClass = acGlobal) and
-      FRoute.AsInfo.TryGet(Res.Hops[i].Addr, AsInfo) and (AsInfo.Asn <> 0) then
-    begin
-      AsShort := RouteAsShort(AsInfo);
-      AsLong := JoinDot([AsInfo.Name, 'AS' + IntToStr(AsInfo.Asn), AsInfo.Country]);
-    end;
+    if ShowAs and (Res.Hops[i].Received > 0) and (Res.Hops[i].AddrClass = acGlobal) then
+      { Every state is shown, so the switch being on is always visible in the
+        list: the operator, "looking up", or "unknown". }
+      case FRoute.AsInfo.Lookup(Res.Hops[i].Addr, AsInfo) of
+        asFound:
+          begin
+            AsShort := RouteAsShort(AsInfo);
+            AsLong := JoinDot([AsInfo.Name, 'AS' + IntToStr(AsInfo.Asn), AsInfo.Country]);
+          end;
+        asFailed:
+          begin
+            AsShort := S('dash.route_as_unknown');
+            AsLong := AsShort;
+          end;
+      else
+        begin
+          AsShort := S('dash.route_as_pending');
+          AsLong := AsShort;
+        end;
+      end;
     if Res.Hops[i].Received = 0 then
     begin
       Rows[i].Name := '*';
@@ -1373,7 +1436,8 @@ begin
       Leg.Text := 'AS' + IntToStr(AsSeen[k]);
       for i := 0 to High(Res.Hops) do
         if (Res.Hops[i].AddrClass = acGlobal) and
-          FRoute.AsInfo.TryGet(Res.Hops[i].Addr, AsInfo) and (AsInfo.Asn = AsSeen[k]) then
+          (FRoute.AsInfo.Lookup(Res.Hops[i].Addr, AsInfo) = asFound) and
+          (AsInfo.Asn = AsSeen[k]) then
         begin
           Leg.Text := RouteAsShort(AsInfo);
           Break;
@@ -1687,13 +1751,12 @@ begin
     FProcessPaint.Invalidate
   else if (FPage = dpRoute) and (FRoutePaint <> nil) then
   begin
-    { The Ping target can change (gateway auto-detection); keep it current. }
-    if FRoute <> nil then
-    begin
-      FRoute.SetTarget(FCollector.CurrentPingTarget);
-      if FSettings <> nil then
-        FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
-    end;
+    { The Ping target can change (Options, gateway auto-detection) and the
+      settings can change outside this page; keep everything current, and
+      repaint the tab row too so its switches never show a stale state. }
+    SyncRoute;
+    EnsureRouteAs;
+    FTabPaint.Invalidate;
     FRoutePaint.Invalidate;
   end;
   if FPage <> dpOverview then

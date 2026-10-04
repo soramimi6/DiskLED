@@ -1567,6 +1567,10 @@ begin
       if Visible then
         BringWindowForward;
     end;
+    { The dashboard draws its page controls from the settings and drives its
+      collectors with them (the Ping target especially): resync it. }
+    if FDashboardForm <> nil then
+      FDashboardForm.SettingsChanged;
     PersistSettings;
     if UpdateCheckEnabled then
       ScheduleUpdateCheck
