@@ -300,7 +300,10 @@ begin
   FTrayLedDisk := True;
   FTrayLedNet := False;
   FTrayLedDrives := Default(TDriveFlags);
-  FTrayLedTotal := False;
+  { On by default: the total LED is what every version before 3.3.0 showed,
+    so it stays put when per-drive LEDs are added (and an ini from those
+    versions, which has no LedTotal key, keeps it too). }
+  FTrayLedTotal := True;
   FGraphRateHz := 1.0;
   FSpeedScale := ssLinear;
   FPingEnabled := True;
