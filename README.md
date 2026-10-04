@@ -36,10 +36,10 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
 - ガジェット本体の**表示倍率**を自動／100%／150%／200% から選択（3.2.0〜）
 - CPU、MEM、SWAP（仮想メモリ）メーター
 - Disk R/W LED＋速度バー、Net 送受信 LED＋速度バー
-- **Ping**：応答段階表示。専用ウィンドウで Tracert のようにホップごとの経路（TTL・IP・ホスト名・RTT）を表示（3.1.1〜）
+- **Ping**：応答段階表示。ダッシュボードの「Ping/経路」ページで、宛先までの往復時間が経路上のどの区間で費やされているかをウォーターフォールで表示し、ホップごとの RTT・損失・ジッター・前回比・事業者名（任意）を一覧表示（3.3.0〜。3.1.1〜3.2.x は専用ウィンドウでの Tracert 表示）
 - 最前面表示、トレイアイコン、スタートアップ登録、単一起動の強制
 - 右クリックメニューから**位置をリセット**（画面外に外れた本体ウィンドウの復旧、3.1.1〜）
-- **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、**GPU 使用率**（CPU カードに同居、3.2.0〜）、電源（再生音量）、Ping 履歴などを表示
+- **ダッシュボード**（別ウィンドウ）。CPU／メモリ／SWAP／ディスク／ネットのドーナツ・推移グラフ、**ディスクレイテンシ**（3.1.1〜）、**GPU 使用率**（CPU カードに同居、3.2.0〜）、電源（再生音量）、Ping 履歴などを表示。「プロセス」ページでリソース別（CPU／メモリ／I/O）の上位プロセス、「Ping/経路」ページで経路を表示（3.3.0〜）
 - ブラウザで動くスキン編集ツール **Asset Editor**（`asset-editor/`、3.2.0〜）
 
 
@@ -108,10 +108,10 @@ A resident desktop gadget that shows at a glance whether something is being acce
 - **Display scale** of the gadget: Auto / 100% / 150% / 200% (since 3.2.0)
 - CPU, MEM, SWAP (virtual memory) meters
 - Disk R/W LED + speed bar, Net in/out LEDs + speed bar
-- **Ping**: response-level display. A dedicated window shows the hop-by-hop route (TTL, IP, hostname, RTT) like Tracert (since 3.1.1)
+- **Ping**: response-level display. The dashboard's Ping / Route page shows, as a waterfall, which segments of the path the round trip to the target is spent in, with each hop's RTT, loss, jitter, change from last time and (optionally) network operator (since 3.3.0; 3.1.1–3.2.x showed a Tracert-style list in a separate window)
 - Always-on-top, tray icon, startup registration, enforce single instance
 - **Reset position** from the right-click menu (recovers a main window that has drifted off-screen, since 3.1.1)
-- **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), **GPU utilization** (shown in the CPU card, since 3.2.0), power (playback volume), Ping history, and more
+- **Dashboard** (separate window). Donut/history graphs for CPU / memory / SWAP / disk / network, **disk latency** (since 3.1.1), **GPU utilization** (shown in the CPU card, since 3.2.0), power (playback volume), Ping history, and more. A Processes page lists the top processes per resource (CPU / memory / I/O) and a Ping / Route page shows the route (since 3.3.0)
 - Browser-based skin editor **Asset Editor** (`asset-editor/`, since 3.2.0)
 
 Crystal is compact-only. Info Bar and Vintage have a full view but no history graph.

@@ -303,7 +303,7 @@ ThresholdTimeoutMs=1000
 
 ```
 DISKLED HUD（ヘッダー）
-タブ行（概要 | プロセス）                        ……プロセスページでは右端に更新周期
+タブ行（概要 | プロセス | Ping/経路）            ……プロセス／Ping/経路ページでは右端にそのページの操作
 概要ページ
 + 左カラム
 | + CPUセクション      ドーナツグラフ | 履歴グラフ
@@ -319,15 +319,19 @@ DISKLED HUD（ヘッダー）
   + Ping
 プロセスページ
 + CPUリスト | メモリリスト | I/Oリスト      各リストは上位 N 件（既定 5、高さで増える）
+Ping/経路ページ
++ 経路カード   往復時間の区間内訳バー、区間遅延のウォーターフォール、凡例
++ ホップ一覧   TTL・ホスト・区間・RTT・損失・ジッター・前回比
 ```
 
 | 日本語 | 英語（コード） | 役割 |
 |--------|----------------|------|
 | ヘッダー | Header | タイトル・版・LIVE（`FHeaderPaint`） |
-| タブ行 | Tab row | 概要／プロセスの切替（`FTabPaint`、クリック・Ctrl+Tab）。ページは保存せず、開くと常に概要 |
+| タブ行 | Tab row | 概要／プロセス／Ping/経路の切替（`FTabPaint`、クリック・Ctrl+Tab）。ページは保存せず、開くと常に概要（右クリックの「Ping/経路」からは Ping/経路ページで開く） |
 | 概要ページ | Overview page | 左カラム＋右カラム（下記） |
 | プロセスページ | Process page | リソース別の上位プロセス（`FProcessPaint`） |
 | リスト | Process list | プロセスページの各列。CPU使用率／メモリ使用量／I/O量（読込＋書込）の多い順 |
+| Ping/経路ページ | Route page | 宛先までの経路と区間ごとの遅延（`FRoutePaint`、描画は `uRoutePainter.pas`） |
 | 左カラム | Left column | 負荷の現在値と推移（`LeftColW`） |
 | セクション | Section | CPU / メモリ / SWAP / ディスク / ネット（`FCards[0..4]`） |
 | ドーナツグラフ | Donut | セクション左。同心円＋現在値（`MeterPaneWidth`） |
@@ -343,7 +347,9 @@ DISKLED HUD（ヘッダー）
 - 概要ページが非表示の間は、概要の再描画を省く（履歴は MainForm 側で積まれ続ける）
 - プロセスページ: `TProcessCollector`（`src/metrics/uProcessCollector.pas`）がワーカースレッドで PDH `\Process V2(*)`（無い OS では旧 `\Process(*)`）を 3／5／10 秒ごとに収集し、同名プロセスを名前で合算する。収集はプロセスページ表示中だけ。更新は「停止」で止められる（保存しない）
 - プロセスの各件は 4 行: 名前（件数）と値／ウィンドウタイトルまたは説明と会社名／ユーザー・コミット・ハンドル・スレッド／パス。全詳細はガジェットと同じネイティブのツールチップ（`THoverTip`）。パス・ユーザー等はプロセスを開ける場合のみ（非昇格で約半数）
-- ini `[Dashboard]`: Open, WindowX/Y/W/H（DIP）, ProcessIntervalSec（3／5／10）。`Open=1` なら起動時に復元
+- Ping/経路ページ: `TRouteCollector`（`src/metrics/uRouteCollector.pas`）がワーカースレッドで経路を計測する。1 回の計測は 3 ラウンドで、各ラウンドは全 TTL へ約 20 ms ずつずらして非同期（`IcmpSendEcho2`、IPv6 のみの宛先は `Icmp6SendEcho2`）に送る。各ホップの値は中央値で比べ、そのホップ以降の中央値の最小値を「持ち越される遅延」として区間遅延を出す（それを超える分はルーター自身の応答遅れとして破線で描く）。計測はこのページ表示中だけで、開いたとき・「今すぐ計測」・自動周期（1／5／10 分、既定は停止）・Ping 先の変化のときに行う
+- 事業者名（AS 番号）の表示は既定オフで、このページのスイッチでオンにする。オンの間だけ経路上のグローバル IP を Team Cymru の DNS サービス（`DnsQuery_W`）に問い合わせる
+- ini `[Dashboard]`: Open, WindowX/Y/W/H（DIP）, ProcessIntervalSec（3／5／10）, RouteIntervalMin（0／1／5／10）, RouteLookupAs。`Open=1` なら起動時に復元
 - HUD ペインタ: `src/dashboard/uDashboard*.pas`（VCL Style 非使用）
 
 ## 16. 次の実装着手点
