@@ -24,6 +24,7 @@ uses
   uDpiScale,
   uProcessCollector,
   uRouteCollector,
+  uRoutePainter,
   uHoverTip,
   uThemedHudForm;
 
@@ -59,6 +60,17 @@ type
     { Ping/route page (item 14). }
     FRoutePaint: TPaintBox;
     FRoute: TRouteCollector;
+    { Last drawn route page: hit areas, per-row tooltips, list scroll. }
+    FRouteHits: TArray<TRouteHit>;
+    FRouteTips: TArray<string>;
+    FRouteScroll: Integer;
+    FRouteMaxScroll: Integer;
+    FRouteNowRects: TArray<TRect>;
+    FRoutePaintWndProc: TWndMethod;
+    { Grow-in animation of a newly arrived route result. }
+    FRouteAnimTimer: TTimer;
+    FRouteAnimStart: Cardinal;
+    FRouteAnimFor: TDateTime;
     { Page FormShow opens on; reset to the overview after each show. }
     FOpenPage: TDashboardPage;
     FProcess: TProcessCollector;
@@ -96,6 +108,7 @@ type
     procedure MeterTimerTick(Sender: TObject);
     procedure HeaderPaint(Sender: TObject);
     procedure TabPaint(Sender: TObject);
+    procedure TabPaintRoute;
     procedure TabMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -103,6 +116,11 @@ type
     procedure ApplyPageVisibility;
     procedure ProcessPaint(Sender: TObject);
     procedure RoutePaint(Sender: TObject);
+    procedure RouteMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure RoutePaintWndProc(var Message: TMessage);
+    procedure RouteAnimTick(Sender: TObject);
+    procedure FormMouseWheel(Sender: TObject; Shift: TShiftState;
+      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure CpuPaint(Sender: TObject);
     procedure MemPaint(Sender: TObject);
     procedure QueuePaint(Sender: TObject);
@@ -153,6 +171,10 @@ uses
 const
   { Process page refresh choices in seconds (uSettings normalizes to these). }
   CProcessIntervals: array[0..2] of Integer = (3, 5, 10);
+  { Ping/route page re-measurement choices in minutes; 0 = stop (last). }
+  CRouteIntervals: array[0..3] of Integer = (1, 5, 10, 0);
+  { Hover keys at or above this are route page rows (below: process rows). }
+  CRouteTipBase = 1000000;
   { Entries per process column at the default size and below. }
   CProcessTopShown = 5;
 
@@ -293,6 +315,14 @@ begin
   FRoutePaint := TPaintBox.Create(Self);
   FRoutePaint.Parent := Self;
   FRoutePaint.OnPaint := RoutePaint;
+  FRoutePaint.OnMouseMove := RouteMouseMove;
+  FRoutePaintWndProc := FRoutePaint.WindowProc;
+  FRoutePaint.WindowProc := RoutePaintWndProc;
+  OnMouseWheel := FormMouseWheel;
+  FRouteAnimTimer := TTimer.Create(Self);
+  FRouteAnimTimer.Enabled := False;
+  FRouteAnimTimer.Interval := 30;
+  FRouteAnimTimer.OnTimer := RouteAnimTick;
   FProcTip := THoverTip.Create;
   FProcTipDelay := TTimer.Create(Self);
   FProcTipDelay.Enabled := False;
@@ -304,6 +334,8 @@ begin
   FProcHoverKey := -1;
   FProcess := TProcessCollector.Create;
   FRoute := TRouteCollector.Create;
+  if FSettings <> nil then
+    FRoute.SetIntervalMin(FSettings.DashboardRouteIntervalMin);
   FProcessIcons := TProcessIconCache.Create;
   if FSettings <> nil then
     FProcess.SetInterval(FSettings.DashboardProcessIntervalSec);
@@ -774,6 +806,27 @@ begin
       SetPage(TDashboardPage(i));
       Exit;
     end;
+  if FPage = dpRoute then
+  begin
+    for i := 0 to High(FRouteNowRects) do
+      if PtInRect(FRouteNowRects[i], Point(X, Y)) and (FRoute <> nil) then
+      begin
+        FRoute.SetTarget(FCollector.CurrentPingTarget);
+        FRoute.RunNow;
+        Exit;
+      end;
+    for i := 0 to High(FIntervalRects) do
+      if (i <= High(CRouteIntervals)) and PtInRect(FIntervalRects[i], Point(X, Y)) then
+      begin
+        if FSettings <> nil then
+          FSettings.DashboardRouteIntervalMin := CRouteIntervals[i];
+        if FRoute <> nil then
+          FRoute.SetIntervalMin(CRouteIntervals[i]);
+        FTabPaint.Invalidate;
+        Exit;
+      end;
+    Exit;
+  end;
   if FPage <> dpProcess then
     Exit;
   for i := 0 to High(FIntervalRects) do
@@ -812,6 +865,37 @@ begin
   Key := 0;
 end;
 
+{ Tab row controls of the Ping/route page: "Measure now" and the automatic
+  re-measurement period. }
+procedure TDashboardForm.TabPaintRoute;
+var
+  Opts: array[0..High(CRouteIntervals)] of string;
+  i, Active, Minutes, Left: Integer;
+  Met: THudMetrics;
+  R: TRect;
+begin
+  Met := CurrentMetrics;
+  Minutes := 0;
+  if FSettings <> nil then
+    Minutes := FSettings.DashboardRouteIntervalMin;
+  Active := High(Opts);
+  for i := 0 to High(CRouteIntervals) do
+  begin
+    if CRouteIntervals[i] = 0 then
+      Opts[i] := S('dash.proc_stop')
+    else
+      Opts[i] := Format(S('dash.route_min'), [CRouteIntervals[i]]);
+    if CRouteIntervals[i] = Minutes then
+      Active := i;
+  end;
+  Left := DrawTabChoice(FTabPaint.Canvas, FTabPaint.ClientRect, S('dash.route_auto'),
+    Opts, Active, HudPalette, Met, FIntervalRects);
+  R := FTabPaint.ClientRect;
+  R.Right := Left - Dip(Met, 16) + Met.Margin;
+  DrawTabChoice(FTabPaint.Canvas, R, '', [S('dash.route_now')], -1, HudPalette, Met,
+    FRouteNowRects);
+end;
+
 procedure TDashboardForm.TabPaint(Sender: TObject);
 var
   { The periods, then "Stop". }
@@ -821,6 +905,12 @@ begin
   DrawTabRow(FTabPaint.Canvas, FTabPaint.ClientRect,
     [S('dash.tab_overview'), S('dash.tab_process'), S('dash.tab_route')], Ord(FPage), HudPalette,
     CurrentMetrics, FTabRects);
+  FRouteNowRects := nil;
+  if FPage = dpRoute then
+  begin
+    TabPaintRoute;
+    Exit;
+  end;
   if FPage <> dpProcess then
   begin
     FIntervalRects := nil;
@@ -971,62 +1061,210 @@ begin
   BringToFront;
 end;
 
-procedure TDashboardForm.RoutePaint(Sender: TObject);
+function RouteClassText(AClass: TRouteAddrClass): string;
+begin
+  case AClass of
+    acLan: Result := S('dash.route_cls_lan');
+    acCgnat: Result := S('dash.route_cls_cgnat');
+    acLinkLocal: Result := S('dash.route_cls_linklocal');
+    acLoopback: Result := S('dash.route_cls_loopback');
+    acGlobal: Result := S('dash.route_cls_global');
+  else
+    Result := '';
+  end;
+end;
+
+function RouteKindText(AKind: TRouteReplyKind): string;
+begin
+  case AKind of
+    rkTtlExpired: Result := S('dash.route_kind_ttl');
+    rkReached: Result := S('dash.route_kind_reached');
+    rkNetUnreachable: Result := S('dash.route_kind_net');
+    rkHostUnreachable: Result := S('dash.route_kind_host');
+    rkProtocolUnreachable: Result := S('dash.route_kind_proto');
+    rkPortUnreachable: Result := S('dash.route_kind_port');
+    rkOther: Result := S('dash.route_kind_other');
+  else
+    Result := '';
+  end;
+end;
+
+{ Every number of one hop, one "label: value" per line. }
+function RouteTooltip(const AHop: TRouteHop; const AName: string): string;
+var
+  Lines: TStringList;
+begin
+  Lines := TStringList.Create;
+  try
+    Lines.Add(Format('TTL %d  %s', [AHop.Ttl, AName]));
+    if AHop.Received = 0 then
+      Lines.Add(S('dash.route_noreply'))
+    else
+    begin
+      Lines.Add(S('dash.route_tip_addr') + ': ' + AHop.Addr);
+      if Length(AHop.OtherAddrs) > 0 then
+        Lines.Add(S('dash.route_tip_other') + ': ' + string.Join(', ', AHop.OtherAddrs));
+      Lines.Add(S('dash.route_tip_class') + ': ' + RouteClassText(AHop.AddrClass));
+      Lines.Add(S('dash.route_tip_kind') + ': ' + RouteKindText(AHop.Kind));
+      Lines.Add(S('dash.route_tip_replyttl') + ': ' + IntToStr(AHop.ReplyTtl));
+      Lines.Add(S('dash.route_tip_seg') + ': ' + FormatRouteMs(AHop.SegmentMs));
+      Lines.Add(S('dash.route_tip_eff') + ': ' + FormatRouteMs(AHop.EffectiveMs));
+      Lines.Add(S('dash.route_tip_rtt') + ': ' + FormatRouteMs(AHop.MinMs) + ' / ' +
+        FormatRouteMs(AHop.MedianMs) + ' / ' + FormatRouteMs(AHop.AvgMs) + ' / ' +
+        FormatRouteMs(AHop.MaxMs));
+      Lines.Add(S('dash.route_tip_jitter') + ': ' + FormatRouteMs(AHop.JitterMs));
+      Lines.Add(Format(S('dash.route_tip_received'),
+        [AHop.Received, AHop.Sent, AHop.LossPct]));
+      if AHop.HasPrevious then
+        Lines.Add(S('dash.route_tip_delta') + ': ' + Format('%+.1f ms', [AHop.DeltaMs]));
+      if AHop.ExcessMs > 0.5 then
+        Lines.Add(Format(S('dash.route_tip_excess'), [FormatRouteMs(AHop.ExcessMs)]));
+    end;
+    Result := TrimRight(Lines.Text);
+  finally
+    Lines.Free;
+  end;
+end;
+
+{ Second list line: address (when a name is shown), class, reply kind,
+  min / max. }
+function RouteRowSub(const AHop: TRouteHop; const AName: string): string;
+var
+  Addr: string;
+begin
+  Addr := '';
+  if AName <> AHop.Addr then
+    Addr := AHop.Addr;
+  Result := JoinDot([Addr, RouteClassText(AHop.AddrClass), RouteKindText(AHop.Kind),
+    Format(S('dash.route_minmax'), [FormatRouteMs(AHop.MinMs),
+      FormatRouteMs(AHop.MaxMs)])]);
+end;
+
+{ Windows' "Show animations in Windows" setting (Accessibility > Visual
+  effects); the route page skips its grow-in when it is off. }
+function ClientAnimationsEnabled: Boolean;
 const
-  KindText: array[TRouteReplyKind] of string = ('-', 'ttl', 'reached',
-    'net-unr', 'host-unr', 'proto-unr', 'port-unr', 'other');
+  SPI_GETCLIENTAREAANIMATION = $1042;
+var
+  B: BOOL;
+begin
+  B := True;
+  if not SystemParametersInfo(SPI_GETCLIENTAREAANIMATION, 0, @B, 0) then
+    B := True;
+  Result := B;
+end;
+
+procedure TDashboardForm.RoutePaint(Sender: TObject);
 var
   Pal: THudPalette;
-  Met: THudMetrics;
-  C: TCanvas;
   Res: TRouteResult;
-  H: TRouteHop;
-  Name, Line: string;
-  Y, LineH: Integer;
+  Rows: TArray<TRouteRowView>;
+  Texts: TRouteTexts;
+  Name, State: string;
+  i, AnimMs: Integer;
+  Running: Boolean;
 begin
-  { Step-2 placeholder: raw measurement output, one line per hop. Replaced by
-    the waterfall and list in step 3. }
   Pal := HudPalette;
-  Met := CurrentMetrics;
-  C := FRoutePaint.Canvas;
-  DrawCardHeader(C, FRoutePaint.ClientRect, S('dash.tab_route'), '',
-    Pal.AccentStart, Pal, Met);
-  if FRoute = nil then
-    Exit;
-  FRoute.CopyResult(Res);
-  C.Brush.Style := bsClear;
-  C.Font.Name := 'Consolas';
-  C.Font.Style := [];
-  C.Font.Size := Met.BodySize;
-  C.Font.Color := Pal.TextPrimary;
-  LineH := C.TextHeight('Ag') + 2;
-  Y := Met.CardHeaderHeight + Met.CardPad;
-  if FRoute.Running then
-    Line := 'running...'
-  else
-    Line := '';
-  if Res.Valid then
-    Line := Format('%s  target=%s (%s) reached=%s failed=%s total=%.1fms at %s',
-      [Line, Res.Target, Res.TargetIp, BoolToStr(Res.Reached, True),
-       BoolToStr(Res.Failed, True), Res.TotalMs, TimeToStr(Res.MeasuredAt)]);
-  C.TextOut(Met.CardPad, Y, Line);
-  Inc(Y, LineH * 2);
-  for H in Res.Hops do
+  Res := Default(TRouteResult);
+  Running := False;
+  if FRoute <> nil then
   begin
-    if not FRoute.Names.TryGet(H.Addr, Name) then
-      Name := '?';
-    Line := Format('%2d %-15s %-28s cls=%d %-9s rx=%d/%d loss=%3.0f%% ' +
-      'min=%4.0f med=%4.0f avg=%5.1f max=%4.0f jit=%4.1f eff=%5.1f seg=%5.1f exc=%5.1f rttl=%3d',
-      [H.Ttl, H.Addr, Copy(Name, 1, 28), Ord(H.AddrClass), KindText[H.Kind],
-       H.Received, H.Sent, H.LossPct, H.MinMs, H.MedianMs, H.AvgMs, H.MaxMs,
-       H.JitterMs, H.EffectiveMs, H.SegmentMs, H.ExcessMs, H.ReplyTtl]);
-    if H.HasPrevious then
-      Line := Line + Format(' d=%+.1f', [H.DeltaMs]);
-    if Length(H.OtherAddrs) > 0 then
-      Line := Line + ' alt=' + string.Join(',', H.OtherAddrs);
-    C.TextOut(Met.CardPad, Y, Line);
-    Inc(Y, LineH);
+    FRoute.CopyResult(Res);
+    Running := FRoute.Running;
   end;
+
+  SetLength(Rows, Length(Res.Hops));
+  SetLength(FRouteTips, Length(Res.Hops));
+  for i := 0 to High(Res.Hops) do
+  begin
+    Rows[i].Hop := Res.Hops[i];
+    if Res.Hops[i].Received = 0 then
+    begin
+      Rows[i].Name := '*';
+      Rows[i].Sub := S('dash.route_noreply');
+      Rows[i].Color := Pal.TextMuted;
+    end
+    else
+    begin
+      { Pending or failed reverse lookups show the address. }
+      if (FRoute = nil) or not FRoute.Names.TryGet(Res.Hops[i].Addr, Name) or
+        (Name = '') then
+        Name := Res.Hops[i].Addr;
+      Rows[i].Name := Name;
+      Rows[i].Sub := RouteRowSub(Res.Hops[i], Name);
+      Rows[i].Color := RouteClassColor(Res.Hops[i].AddrClass, Pal);
+    end;
+    FRouteTips[i] := RouteTooltip(Res.Hops[i], Rows[i].Name);
+  end;
+
+  Texts := Default(TRouteTexts);
+  Texts.Title := S('dash.tab_route');
+  if not Res.Valid then
+    State := ''
+  else if Res.Failed then
+    State := S('dash.route_failed')
+  else
+  begin
+    State := Res.Target;
+    if (Res.TargetIp <> '') and (Res.TargetIp <> Res.Target) then
+      State := State + ' (' + Res.TargetIp + ')';
+    State := JoinDot([State, Format(S('dash.route_hops'), [Length(Res.Hops)]),
+      Format(S('dash.route_total'), [FormatRouteMs(Res.TotalMs)]),
+      Format(S('dash.route_measured'), [TimeToStr(Res.MeasuredAt)])]);
+    if not Res.Reached then
+      State := JoinDot([State, S('dash.route_unreached')]);
+  end;
+  if Running then
+    State := JoinDot([S('dash.route_running'), State]);
+  Texts.Status := State;
+  if Running then
+    Texts.Empty := S('dash.route_running')
+  else if Res.Valid and Res.Failed then
+    Texts.Empty := S('dash.route_failed')
+  else
+    Texts.Empty := S('dash.route_none');
+  Texts.ColTtl := 'TTL';
+  Texts.ColHost := S('dash.route_col_host');
+  Texts.ColSeg := S('dash.route_col_seg');
+  Texts.ColRtt := S('dash.route_col_rtt');
+  Texts.ColLoss := S('dash.route_col_loss');
+  Texts.ColJitter := S('dash.route_col_jitter');
+  Texts.ColDelta := S('dash.route_col_delta');
+  Texts.NoReply := S('dash.route_noreply');
+  Texts.LegLan := S('dash.route_cls_lan');
+  Texts.LegCgnat := S('dash.route_cls_cgnat');
+  Texts.LegGlobal := S('dash.route_cls_global');
+  Texts.LegRange := S('dash.route_leg_range');
+  Texts.LegExcess := S('dash.route_leg_excess');
+
+  { A result not drawn before grows in row by row (unless Windows animations
+    are off); the timer repaints until the sequence has finished. }
+  if Res.Valid and not Res.Failed and (Res.MeasuredAt <> FRouteAnimFor) then
+  begin
+    FRouteAnimFor := Res.MeasuredAt;
+    if ClientAnimationsEnabled then
+    begin
+      FRouteAnimStart := GetTickCount;
+      FRouteAnimTimer.Enabled := True;
+    end;
+  end;
+  AnimMs := -1;
+  if FRouteAnimTimer.Enabled then
+  begin
+    AnimMs := Integer(GetTickCount - FRouteAnimStart);
+    if AnimMs >= RouteAnimDurationMs(Length(Rows)) then
+    begin
+      FRouteAnimTimer.Enabled := False;
+      AnimMs := -1;
+    end;
+  end;
+
+  DrawRoutePage(FRoutePaint.Canvas, FRoutePaint.ClientRect, Texts, Rows, Res.TotalMs,
+    FRouteScroll, AnimMs, Pal, CurrentMetrics, FRouteHits, FRouteMaxScroll);
+  if FRouteScroll > FRouteMaxScroll then
+    FRouteScroll := FRouteMaxScroll;
+  if (FProcTip <> nil) and FProcTip.Visible then
+    FProcTip.UpdateText(ProcTipText(FProcHoverKey));
 end;
 
 procedure TDashboardForm.ProcessPaint(Sender: TObject);
@@ -1132,6 +1370,13 @@ begin
   Result := '';
   if AKey < 0 then
     Exit;
+  if AKey >= CRouteTipBase then
+  begin
+    i := AKey - CRouteTipBase;
+    if i <= High(FRouteTips) then
+      Result := FRouteTips[i];
+    Exit;
+  end;
   Res := TProcessResource(AKey div CProcessTopMax);
   i := AKey mod CProcessTopMax;
   if i <= High(FProcTips[Res]) then
@@ -1191,6 +1436,67 @@ begin
   if Message.Msg = CM_MOUSELEAVE then
     HideProcTip;
   FProcessPaintWndProc(Message);
+end;
+
+procedure TDashboardForm.RouteMouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+var
+  i, Key: Integer;
+begin
+  Key := -1;
+  for i := 0 to High(FRouteHits) do
+    if PtInRect(FRouteHits[i].R, Point(X, Y)) then
+    begin
+      Key := CRouteTipBase + FRouteHits[i].Index;
+      Break;
+    end;
+  if Key < 0 then
+  begin
+    HideProcTip;
+    Exit;
+  end;
+  if Key = FProcHoverKey then
+    Exit;
+  { Same native tooltip and timing as the process page. }
+  FProcHoverKey := Key;
+  if FProcTip <> nil then
+    FProcTip.Hide;
+  FProcTipDelay.Enabled := False;
+  FProcTipDelay.Enabled := True;
+end;
+
+procedure TDashboardForm.RouteAnimTick(Sender: TObject);
+begin
+  if FRoutePaint <> nil then
+    FRoutePaint.Invalidate;
+end;
+
+procedure TDashboardForm.RoutePaintWndProc(var Message: TMessage);
+begin
+  if Message.Msg = CM_MOUSELEAVE then
+    HideProcTip;
+  FRoutePaintWndProc(Message);
+end;
+
+procedure TDashboardForm.FormMouseWheel(Sender: TObject; Shift: TShiftState;
+  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+var
+  P: TPoint;
+begin
+  { Scrolls the route page's hop list when it doesn't fit. }
+  if (FPage <> dpRoute) or (FRoutePaint = nil) or (FRouteMaxScroll <= 0) then
+    Exit;
+  P := FRoutePaint.ScreenToClient(MousePos);
+  if not PtInRect(FRoutePaint.ClientRect, P) then
+    Exit;
+  FRouteScroll := FRouteScroll - MulDiv(WheelDelta, ScalePx(40, WindowDpi), 120);
+  if FRouteScroll < 0 then
+    FRouteScroll := 0;
+  if FRouteScroll > FRouteMaxScroll then
+    FRouteScroll := FRouteMaxScroll;
+  HideProcTip;
+  FRoutePaint.Invalidate;
+  Handled := True;
 end;
 
 procedure TDashboardForm.ApplyDonutLevels;
@@ -1377,6 +1683,8 @@ begin
   end;
   if FRoute <> nil then
     FRoute.SetActive(False);
+  if FRouteAnimTimer <> nil then
+    FRouteAnimTimer.Enabled := False;
   PersistDashboardDip;
   if FSettings <> nil then
   try

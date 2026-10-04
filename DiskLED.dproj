@@ -164,6 +164,7 @@
         </DCCReference>
         <DCCReference Include="src\dashboard\uDashboardGraph.pas"/>
         <DCCReference Include="src\dashboard\uDashboardPainter.pas"/>
+        <DCCReference Include="src\dashboard\uRoutePainter.pas"/>
         <DCCReference Include="src\dashboard\uDashboardCard.pas"/>
         <DCCReference Include="src\dashboard\uDashboardForm.pas">
             <Form>DashboardForm</Form>

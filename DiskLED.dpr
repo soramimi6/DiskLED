@@ -44,6 +44,7 @@ uses
   uTraceRouteForm in 'src\uTraceRouteForm.pas' {TraceRouteForm},
   uDashboardGraph in 'src\dashboard\uDashboardGraph.pas',
   uDashboardPainter in 'src\dashboard\uDashboardPainter.pas',
+  uRoutePainter in 'src\dashboard\uRoutePainter.pas',
   uDashboardCard in 'src\dashboard\uDashboardCard.pas',
   uDashboardForm in 'src\dashboard\uDashboardForm.pas' {DashboardForm},
   uMainForm in 'src\uMainForm.pas' {MainForm};
