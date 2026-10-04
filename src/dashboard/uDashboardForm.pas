@@ -66,6 +66,8 @@ type
     FRouteScroll: Integer;
     FRouteMaxScroll: Integer;
     FRouteNowRects: TArray<TRect>;
+    FRouteAsRects: TArray<TRect>;
+    FTabPaintWndProc: TWndMethod;
     FRoutePaintWndProc: TWndMethod;
     { Grow-in animation of a newly arrived route result. }
     FRouteAnimTimer: TTimer;
@@ -109,6 +111,8 @@ type
     procedure HeaderPaint(Sender: TObject);
     procedure TabPaint(Sender: TObject);
     procedure TabPaintRoute;
+    procedure TabMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure TabPaintWndProc(var Message: TMessage);
     procedure TabMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -175,6 +179,8 @@ const
   CRouteIntervals: array[0..3] of Integer = (1, 5, 10, 0);
   { Hover keys at or above this are route page rows (below: process rows). }
   CRouteTipBase = 1000000;
+  { Hover key of the route page's "Look up AS" switch in the tab row. }
+  CAsSwitchTipKey = 2000000;
   { Entries per process column at the default size and below. }
   CProcessTopShown = 5;
 
@@ -242,6 +248,9 @@ begin
   FTabPaint.Align := alTop;
   FTabPaint.OnPaint := TabPaint;
   FTabPaint.OnMouseDown := TabMouseDown;
+  FTabPaint.OnMouseMove := TabMouseMove;
+  FTabPaintWndProc := FTabPaint.WindowProc;
+  FTabPaint.WindowProc := TabPaintWndProc;
   FPage := dpOverview;
   KeyPreview := True;
   OnKeyDown := FormKeyDown;
@@ -784,6 +793,8 @@ begin
   begin
     if (FPage = dpRoute) and (FCollector <> nil) then
       FRoute.SetTarget(FCollector.CurrentPingTarget);
+    if FSettings <> nil then
+      FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
     FRoute.SetActive(FPage = dpRoute);
   end;
   if FTabPaint <> nil then
@@ -808,10 +819,32 @@ begin
     end;
   if FPage = dpRoute then
   begin
+    for i := 0 to High(FRouteAsRects) do
+      if PtInRect(FRouteAsRects[i], Point(X, Y)) and (FSettings <> nil) then
+      begin
+        FSettings.DashboardRouteLookupAs := not FSettings.DashboardRouteLookupAs;
+        HideProcTip;
+        FTabPaint.Invalidate;
+        FRoutePaint.Invalidate;
+        if FRoute <> nil then
+        begin
+          FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
+          { Turning it on looks up the hops now rather than at the next
+            scheduled measurement. }
+          if FSettings.DashboardRouteLookupAs then
+          begin
+            FRoute.SetTarget(FCollector.CurrentPingTarget);
+            FRoute.RunNow;
+          end;
+        end;
+        Exit;
+      end;
     for i := 0 to High(FRouteNowRects) do
       if PtInRect(FRouteNowRects[i], Point(X, Y)) and (FRoute <> nil) then
       begin
         FRoute.SetTarget(FCollector.CurrentPingTarget);
+        if FSettings <> nil then
+          FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
         FRoute.RunNow;
         Exit;
       end;
@@ -892,8 +925,50 @@ begin
     Opts, Active, HudPalette, Met, FIntervalRects);
   R := FTabPaint.ClientRect;
   R.Right := Left - Dip(Met, 16) + Met.Margin;
-  DrawTabChoice(FTabPaint.Canvas, R, '', [S('dash.route_now')], -1, HudPalette, Met,
-    FRouteNowRects);
+  Left := DrawTabChoice(FTabPaint.Canvas, R, '', [S('dash.route_now')], -1, HudPalette,
+    Met, FRouteNowRects);
+  { "Look up AS" switch: underlined while on. }
+  R.Right := Left - Dip(Met, 16) + Met.Margin;
+  if (FSettings <> nil) and FSettings.DashboardRouteLookupAs then
+    Active := 0
+  else
+    Active := -1;
+  DrawTabChoice(FTabPaint.Canvas, R, '', [S('dash.route_as')], Active, HudPalette, Met,
+    FRouteAsRects);
+end;
+
+procedure TDashboardForm.TabMouseMove(Sender: TObject; Shift: TShiftState;
+  X, Y: Integer);
+var
+  i: Integer;
+  Over: Boolean;
+begin
+  { Only the AS switch has a tooltip: it says what turning it on sends where. }
+  Over := False;
+  if FPage = dpRoute then
+    for i := 0 to High(FRouteAsRects) do
+      if PtInRect(FRouteAsRects[i], Point(X, Y)) then
+        Over := True;
+  if not Over then
+  begin
+    if FProcHoverKey = CAsSwitchTipKey then
+      HideProcTip;
+    Exit;
+  end;
+  if FProcHoverKey = CAsSwitchTipKey then
+    Exit;
+  FProcHoverKey := CAsSwitchTipKey;
+  if FProcTip <> nil then
+    FProcTip.Hide;
+  FProcTipDelay.Enabled := False;
+  FProcTipDelay.Enabled := True;
+end;
+
+procedure TDashboardForm.TabPaintWndProc(var Message: TMessage);
+begin
+  if (Message.Msg = CM_MOUSELEAVE) and (FProcHoverKey = CAsSwitchTipKey) then
+    HideProcTip;
+  FTabPaintWndProc(Message);
 end;
 
 procedure TDashboardForm.TabPaint(Sender: TObject);
@@ -906,6 +981,7 @@ begin
     [S('dash.tab_overview'), S('dash.tab_process'), S('dash.tab_route')], Ord(FPage), HudPalette,
     CurrentMetrics, FTabRects);
   FRouteNowRects := nil;
+  FRouteAsRects := nil;
   if FPage = dpRoute then
   begin
     TabPaintRoute;
@@ -1090,7 +1166,7 @@ begin
 end;
 
 { Every number of one hop, one "label: value" per line. }
-function RouteTooltip(const AHop: TRouteHop; const AName: string): string;
+function RouteTooltip(const AHop: TRouteHop; const AName, AAsText: string): string;
 var
   Lines: TStringList;
 begin
@@ -1105,6 +1181,8 @@ begin
       if Length(AHop.OtherAddrs) > 0 then
         Lines.Add(S('dash.route_tip_other') + ': ' + string.Join(', ', AHop.OtherAddrs));
       Lines.Add(S('dash.route_tip_class') + ': ' + RouteClassText(AHop.AddrClass));
+      if AAsText <> '' then
+        Lines.Add(S('dash.route_tip_operator') + ': ' + AAsText);
       Lines.Add(S('dash.route_tip_kind') + ': ' + RouteKindText(AHop.Kind));
       Lines.Add(S('dash.route_tip_replyttl') + ': ' + IntToStr(AHop.ReplyTtl));
       Lines.Add(S('dash.route_tip_seg') + ': ' + FormatRouteMs(AHop.SegmentMs));
@@ -1126,16 +1204,37 @@ begin
   end;
 end;
 
-{ Second list line: address (when a name is shown), class, reply kind,
+{ "GIGAINFRA Softbank BB Corp. (AS17676)" -- operator first (cut at its
+  country suffix and to 24 characters), number in brackets; just "AS17676"
+  when the registry has no name. Used on the list line and in the legend. }
+function RouteAsShort(const AInfo: TRouteAsInfo): string;
+var
+  Org: string;
+  P: Integer;
+begin
+  Org := AInfo.Name;
+  P := Pos(',', Org);
+  if P > 0 then
+    Org := Copy(Org, 1, P - 1);
+  if Length(Org) > 24 then
+    Org := Copy(Org, 1, 24) + '...';
+  Org := Trim(Org);
+  if Org = '' then
+    Result := 'AS' + IntToStr(AInfo.Asn)
+  else
+    Result := Org + ' (AS' + IntToStr(AInfo.Asn) + ')';
+end;
+
+{ Second list line: address (when a name is shown), class, AS, reply kind,
   min / max. }
-function RouteRowSub(const AHop: TRouteHop; const AName: string): string;
+function RouteRowSub(const AHop: TRouteHop; const AName, AAsShort: string): string;
 var
   Addr: string;
 begin
   Addr := '';
   if AName <> AHop.Addr then
     Addr := AHop.Addr;
-  Result := JoinDot([Addr, RouteClassText(AHop.AddrClass), RouteKindText(AHop.Kind),
+  Result := JoinDot([Addr, RouteClassText(AHop.AddrClass), AAsShort, RouteKindText(AHop.Kind),
     Format(S('dash.route_minmax'), [FormatRouteMs(AHop.MinMs),
       FormatRouteMs(AHop.MaxMs)])]);
 end;
@@ -1160,9 +1259,12 @@ var
   Res: TRouteResult;
   Rows: TArray<TRouteRowView>;
   Texts: TRouteTexts;
-  Name, State: string;
-  i, AnimMs: Integer;
-  Running: Boolean;
+  Name, State, AsShort, AsLong: string;
+  i, k, AnimMs: Integer;
+  Running, ShowAs: Boolean;
+  AsInfo: TRouteAsInfo;
+  AsSeen: TArray<Cardinal>;
+  Leg: TRouteLegendItem;
 begin
   Pal := HudPalette;
   Res := Default(TRouteResult);
@@ -1173,11 +1275,22 @@ begin
     Running := FRoute.Running;
   end;
 
+  ShowAs := (FSettings <> nil) and FSettings.DashboardRouteLookupAs and (FRoute <> nil);
+  AsSeen := nil;
   SetLength(Rows, Length(Res.Hops));
   SetLength(FRouteTips, Length(Res.Hops));
   for i := 0 to High(Res.Hops) do
   begin
     Rows[i].Hop := Res.Hops[i];
+    AsShort := '';
+    AsLong := '';
+    AsInfo := Default(TRouteAsInfo);
+    if ShowAs and (Res.Hops[i].AddrClass = acGlobal) and
+      FRoute.AsInfo.TryGet(Res.Hops[i].Addr, AsInfo) and (AsInfo.Asn <> 0) then
+    begin
+      AsShort := RouteAsShort(AsInfo);
+      AsLong := JoinDot([AsInfo.Name, 'AS' + IntToStr(AsInfo.Asn), AsInfo.Country]);
+    end;
     if Res.Hops[i].Received = 0 then
     begin
       Rows[i].Name := '*';
@@ -1191,10 +1304,20 @@ begin
         (Name = '') then
         Name := Res.Hops[i].Addr;
       Rows[i].Name := Name;
-      Rows[i].Sub := RouteRowSub(Res.Hops[i], Name);
+      Rows[i].Sub := RouteRowSub(Res.Hops[i], Name, AsShort);
       Rows[i].Color := RouteClassColor(Res.Hops[i].AddrClass, Pal);
+      { With AS lookup on, global hops are colored per AS (in path order). }
+      if AsInfo.Asn <> 0 then
+      begin
+        k := 0;
+        while (k <= High(AsSeen)) and (AsSeen[k] <> AsInfo.Asn) do
+          Inc(k);
+        if k > High(AsSeen) then
+          AsSeen := AsSeen + [AsInfo.Asn];
+        Rows[i].Color := RouteAsColor(k, Pal);
+      end;
     end;
-    FRouteTips[i] := RouteTooltip(Res.Hops[i], Rows[i].Name);
+    FRouteTips[i] := RouteTooltip(Res.Hops[i], Rows[i].Name, AsLong);
   end;
 
   Texts := Default(TRouteTexts);
@@ -1231,9 +1354,32 @@ begin
   Texts.ColJitter := S('dash.route_col_jitter');
   Texts.ColDelta := S('dash.route_col_delta');
   Texts.NoReply := S('dash.route_noreply');
-  Texts.LegLan := S('dash.route_cls_lan');
-  Texts.LegCgnat := S('dash.route_cls_cgnat');
-  Texts.LegGlobal := S('dash.route_cls_global');
+  Leg.Color := RouteClassColor(acLan, Pal);
+  Leg.Text := S('dash.route_cls_lan');
+  Texts.LegItems := [Leg];
+  Leg.Color := RouteClassColor(acCgnat, Pal);
+  Leg.Text := S('dash.route_cls_cgnat');
+  Texts.LegItems := Texts.LegItems + [Leg];
+  if Length(AsSeen) = 0 then
+  begin
+    Leg.Color := RouteClassColor(acGlobal, Pal);
+    Leg.Text := S('dash.route_cls_global');
+    Texts.LegItems := Texts.LegItems + [Leg];
+  end
+  else
+    for k := 0 to High(AsSeen) do
+    begin
+      Leg.Color := RouteAsColor(k, Pal);
+      Leg.Text := 'AS' + IntToStr(AsSeen[k]);
+      for i := 0 to High(Res.Hops) do
+        if (Res.Hops[i].AddrClass = acGlobal) and
+          FRoute.AsInfo.TryGet(Res.Hops[i].Addr, AsInfo) and (AsInfo.Asn = AsSeen[k]) then
+        begin
+          Leg.Text := RouteAsShort(AsInfo);
+          Break;
+        end;
+      Texts.LegItems := Texts.LegItems + [Leg];
+    end;
   Texts.LegRange := S('dash.route_leg_range');
   Texts.LegExcess := S('dash.route_leg_excess');
 
@@ -1370,6 +1516,8 @@ begin
   Result := '';
   if AKey < 0 then
     Exit;
+  if AKey = CAsSwitchTipKey then
+    Exit(S('dash.route_as_tip'));
   if AKey >= CRouteTipBase then
   begin
     i := AKey - CRouteTipBase;
@@ -1541,7 +1689,11 @@ begin
   begin
     { The Ping target can change (gateway auto-detection); keep it current. }
     if FRoute <> nil then
+    begin
       FRoute.SetTarget(FCollector.CurrentPingTarget);
+      if FSettings <> nil then
+        FRoute.SetLookupAs(FSettings.DashboardRouteLookupAs);
+    end;
     FRoutePaint.Invalidate;
   end;
   if FPage <> dpOverview then

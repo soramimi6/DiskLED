@@ -280,6 +280,15 @@ begin
   AddStr('dash.route_kind_proto', 'プロトコル到達不能', 'Protocol unreachable');
   AddStr('dash.route_kind_port', 'ポート到達不能', 'Port unreachable');
   AddStr('dash.route_kind_other', 'その他', 'Other');
+  AddStr('dash.route_as', '事業者名を表示', 'Show network operators');
+  AddStr('dash.route_tip_operator', '事業者', 'Operator');
+  AddStr('dash.route_as_tip',
+    '経路上の各ホップを運用しているネットワーク事業者名（AS 番号）を表示します。' + sLineBreak +
+    'オンの間、経路上のグローバル IP アドレスを外部の DNS サービス（Team Cymru）に問い合わせます。' +
+    sLineBreak + '家庭内 LAN と CGNAT のアドレスは送りません。',
+    'Shows the network operator (AS number) running each hop.' + sLineBreak +
+    'While on, the route''s global IP addresses are sent to an external DNS service (Team Cymru).' +
+    sLineBreak + 'Home LAN and CGNAT addresses are never sent.');
   AddStr('dash.route_leg_range', '最小〜最大', 'Min–max');
   AddStr('dash.route_leg_excess', 'ルーター自身の応答遅れ（経路の遅延ではない）',
     'Router''s own reply delay (not path delay)');

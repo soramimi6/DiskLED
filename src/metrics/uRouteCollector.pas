@@ -90,6 +90,21 @@ type
     function TryGet(const AAddr: string; out AName: string): Boolean;
   end;
 
+  TRouteAsInfo = record
+    { 0 when the lookup failed or the address is not announced. }
+    Asn: Cardinal;
+    { Operator name as registered, e.g. "GIGAINFRA Softbank BB Corp., JP". }
+    Name: string;
+    Country: string;
+  end;
+
+  { AS lookups (Team Cymru DNS), shared with their threads like the names. }
+  IRouteAsCache = interface
+    ['{8E1F4C27-3A9D-4B65-B2C0-7D5E9A1F3C48}']
+    { False while the lookup is pending. }
+    function TryGet(const AAddr: string; out AInfo: TRouteAsInfo): Boolean;
+  end;
+
   TRouteCollector = class
   private
     FThread: TThread;
@@ -103,6 +118,8 @@ type
     FTarget: string;
     FResult: TRouteResult;
     FNames: IRouteNameCache;
+    FAs: IRouteAsCache;
+    FLookupAs: Boolean;
     FWSAOk: Boolean;
     procedure WorkerExecute;
     function Measure(const AHost: string; out AResult: TRouteResult): Boolean;
@@ -121,7 +138,12 @@ type
     procedure RunNow;
     function Running: Boolean;
     procedure CopyResult(out AResult: TRouteResult);
+    { Whether measurements look up the AS of global hops (an external DNS
+      query per new address). Off: nothing is sent. Takes effect from the
+      next measurement. }
+    procedure SetLookupAs(AEnabled: Boolean);
     property Names: IRouteNameCache read FNames;
+    property AsInfo: IRouteAsCache read FAs;
   end;
 
 function RouteAddrClass(const AAddr: string): TRouteAddrClass;
@@ -386,6 +408,225 @@ begin
   end;
 end;
 
+{ AS lookup via Team Cymru's IP-to-ASN DNS service:
+    TXT d.c.b.a.origin.asn.cymru.com -> "17676 | 126.0.0.0/8 | JP | apnic | 2005-01-25"
+    TXT AS17676.asn.cymru.com        -> "17676 | JP | apnic | 2005-01-25 | GIGAINFRA Softbank BB Corp., JP"
+  through the system resolver (DnsQuery_W), so only the hop's address leaves
+  the machine, in a DNS name. }
+
+const
+  DNS_TYPE_TEXT = $0010;
+  DNS_QUERY_STANDARD = 0;
+  DnsFreeRecordList = 1;
+
+type
+  PDnsRecordW = ^TDnsRecordW;
+  TDnsRecordW = record
+    pNext: PDnsRecordW;
+    pName: PWideChar;
+    wType: Word;
+    wDataLength: Word;
+    Flags: DWORD;
+    dwTtl: DWORD;
+    dwReserved: DWORD;
+    { DNS_TXT_DATAW: the strings follow the count in an inline array. }
+    dwStringCount: DWORD;
+    pStringArray: array[0..0] of PWideChar;
+  end;
+
+function DnsQuery_W(pszName: PWideChar; wType: Word; Options: DWORD;
+  pExtra: Pointer; out ppQueryResults: PDnsRecordW; pReserved: Pointer): Longint;
+  stdcall; external 'dnsapi.dll' name 'DnsQuery_W';
+procedure DnsFree(pData: Pointer; FreeType: Integer); stdcall;
+  external 'dnsapi.dll' name 'DnsFree';
+
+type
+  TRouteAsCache = class(TInterfacedObject, IRouteAsCache)
+  private
+    FLock: TCriticalSection;
+    { Address -> info; absent = never asked, Pending = being looked up. }
+    FInfo: TDictionary<string, TRouteAsInfo>;
+    FPending: TDictionary<string, Boolean>;
+    { ASN -> operator name and country, so each AS is named once. }
+    FAsNames: TDictionary<Cardinal, TRouteAsInfo>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function TryGet(const AAddr: string; out AInfo: TRouteAsInfo): Boolean;
+    function Claim(const AAddr: string): Boolean;
+    procedure Put(const AAddr: string; const AInfo: TRouteAsInfo);
+    function TryGetAsName(AAsn: Cardinal; out AInfo: TRouteAsInfo): Boolean;
+    procedure PutAsName(AAsn: Cardinal; const AInfo: TRouteAsInfo);
+  end;
+
+constructor TRouteAsCache.Create;
+begin
+  inherited Create;
+  FLock := TCriticalSection.Create;
+  FInfo := TDictionary<string, TRouteAsInfo>.Create;
+  FPending := TDictionary<string, Boolean>.Create;
+  FAsNames := TDictionary<Cardinal, TRouteAsInfo>.Create;
+end;
+
+destructor TRouteAsCache.Destroy;
+begin
+  FAsNames.Free;
+  FPending.Free;
+  FInfo.Free;
+  FLock.Free;
+  inherited;
+end;
+
+function TRouteAsCache.TryGet(const AAddr: string; out AInfo: TRouteAsInfo): Boolean;
+begin
+  FLock.Enter;
+  try
+    Result := FInfo.TryGetValue(AAddr, AInfo);
+  finally
+    FLock.Leave;
+  end;
+  if not Result then
+    AInfo := Default(TRouteAsInfo);
+end;
+
+function TRouteAsCache.Claim(const AAddr: string): Boolean;
+begin
+  FLock.Enter;
+  try
+    Result := not FInfo.ContainsKey(AAddr) and not FPending.ContainsKey(AAddr);
+    if Result then
+      FPending.Add(AAddr, True);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TRouteAsCache.Put(const AAddr: string; const AInfo: TRouteAsInfo);
+begin
+  FLock.Enter;
+  try
+    FPending.Remove(AAddr);
+    FInfo.AddOrSetValue(AAddr, AInfo);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TRouteAsCache.TryGetAsName(AAsn: Cardinal; out AInfo: TRouteAsInfo): Boolean;
+begin
+  FLock.Enter;
+  try
+    Result := FAsNames.TryGetValue(AAsn, AInfo);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TRouteAsCache.PutAsName(AAsn: Cardinal; const AInfo: TRouteAsInfo);
+begin
+  FLock.Enter;
+  try
+    FAsNames.AddOrSetValue(AAsn, AInfo);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+{ First TXT record of AName, its strings concatenated; '' on any failure. }
+function QueryTxt(const AName: string): string;
+var
+  Rec, P: PDnsRecordW;
+  i: Integer;
+  Arr: PPWideChar;
+begin
+  Result := '';
+  Rec := nil;
+  if DnsQuery_W(PWideChar(AName), DNS_TYPE_TEXT, DNS_QUERY_STANDARD, nil, Rec, nil) <> 0 then
+    Exit;
+  try
+    P := Rec;
+    while P <> nil do
+    begin
+      if P^.wType = DNS_TYPE_TEXT then
+      begin
+        Arr := @P^.pStringArray[0];
+        for i := 0 to Integer(P^.dwStringCount) - 1 do
+        begin
+          Result := Result + string(Arr^);
+          Inc(Arr);
+        end;
+        Exit;
+      end;
+      P := P^.pNext;
+    end;
+  finally
+    if Rec <> nil then
+      DnsFree(Rec, DnsFreeRecordList);
+  end;
+end;
+
+{ "a | b | c" -> trimmed fields. }
+function SplitBar(const AText: string): TArray<string>;
+var
+  i: Integer;
+begin
+  Result := AText.Split(['|']);
+  for i := 0 to High(Result) do
+    Result[i] := Trim(Result[i]);
+end;
+
+procedure StartAsLookup(const ACache: IRouteAsCache; const AAddr: string);
+var
+  Cache: IRouteAsCache;
+  Addr: string;
+begin
+  Cache := ACache;
+  Addr := AAddr;
+  TThread.CreateAnonymousThread(
+    procedure
+    var
+      Octets, Fields, AsnWords: TArray<string>;
+      Info, Named: TRouteAsInfo;
+      Asn: Integer;
+      C: TRouteAsCache;
+    begin
+      C := Cache as TRouteAsCache;
+      Info := Default(TRouteAsInfo);
+      try
+        Octets := Addr.Split(['.']);
+        if Length(Octets) = 4 then
+        begin
+          Fields := SplitBar(QueryTxt(Octets[3] + '.' + Octets[2] + '.' + Octets[1] +
+            '.' + Octets[0] + '.origin.asn.cymru.com'));
+          { An address announced by several ASes lists them space-separated;
+            the first is enough here. }
+          if Length(Fields) >= 3 then
+          begin
+            AsnWords := Fields[0].Split([' ']);
+            if (Length(AsnWords) > 0) and TryStrToInt(AsnWords[0], Asn) and (Asn > 0) then
+            begin
+              Info.Asn := Cardinal(Asn);
+              Info.Country := Fields[2];
+              if C.TryGetAsName(Info.Asn, Named) then
+                Info.Name := Named.Name
+              else
+              begin
+                Fields := SplitBar(QueryTxt('AS' + IntToStr(Asn) + '.asn.cymru.com'));
+                if Length(Fields) >= 5 then
+                  Info.Name := Fields[4];
+                Named := Info;
+                C.PutAsName(Info.Asn, Named);
+              end;
+            end;
+          end;
+        end;
+      except
+        Info := Default(TRouteAsInfo);
+      end;
+      C.Put(Addr, Info);
+    end).Start;
+end;
+
 { TRouteWorker }
 
 constructor TRouteWorker.Create(AOwner: TRouteCollector);
@@ -410,6 +651,7 @@ begin
   FLock := TCriticalSection.Create;
   FWake := TEvent.Create(nil, False, False, '');
   FNames := TRouteNameCache.Create;
+  FAs := TRouteAsCache.Create;
   FWSAOk := WSAStartup($0202, WSAData) = 0;
   FThread := TRouteWorker.Create(Self);
 end;
@@ -478,6 +720,16 @@ begin
   end;
 end;
 
+procedure TRouteCollector.SetLookupAs(AEnabled: Boolean);
+begin
+  FLock.Enter;
+  try
+    FLookupAs := AEnabled;
+  finally
+    FLock.Leave;
+  end;
+end;
+
 procedure TRouteCollector.RunNow;
 begin
   FLock.Enter;
@@ -534,8 +786,15 @@ var
   PrevMap: TDictionary<Integer, TRouteHop>;
   PrevHop: TRouteHop;
   Floor, LastEff: Double;
+  LookupAs: Boolean;
 begin
   Result := False;
+  FLock.Enter;
+  try
+    LookupAs := FLookupAs;
+  finally
+    FLock.Leave;
+  end;
   AResult := Default(TRouteResult);
   AResult.Target := AHost;
   AResult.MeasuredAt := Now;
@@ -657,6 +916,11 @@ begin
         if (Hop.AddrClass <> acUnknown) and
           (FNames as TRouteNameCache).Claim(Hop.Addr) then
           StartReverseLookup(FNames, Hop.Addr, inet_addr(PAnsiChar(AnsiString(Hop.Addr))));
+        { AS lookups only when enabled, and only for global addresses (LAN /
+          CGNAT ones are never announced and would leak nothing useful). }
+        if LookupAs and (Hop.AddrClass = acGlobal) and
+          (FAs as TRouteAsCache).Claim(Hop.Addr) then
+          StartAsLookup(FAs, Hop.Addr);
       end;
       AResult.Hops[Ttl - 1] := Hop;
     end;

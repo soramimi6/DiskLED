@@ -22,6 +22,11 @@ uses
   uRouteCollector;
 
 type
+  TRouteLegendItem = record
+    Color: TColor;
+    Text: string;
+  end;
+
   TRouteTexts = record
     Title: string;
     { Right side of the title row: target, hop count, round trip, time, or
@@ -37,11 +42,10 @@ type
     NoReply: string;
     { Shown instead of the cards' content before any result exists. }
     Empty: string;
-    { Legend under the waterfall: segment colors per address class, the
-      min-max line and the router's own reply delay. }
-    LegLan: string;
-    LegCgnat: string;
-    LegGlobal: string;
+    { Legend under the waterfall: the segment colors (address classes, or
+      ASes when AS lookup is on), the min-max line and the router's own reply
+      delay. }
+    LegItems: TArray<TRouteLegendItem>;
     LegRange: string;
     LegExcess: string;
   end;
@@ -75,6 +79,8 @@ function RouteAnimDurationMs(ARowCount: Integer): Integer;
 
 { Segment color of an address class (also the legend's). }
 function RouteClassColor(AClass: TRouteAddrClass; const APalette: THudPalette): TColor;
+{ Segment color of the AIndex-th distinct AS along the path (cycles). }
+function RouteAsColor(AIndex: Integer; const APalette: THudPalette): TColor;
 
 { "0.8 ms", "12 ms": one decimal below 10 ms. }
 function FormatRouteMs(AMs: Double): string;
@@ -119,6 +125,19 @@ begin
     acGlobal: Result := APalette.Disk;
   else
     Result := APalette.TextMuted;
+  end;
+end;
+
+function RouteAsColor(AIndex: Integer; const APalette: THudPalette): TColor;
+begin
+  { Distinct from the LAN / CGNAT colors, which keep their class meaning. }
+  case AIndex mod 5 of
+    0: Result := APalette.Disk;
+    1: Result := APalette.Net;
+    2: Result := APalette.Gpu;
+    3: Result := APalette.Cpu;
+  else
+    Result := APalette.DiskInner;
   end;
 end;
 
@@ -212,14 +231,20 @@ var
   { One line under the axis: a sample of each mark and what it means. }
   procedure DrawLegend(AY: Integer);
   var
-    LX, Mid, SW, Gap: Integer;
+    LX, Mid, SW, Gap, k: Integer;
 
     procedure Chip(AColor: TColor; const ALabel: string);
+    var
+      Txt: string;
     begin
+      { Many ASes on a narrow window: drop what no longer fits. }
+      if LX + SW + Dip(AMetrics, 24) > Top.Right - Pad then
+        Exit;
       FillR(ACanvas, Rect(LX, Mid - Dip(AMetrics, 3), LX + SW, Mid + Dip(AMetrics, 3)), AColor);
       Inc(LX, SW + Dip(AMetrics, 4));
-      ACanvas.TextOut(LX, AY, ALabel);
-      Inc(LX, ACanvas.TextWidth(ALabel) + Gap);
+      Txt := Ellipsize(ACanvas, ALabel, Top.Right - Pad - LX);
+      ACanvas.TextOut(LX, AY, Txt);
+      Inc(LX, ACanvas.TextWidth(Txt) + Gap);
     end;
 
   begin
@@ -228,9 +253,8 @@ var
     Mid := AY + SmallH div 2;
     SW := Dip(AMetrics, 14);
     Gap := Dip(AMetrics, 12);
-    Chip(RouteClassColor(acLan, APalette), ATexts.LegLan);
-    Chip(RouteClassColor(acCgnat, APalette), ATexts.LegCgnat);
-    Chip(RouteClassColor(acGlobal, APalette), ATexts.LegGlobal);
+    for k := 0 to High(ATexts.LegItems) do
+      Chip(ATexts.LegItems[k].Color, ATexts.LegItems[k].Text);
     FillR(ACanvas, Rect(LX, Mid, LX + SW, Mid + Max(1, Dip(AMetrics, 1))), APalette.TextMuted);
     Inc(LX, SW + Dip(AMetrics, 4));
     ACanvas.TextOut(LX, AY, ATexts.LegRange);
