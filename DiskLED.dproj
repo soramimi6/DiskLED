@@ -138,6 +138,7 @@
         <DCCReference Include="src\metrics\uHostResolve.pas"/>
         <DCCReference Include="src\metrics\uPingCollector.pas"/>
         <DCCReference Include="src\metrics\uTracertCollector.pas"/>
+        <DCCReference Include="src\metrics\uProcessCollector.pas"/>
         <DCCReference Include="src\metrics\uAudioCollector.pas"/>
         <DCCReference Include="src\metrics\uRangeEngine.pas"/>
         <DCCReference Include="src\metrics\uHistoryBuffer.pas"/>

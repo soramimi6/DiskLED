@@ -22,6 +22,7 @@ uses
   uSettings,
   uMetricsTypes,
   uDpiScale,
+  uProcessCollector,
   uThemedHudForm;
 
 { Dashboard regions (docs/DESIGN.md, .cursor/rules/dashboard-regions.mdc):
@@ -52,6 +53,7 @@ type
     FTabRects: TArray<TRect>;
     FPage: TDashboardPage;
     FProcessPaint: TPaintBox;
+    FProcess: TProcessCollector;
     FCpuPaint: TPaintBox;
     FMemPaint: TPaintBox;
     FQueuePaint: TPaintBox;
@@ -101,6 +103,7 @@ type
     constructor Create(AOwner: TComponent; APipeline: TDisplayPipeline;
       AHistory: TDashboardHistory; ACollector: TMetricsCollector;
       ASettings: TAppSettings); reintroduce;
+    destructor Destroy; override;
     procedure PersistDashboardDip;
     { Bring the window back onto a visible monitor if a display change left it
       off-screen. No-op while maximized/minimized. Called on every show and from
@@ -126,6 +129,14 @@ begin
   FCollector := ACollector;
   FSettings := ASettings;
   inherited Create(AOwner);
+end;
+
+destructor TDashboardForm.Destroy;
+begin
+  { Stops and joins the worker thread. Done before inherited so a late
+    FormHide during teardown sees nil rather than a freed collector. }
+  FreeAndNil(FProcess);
+  inherited;
 end;
 
 procedure TDashboardForm.FormCreate(Sender: TObject);
@@ -233,6 +244,7 @@ begin
   FProcessPaint := TPaintBox.Create(Self);
   FProcessPaint.Parent := Self;
   FProcessPaint.OnPaint := ProcessPaint;
+  FProcess := TProcessCollector.Create;
   ApplyPageVisibility;
 
   FUiTimer := TTimer.Create(Self);
@@ -658,6 +670,9 @@ begin
     Exit;
   FPage := APage;
   ApplyPageVisibility;
+  { Process sampling runs only while its page is on screen. }
+  if FProcess <> nil then
+    FProcess.SetActive(FPage = dpProcess);
   if FTabPaint <> nil then
     FTabPaint.Invalidate;
   { Overview widgets skipped repaints while hidden; bring them up to date now. }
@@ -703,12 +718,51 @@ begin
 end;
 
 procedure TDashboardForm.ProcessPaint(Sender: TObject);
+const
+  ResName: array[TProcessResource] of string = ('CPU', 'MEM', 'I/O');
 var
   Pal: THudPalette;
+  Met: THudMetrics;
+  ProcTop: TProcessTop;
+  Res: TProcessResource;
+  E: TProcessTopEntry;
+  Line: string;
+  Y: Integer;
+  C: TCanvas;
 begin
   Pal := HudPalette;
-  DrawCardHeader(FProcessPaint.Canvas, FProcessPaint.ClientRect,
-    S('dash.tab_process'), '', Pal.AccentStart, Pal, CurrentMetrics);
+  Met := CurrentMetrics;
+  C := FProcessPaint.Canvas;
+  DrawCardHeader(C, FProcessPaint.ClientRect, S('dash.tab_process'), '',
+    Pal.AccentStart, Pal, Met);
+  { Step-2 placeholder: raw collector output, one line per resource. Replaced
+    by DrawProcessTop in step 3. }
+  if FProcess = nil then
+    Exit;
+  FProcess.CopyTop(ProcTop);
+  C.Brush.Style := bsClear;
+  C.Font.Name := 'Segoe UI';
+  C.Font.Style := [];
+  C.Font.Size := Met.BodySize;
+  C.Font.Color := Pal.TextPrimary;
+  Y := Met.CardHeaderHeight + Met.CardPad;
+  for Res := Low(TProcessResource) to High(TProcessResource) do
+  begin
+    Line := ResName[Res] + ':';
+    if not ProcTop.Valid then
+      Line := Line + ' ' + #$2014
+    else
+      for E in ProcTop.Items[Res] do
+        case Res of
+          prCpu: Line := Line + Format('  %s(%d) %.1f', [E.Name, E.Count, E.CpuPct]);
+          prMem: Line := Line + Format('  %s(%d) %d MB', [E.Name, E.Count, E.MemBytes div (1024 * 1024)]);
+        else
+          Line := Line + Format('  %s(%d) R %s W %s', [E.Name, E.Count,
+            FormatRateBps(E.IoReadBps), FormatRateBps(E.IoWriteBps)]);
+        end;
+    C.TextOut(Met.CardPad, Y, Line);
+    Inc(Y, C.TextHeight('Ag') + Met.CardGap);
+  end;
 end;
 
 procedure TDashboardForm.ApplyDonutLevels;
@@ -748,7 +802,10 @@ begin
   { Hidden overview widgets need no repaint; SetPage refreshes them on return.
     History keeps accumulating on the MainForm side, so graphs stay continuous. }
   if FPage <> dpOverview then
+  begin
+    FProcessPaint.Invalidate;
     Exit;
+  end;
   for i := 0 to 4 do
     FCards[i].Invalidate;
   FCpuPaint.Invalidate;
@@ -875,6 +932,8 @@ procedure TDashboardForm.FormHide(Sender: TObject);
 begin
   FUiTimer.Enabled := False;
   FMeterTimer.Enabled := False;
+  if FProcess <> nil then
+    FProcess.SetActive(False);
   PersistDashboardDip;
   if FSettings <> nil then
   try
