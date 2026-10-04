@@ -7,6 +7,7 @@ uses
   Winapi.Messages,
   System.SysUtils,
   System.Classes,
+  System.Types,
   Vcl.Graphics,
   Vcl.Controls,
   Vcl.Forms,
@@ -25,10 +26,15 @@ uses
 
 { Dashboard regions (docs/DESIGN.md, .cursor/rules/dashboard-regions.mdc):
   ヘッダー
-  左カラム — セクション × 5 (ドーナツグラフ | 履歴グラフ)
-  右カラム — サブセクション × 5 (CPU / メモリ / 電源（左：電源 | 右：音量） / ディスクキュー / Ping)
+  タブ行 (概要 / プロセス)
+  概要ページ:
+    左カラム — セクション × 5 (ドーナツグラフ | 履歴グラフ)
+    右カラム — サブセクション × 5 (CPU / メモリ / 電源（左：電源 | 右：音量） / ディスクキュー / Ping)
+  プロセスページ: リソース別 TOP5
   Do not put subsection facts inside a left-column section. }
 type
+  TDashboardPage = (dpOverview, dpProcess);
+
   TDashboardForm = class(TThemedHudForm)
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -42,6 +48,10 @@ type
     FCollector: TMetricsCollector;
     FSettings: TAppSettings;
     FHeaderPaint: TPaintBox;
+    FTabPaint: TPaintBox;
+    FTabRects: TArray<TRect>;
+    FPage: TDashboardPage;
+    FProcessPaint: TPaintBox;
     FCpuPaint: TPaintBox;
     FMemPaint: TPaintBox;
     FQueuePaint: TPaintBox;
@@ -56,6 +66,13 @@ type
     procedure UiTimerTick(Sender: TObject);
     procedure MeterTimerTick(Sender: TObject);
     procedure HeaderPaint(Sender: TObject);
+    procedure TabPaint(Sender: TObject);
+    procedure TabMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure SetPage(APage: TDashboardPage);
+    procedure ApplyPageVisibility;
+    procedure ProcessPaint(Sender: TObject);
     procedure CpuPaint(Sender: TObject);
     procedure MemPaint(Sender: TObject);
     procedure QueuePaint(Sender: TObject);
@@ -140,6 +157,19 @@ begin
   FHeaderPaint.Height := CurrentMetrics.HeaderHeight + CurrentMetrics.AccentLine;
   FHeaderPaint.OnPaint := HeaderPaint;
 
+  { Two alTop controls: place the tab row below the header before aligning it so
+    the VCL keeps header-then-tabs order. }
+  FTabPaint := TPaintBox.Create(Self);
+  FTabPaint.Parent := Self;
+  FTabPaint.Top := FHeaderPaint.Top + FHeaderPaint.Height;
+  FTabPaint.Height := CurrentMetrics.TabHeight;
+  FTabPaint.Align := alTop;
+  FTabPaint.OnPaint := TabPaint;
+  FTabPaint.OnMouseDown := TabMouseDown;
+  FPage := dpOverview;
+  KeyPreview := True;
+  OnKeyDown := FormKeyDown;
+
   for i := 0 to 4 do
   begin
     FCards[i] := TDashboardCard.Create(Self);
@@ -200,6 +230,10 @@ begin
   FPingPaint := TPaintBox.Create(Self);
   FPingPaint.Parent := Self;
   FPingPaint.OnPaint := PingPaint;
+  FProcessPaint := TPaintBox.Create(Self);
+  FProcessPaint.Parent := Self;
+  FProcessPaint.OnPaint := ProcessPaint;
+  ApplyPageVisibility;
 
   FUiTimer := TTimer.Create(Self);
   FUiTimer.Enabled := False;
@@ -327,6 +361,8 @@ begin
   Constraints.MinHeight := MinH;
   if FHeaderPaint <> nil then
     FHeaderPaint.Height := Met.HeaderHeight + Met.AccentLine;
+  if FTabPaint <> nil then
+    FTabPaint.Height := Met.TabHeight;
 end;
 
 procedure TDashboardForm.ApplySavedDipBounds;
@@ -500,6 +536,10 @@ begin
   end;
   if FHeaderPaint <> nil then
     FHeaderPaint.Invalidate;
+  if FTabPaint <> nil then
+    FTabPaint.Invalidate;
+  if FProcessPaint <> nil then
+    FProcessPaint.Invalidate;
   if FCpuPaint <> nil then
     FCpuPaint.Invalidate;
   if FMemPaint <> nil then
@@ -526,8 +566,8 @@ var
   Extra, MinRight, MinLeft, MinBody, MinRow, MinGraph: Integer;
   Heights: array[0..4] of Integer;
 begin
-  if (FHeaderPaint = nil) or (FCards[0] = nil) or (FCpuPaint = nil) or
-    (FPingPaint = nil) then
+  if (FHeaderPaint = nil) or (FTabPaint = nil) or (FCards[0] = nil) or
+    (FCpuPaint = nil) or (FPingPaint = nil) or (FProcessPaint = nil) then
     Exit;
   Dpi := WindowDpi;
   Met := HudMetrics(Dpi);
@@ -544,7 +584,7 @@ begin
   LeftColW := ClientWidth - Met.Margin * 2 - Met.CardGap - RightColW;
   if LeftColW < MinLeft then
     LeftColW := MinLeft;
-  BodyTop := FHeaderPaint.Height + Met.Margin;
+  BodyTop := FHeaderPaint.Height + FTabPaint.Height + Met.Margin;
   BodyH := ClientHeight - BodyTop - Met.Margin;
   if BodyH < MinBody then
     BodyH := MinBody;
@@ -578,12 +618,97 @@ begin
   Inc(Y, Heights[0] + Met.CardGap);
   FMemPaint.SetBounds(SideX, Y, RightColW, Heights[1]);
   Inc(Y, Heights[1] + Met.CardGap);
-  FPowerPaint.Visible := True;
   FPowerPaint.SetBounds(SideX, Y, RightColW, Heights[2]);
   Inc(Y, Heights[2] + Met.CardGap);
   FQueuePaint.SetBounds(SideX, Y, RightColW, Heights[3]);
   Inc(Y, Heights[3] + Met.CardGap);
   FPingPaint.SetBounds(SideX, Y, RightColW, Heights[4]);
+
+  { The process page spans both columns of the same body area. }
+  FProcessPaint.SetBounds(Met.Margin, BodyTop,
+    LeftColW + Met.CardGap + RightColW, BodyH);
+end;
+
+procedure TDashboardForm.ApplyPageVisibility;
+var
+  i: Integer;
+  Overview: Boolean;
+begin
+  Overview := FPage = dpOverview;
+  for i := 0 to 4 do
+    if FCards[i] <> nil then
+      FCards[i].Visible := Overview;
+  if FCpuPaint <> nil then
+    FCpuPaint.Visible := Overview;
+  if FMemPaint <> nil then
+    FMemPaint.Visible := Overview;
+  if FPowerPaint <> nil then
+    FPowerPaint.Visible := Overview;
+  if FQueuePaint <> nil then
+    FQueuePaint.Visible := Overview;
+  if FPingPaint <> nil then
+    FPingPaint.Visible := Overview;
+  if FProcessPaint <> nil then
+    FProcessPaint.Visible := not Overview;
+end;
+
+procedure TDashboardForm.SetPage(APage: TDashboardPage);
+begin
+  if APage = FPage then
+    Exit;
+  FPage := APage;
+  ApplyPageVisibility;
+  if FTabPaint <> nil then
+    FTabPaint.Invalidate;
+  { Overview widgets skipped repaints while hidden; bring them up to date now. }
+  if FPage = dpOverview then
+    RefreshData;
+end;
+
+procedure TDashboardForm.TabMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+var
+  i: Integer;
+begin
+  if Button <> mbLeft then
+    Exit;
+  for i := 0 to High(FTabRects) do
+    if (i <= Ord(High(TDashboardPage))) and PtInRect(FTabRects[i], Point(X, Y)) then
+    begin
+      SetPage(TDashboardPage(i));
+      Exit;
+    end;
+end;
+
+procedure TDashboardForm.FormKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  N: Integer;
+begin
+  if (Key <> VK_TAB) or not (ssCtrl in Shift) then
+    Exit;
+  N := Ord(High(TDashboardPage)) + 1;
+  if ssShift in Shift then
+    SetPage(TDashboardPage((Ord(FPage) + N - 1) mod N))
+  else
+    SetPage(TDashboardPage((Ord(FPage) + 1) mod N));
+  Key := 0;
+end;
+
+procedure TDashboardForm.TabPaint(Sender: TObject);
+begin
+  DrawTabRow(FTabPaint.Canvas, FTabPaint.ClientRect,
+    [S('dash.tab_overview'), S('dash.tab_process')], Ord(FPage), HudPalette,
+    CurrentMetrics, FTabRects);
+end;
+
+procedure TDashboardForm.ProcessPaint(Sender: TObject);
+var
+  Pal: THudPalette;
+begin
+  Pal := HudPalette;
+  DrawCardHeader(FProcessPaint.Canvas, FProcessPaint.ClientRect,
+    S('dash.tab_process'), '', Pal.AccentStart, Pal, CurrentMetrics);
 end;
 
 procedure TDashboardForm.ApplyDonutLevels;
@@ -619,6 +744,11 @@ begin
   FCards[4].Value2 := FormatRateBps(Snap.NetOutBps);
   ApplyDonutLevels;
   FCollector.CopyPingHistory(FPingHistory);
+  FHeaderPaint.Invalidate;
+  { Hidden overview widgets need no repaint; SetPage refreshes them on return.
+    History keeps accumulating on the MainForm side, so graphs stay continuous. }
+  if FPage <> dpOverview then
+    Exit;
   for i := 0 to 4 do
     FCards[i].Invalidate;
   FCpuPaint.Invalidate;
@@ -626,14 +756,13 @@ begin
   FQueuePaint.Invalidate;
   FPowerPaint.Invalidate;
   FPingPaint.Invalidate;
-  FHeaderPaint.Invalidate;
 end;
 
 procedure TDashboardForm.MeterTimerTick(Sender: TObject);
 var
   i: Integer;
 begin
-  if not Visible then
+  if not Visible or (FPage <> dpOverview) then
     Exit;
   ApplyDonutLevels;
   for i := 0 to 4 do
@@ -735,6 +864,8 @@ procedure TDashboardForm.FormShow(Sender: TObject);
 begin
   { A monitor may have been removed/rearranged while the window was hidden. }
   ClampIntoView;
+  { Always open on the overview; FPage survives a caHide close. }
+  SetPage(dpOverview);
   FUiTimer.Enabled := True;
   FMeterTimer.Enabled := True;
   RefreshData;

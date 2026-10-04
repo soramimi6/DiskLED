@@ -259,6 +259,8 @@ begin
   AddStr('dash.ping_rtt', 'RTT', 'RTT');
   AddStr('dash.ping_status', '状態', 'Status');
   AddStr('dash.live', 'LIVE', 'LIVE');
+  AddStr('dash.tab_overview', '概要', 'Overview');
+  AddStr('dash.tab_process', 'プロセス', 'Processes');
   AddStr('dash.axis_now', '現在', 'now');
   AddStr('dash.axis_5m', '5分', '5m');
 

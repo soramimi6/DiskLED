@@ -25,6 +25,11 @@ procedure DrawStatPill(ACanvas: TCanvas; const ARect: TRect; const ATitle: strin
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
   ALiveText, AVersion, AUptimeText, ACumText: string; ALiveOn: Boolean; const APalette: THudPalette;
   const AMetrics: THudMetrics);
+{ Page tabs under the header. ATabRects receives each tab's hit rectangle (in
+  ARect's coordinates) so the caller can map clicks back to a page. }
+procedure DrawTabRow(ACanvas: TCanvas; const ARect: TRect;
+  const ATitles: array of string; AActive: Integer; const APalette: THudPalette;
+  const AMetrics: THudMetrics; out ATabRects: TArray<TRect>);
 procedure DrawCpuPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, ANameLbl, ATopoLbl, AClockLbl,
   AUserLbl, AKernelLbl: string; const APalette: THudPalette;
@@ -195,6 +200,46 @@ begin
   else
     ACanvas.Font.Color := APalette.TextMuted;
   ACanvas.TextOut(LiveX, MetaY, LiveTxt);
+end;
+
+procedure DrawTabRow(ACanvas: TCanvas; const ARect: TRect;
+  const ATitles: array of string; AActive: Integer; const APalette: THudPalette;
+  const AMetrics: THudMetrics; out ATabRects: TArray<TRect>);
+var
+  i, X, W, Pad, TextY, LineH: Integer;
+  R: TRect;
+begin
+  GpFillRect(ACanvas, ARect, APalette.Bg);
+  LineH := Dip(AMetrics, 1);
+  GpFillRect(ACanvas, Rect(ARect.Left, ARect.Bottom - LineH, ARect.Right,
+    ARect.Bottom), APalette.CardBorder);
+
+  TransparentText(ACanvas);
+  ACanvas.Font.Name := 'Segoe UI';
+  ACanvas.Font.Style := [fsBold];
+  ACanvas.Font.Size := AMetrics.BodySize;
+  Pad := Dip(AMetrics, 14);
+  TextY := ARect.Top + (ARect.Height - ACanvas.TextHeight('Ag')) div 2;
+  SetLength(ATabRects, Length(ATitles));
+  X := ARect.Left + AMetrics.Margin;
+  for i := 0 to High(ATitles) do
+  begin
+    W := ACanvas.TextWidth(ATitles[i]) + Pad * 2;
+    R := Rect(X, ARect.Top, X + W, ARect.Bottom);
+    ATabRects[i] := R;
+    if i = AActive then
+    begin
+      ACanvas.Font.Color := APalette.TextPrimary;
+      GpFillRect(ACanvas, Rect(R.Left, R.Bottom - AMetrics.AccentLine, R.Right,
+        R.Bottom), APalette.AccentStart);
+      { GpFillRect sets Brush.Color, which makes the brush solid again. }
+      ACanvas.Brush.Style := bsClear;
+    end
+    else
+      ACanvas.Font.Color := APalette.TextMuted;
+    ACanvas.TextOut(X + Pad, TextY, ATitles[i]);
+    Inc(X, W);
+  end;
 end;
 
 function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string;
