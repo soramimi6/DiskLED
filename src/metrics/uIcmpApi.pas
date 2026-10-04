@@ -24,6 +24,10 @@ type
 const
   IP_SUCCESS = Winapi.IpExport.IP_SUCCESS;
   IP_TTL_EXPIRED_TRANSIT = Winapi.IpExport.IP_TTL_EXPIRED_TRANSIT;
+  IP_DEST_NET_UNREACHABLE = Winapi.IpExport.IP_DEST_NET_UNREACHABLE;
+  IP_DEST_HOST_UNREACHABLE = Winapi.IpExport.IP_DEST_HOST_UNREACHABLE;
+  IP_DEST_PROT_UNREACHABLE = Winapi.IpExport.IP_DEST_PROT_UNREACHABLE;
+  IP_DEST_PORT_UNREACHABLE = Winapi.IpExport.IP_DEST_PORT_UNREACHABLE;
 
 function IcmpCreateFile: THandle; stdcall;
   external 'iphlpapi.dll' name 'IcmpCreateFile';
@@ -33,6 +37,16 @@ function IcmpSendEcho(IcmpHandle: THandle; DestinationAddress: Cardinal;
   RequestData: Pointer; RequestSize: Word; RequestOptions: PIpOptionInformation;
   ReplyBuffer: Pointer; ReplySize: DWORD; Timeout: DWORD): DWORD; stdcall;
   external 'iphlpapi.dll' name 'IcmpSendEcho';
+{ Asynchronous form: with Event set it returns at once (GetLastError =
+  ERROR_IO_PENDING) and signals Event when the reply or timeout lands in
+  ReplyBuffer, which must stay valid until then. }
+function IcmpSendEcho2(IcmpHandle: THandle; Event: THandle; ApcRoutine: Pointer;
+  ApcContext: Pointer; DestinationAddress: Cardinal; RequestData: Pointer;
+  RequestSize: Word; RequestOptions: PIpOptionInformation; ReplyBuffer: Pointer;
+  ReplySize: DWORD; Timeout: DWORD): DWORD; stdcall;
+  external 'iphlpapi.dll' name 'IcmpSendEcho2';
+function IcmpParseReplies(ReplyBuffer: Pointer; ReplySize: DWORD): DWORD; stdcall;
+  external 'iphlpapi.dll' name 'IcmpParseReplies';
 
 implementation
 

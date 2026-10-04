@@ -23,6 +23,7 @@ uses
   uMetricsTypes,
   uDpiScale,
   uProcessCollector,
+  uRouteCollector,
   uHoverTip,
   uThemedHudForm;
 
@@ -57,6 +58,7 @@ type
     FProcessPaint: TPaintBox;
     { Ping/route page (item 14). }
     FRoutePaint: TPaintBox;
+    FRoute: TRouteCollector;
     { Page FormShow opens on; reset to the overview after each show. }
     FOpenPage: TDashboardPage;
     FProcess: TProcessCollector;
@@ -170,6 +172,7 @@ begin
   { Stops and joins the worker thread. Done before inherited so a late
     FormHide during teardown sees nil rather than a freed collector. }
   FreeAndNil(FProcess);
+  FreeAndNil(FRoute);
   FreeAndNil(FProcessIcons);
   FreeAndNil(FProcTip);
   inherited;
@@ -300,6 +303,7 @@ begin
   FProcTipDelay.OnTimer := ProcTipDelayTick;
   FProcHoverKey := -1;
   FProcess := TProcessCollector.Create;
+  FRoute := TRouteCollector.Create;
   FProcessIcons := TProcessIconCache.Create;
   if FSettings <> nil then
     FProcess.SetInterval(FSettings.DashboardProcessIntervalSec);
@@ -742,6 +746,14 @@ begin
     FProcess.SetPaused(False);
     FProcess.SetActive(FPage = dpProcess);
   end;
+  { Route probing likewise runs only while its page is shown; opening it
+    measures once. }
+  if FRoute <> nil then
+  begin
+    if (FPage = dpRoute) and (FCollector <> nil) then
+      FRoute.SetTarget(FCollector.CurrentPingTarget);
+    FRoute.SetActive(FPage = dpRoute);
+  end;
   if FTabPaint <> nil then
     FTabPaint.Invalidate;
   { Overview widgets skipped repaints while hidden; bring them up to date now. }
@@ -960,13 +972,61 @@ begin
 end;
 
 procedure TDashboardForm.RoutePaint(Sender: TObject);
+const
+  KindText: array[TRouteReplyKind] of string = ('-', 'ttl', 'reached',
+    'net-unr', 'host-unr', 'proto-unr', 'port-unr', 'other');
 var
   Pal: THudPalette;
+  Met: THudMetrics;
+  C: TCanvas;
+  Res: TRouteResult;
+  H: TRouteHop;
+  Name, Line: string;
+  Y, LineH: Integer;
 begin
-  { Step-1 placeholder: the page frame only. }
+  { Step-2 placeholder: raw measurement output, one line per hop. Replaced by
+    the waterfall and list in step 3. }
   Pal := HudPalette;
-  DrawCardHeader(FRoutePaint.Canvas, FRoutePaint.ClientRect, S('dash.tab_route'),
-    '', Pal.AccentStart, Pal, CurrentMetrics);
+  Met := CurrentMetrics;
+  C := FRoutePaint.Canvas;
+  DrawCardHeader(C, FRoutePaint.ClientRect, S('dash.tab_route'), '',
+    Pal.AccentStart, Pal, Met);
+  if FRoute = nil then
+    Exit;
+  FRoute.CopyResult(Res);
+  C.Brush.Style := bsClear;
+  C.Font.Name := 'Consolas';
+  C.Font.Style := [];
+  C.Font.Size := Met.BodySize;
+  C.Font.Color := Pal.TextPrimary;
+  LineH := C.TextHeight('Ag') + 2;
+  Y := Met.CardHeaderHeight + Met.CardPad;
+  if FRoute.Running then
+    Line := 'running...'
+  else
+    Line := '';
+  if Res.Valid then
+    Line := Format('%s  target=%s (%s) reached=%s failed=%s total=%.1fms at %s',
+      [Line, Res.Target, Res.TargetIp, BoolToStr(Res.Reached, True),
+       BoolToStr(Res.Failed, True), Res.TotalMs, TimeToStr(Res.MeasuredAt)]);
+  C.TextOut(Met.CardPad, Y, Line);
+  Inc(Y, LineH * 2);
+  for H in Res.Hops do
+  begin
+    if not FRoute.Names.TryGet(H.Addr, Name) then
+      Name := '?';
+    Line := Format('%2d %-15s %-28s cls=%d %-9s rx=%d/%d loss=%3.0f%% ' +
+      'min=%4.0f med=%4.0f avg=%5.1f max=%4.0f jit=%4.1f eff=%5.1f seg=%5.1f exc=%5.1f rttl=%3d',
+      [H.Ttl, H.Addr, Copy(Name, 1, 28), Ord(H.AddrClass), KindText[H.Kind],
+       H.Received, H.Sent, H.LossPct, H.MinMs, H.MedianMs, H.AvgMs, H.MaxMs,
+       H.JitterMs, H.EffectiveMs, H.SegmentMs, H.ExcessMs, H.ReplyTtl]);
+    if H.HasPrevious then
+      Line := Line + Format(' d=%+.1f', [H.DeltaMs]);
+    if Length(H.OtherAddrs) > 0 then
+      Line := Line + ' alt=' + string.Join(',', H.OtherAddrs);
+    C.TextOut(Met.CardPad, Y, Line);
+    Inc(Y, LineH);
+  end;
 end;
 
 procedure TDashboardForm.ProcessPaint(Sender: TObject);
@@ -1172,7 +1232,12 @@ begin
   if FPage = dpProcess then
     FProcessPaint.Invalidate
   else if (FPage = dpRoute) and (FRoutePaint <> nil) then
+  begin
+    { The Ping target can change (gateway auto-detection); keep it current. }
+    if FRoute <> nil then
+      FRoute.SetTarget(FCollector.CurrentPingTarget);
     FRoutePaint.Invalidate;
+  end;
   if FPage <> dpOverview then
     Exit;
   for i := 0 to 4 do
@@ -1310,6 +1375,8 @@ begin
     FProcess.SetPaused(False);
     FProcess.SetActive(False);
   end;
+  if FRoute <> nil then
+    FRoute.SetActive(False);
   PersistDashboardDip;
   if FSettings <> nil then
   try
