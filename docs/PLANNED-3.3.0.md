@@ -19,6 +19,7 @@
 | 11 | トレイ LED の色に黄色を追加 | 完了 | 高（生成スクリプトに色を1つ足すだけ） | 低 | 0.5日 |
 | 12 | トレイ LED の色をディスクとネットで個別に指定 | 完了 | 高 | 低〜中（設定キー1つ追加と、オプション画面の色選択を表の形にする配置変更） | 1日 |
 | 13 | リモートデスクトップ接続中のダッシュボードのちらつき解消 | 完了 | 高（VCL のプロパティ指定のみ） | 低 | 0.5日 |
+| 14 | Ping 結果ウィンドウをダッシュボードの「Ping/経路」ページに統合（区間遅延のウォーターフォール） | 未着手 | 高（ICMP は既存の `IcmpSendEcho` 系。AS は外部 DNS 依存） | 高（経路計測の作り直し＋ページ描画＋旧ウィンドウ廃止） | 1.5〜2週間 |
 
 **優先順位の理由:**
 - **1**（0.5日）: 低コスト・低リスクで他項目に依存しない単独修正。先に片付けて着手障壁を減らす。
@@ -31,6 +32,7 @@
 - **10**（1〜1.5日）: 既存機能の配置換えのみで他項目に依存しない。項目1 と同じ `uOptionsForm.dfm` を触るため、**項目1 の直後に続けて着手**するとオプション画面の実機確認を一度にまとめられる（番号は後付けの 10）。
 - **11・12**（計 1.5日）: どちらもオプション画面の「トレイ LED の色」カードを触るので、**11 → 12 の順に続けて着手**し、カードの配置変更と実機確認を一度にまとめる。他項目とは独立（番号は後付け）。
 - **13**（0.5日）: 他項目と独立した小さな修正。項目7 がダッシュボードのフォームを触っているため、**項目7 の完了後**に着手して衝突を避ける（番号は後付け）。
+- **14**（1.5〜2週間）: 項目7 のページ切替・タブ行・周期選択の仕組みの上に作るため、項目7 の後（番号は後付け）。
 
 ## 1. オプション画面のテーマ連動を止め、VCL 標準の表示に固定（完了）
 
@@ -462,3 +464,84 @@
 ### 見積り
 
 0.5 日（指定は数行。リモート越しの実機確認が中心）。
+
+## 14. Ping 結果ウィンドウをダッシュボードの「Ping/経路」ページに統合
+
+個別の Ping 結果ウィンドウ（Tracert 表示）を廃止し、ダッシュボードの 3 つ目のページ「Ping/経路」にする（タブは「概要」「プロセス」「Ping/経路」）。目的は、**最終到達先までの往復時間が、経路上のどの区間でどれだけ費やされているか（区間遅延のバランス）を視覚的に見せる**こと。見せ方はブラウザの開発者ツールの Network タブのウォーターフォールに倣い、上部にグラフ、下部に一覧を置く。
+
+### 決定事項
+
+- **ページ名は「Ping/経路」**（英語は `Ping / Route`）。右クリックメニューの「Ping結果表示」は、ダッシュボードをこのページで開く動作に置き換える。
+- **計測はこのページを表示している間だけ。** ダッシュボードを閉じる、または別のページに移ると計測を止め、何も送信しない。途中で離れた計測は打ち切って結果を捨てる。ページを開いた時点で 1 回計測する（自動繰り返しが「停止」でも）。前回の結果は計測時刻と一緒に残し、新しい結果が出るまで表示する。ガジェットの定期 Ping（Ping 段階表示）はこれと独立に従来どおり動く。
+- **自動繰り返しは 1 分／5 分／10 分／停止**（既定は停止）。プロセスページの更新周期と同じく、このページ表示中だけタブ行の右端に出し、選んだ値は ini に保存する。加えて「今すぐ計測」を置く。
+- **計測方式: 1 回の計測 = 3 ラウンド。** 各ラウンドで TTL 1〜N にほぼ同時に送る（ルーターの ICMP 応答の上限に当たらないよう約 20 ms ずつずらす）。各ホップの値は 3 回の中央値で比べ、最小・平均・最大・ジッター・損失率も同じ 3 回から出す。区間遅延は隣り合うホップの中央値の差。自動繰り返し中は直近 10 回分を保持し、前回との差（前回比）を出す。
+- **区間遅延の扱い:**
+  - 横棒は「1 つ前のホップの RTT から、そのホップの RTT まで」で描く（棒の長さ＝区間遅延、最終行の右端＝全体の RTT）。
+  - 後続のホップに引き継がれない遅延（その行だけ大きく、次で元に戻る）は、ルーター自身の応答が遅いだけで経路の遅延ではないため、横棒をグレーの破線にしてツールチップで説明する。
+  - 差がマイナスの区間は 0 として扱い、印を付ける。応答の無いホップ（`*`）の遅延は、次に応答したホップの区間にまとめる。
+- **グラフ（上部）:** 最上段に全体の RTT を区間ごとに色分けした内訳バー。その下に各ホップのウォーターフォール（区間の横棒＋最小〜最大の細線）。色分けはアドレス区分（AS 取得を有効にした場合は AS）。
+- **一覧（下部）の列:** TTL／ホスト名（IP。逆引きできなかったことも表示）／区分（LAN・CGNAT・グローバル・リンクローカル）／応答の種類（TTL 超過・到達・宛先到達不能（ホスト／ネット／ポート）・タイムアウト）／損失率／区間遅延／RTT 中央値（最小〜最大）／ジッター／前回比／AS・組織名。1 件 2 行の構成とし、残りはツールチップ（計測開始からの開始・終了時刻、応答パケットの TTL など）。
+- **AS 番号・組織名は既定オフ。** オプション画面に「AS 番号・組織名を調べる（外部の DNS サービスに問い合わせます）」を置いて有効化する。方式は Team Cymru の DNS サービス（`<逆順IP>.origin.asn.cymru.com` の TXT で AS 番号、`AS<番号>.asn.cymru.com` の TXT で組織名）を Windows 標準の `DnsQuery_W` で引く。送るのはグローバル IP のホップだけ（LAN・CGNAT は送らない）。結果は IP・AS ごとに覚え、再問い合わせしない。IX や事業者境界のルーターは隣の事業者の番号で出ることがあるため、区間の目安として扱う。公開文書（NOTES など）に問い合わせ先と送る内容を書く。
+- **IPv6 は、Ping の対象が IPv6 アドレスしか持たないときだけ** IPv6 で経路を測る（`Icmp6SendEcho2`）。IPv4／IPv6 を切り替える設定は作らない。
+
+### 現状（実ソース確認済み）
+
+- **Ping 結果ウィンドウ** は `TTraceRouteForm`（[uTraceRouteForm.pas:25](../src/uTraceRouteForm.pas#L25)）。開いたとき（`FormShow`、[uTraceRouteForm.pas:407-416](../src/uTraceRouteForm.pas#L407)）と「更新」ボタンでだけ Tracert を走らせる。一覧は `TListView` の 4 列（TTL・IP・ホスト名・RTT、[uTraceRouteForm.pas:82-85](../src/uTraceRouteForm.pas#L82)）。
+- 開くのは右クリックメニューの `miPingResult`（[uMainForm.pas:685-688](../src/uMainForm.pas#L685)、文字列 `menu.ping_result`）→ `ShowTraceRouteForm`（[uMainForm.pas:883-890](../src/uMainForm.pas#L883)）。フォームは `FTraceRouteForm`（[uMainForm.pas:114](../src/uMainForm.pas#L114)）で、終了時に解放（[uMainForm.pas:596](../src/uMainForm.pas#L596)）。最前面の再設定の判定にも出てくる（[uMainForm.pas:831](../src/uMainForm.pas#L831)）。ユニットは `DiskLED.dpr:43` と `DiskLED.dproj:160` に登録。文字列は `trace.*`（[uAppStrings.pas:78-91](../src/uAppStrings.pas#L78)）。
+- **経路計測** は `TTracertCollector`（[uTracertCollector.pas:58](../src/metrics/uTracertCollector.pas#L58)）。TTL を 1 から順に 1 回ずつ送り、各 TTL の応答を待ってから次へ進む（[uTracertCollector.pas:290-330](../src/metrics/uTracertCollector.pas#L290)、最大 30 ホップ・1 ホップ 1000 ms・連続 5 回無応答で打ち切り、[uTracertCollector.pas:90-92](../src/metrics/uTracertCollector.pas#L90)）。逆引きはホップごとの別スレッドで、`OnHostName` で後から届く（[uTracertCollector.pas:131-151](../src/metrics/uTracertCollector.pas#L131)）。応答の `Status` は「到達」と「TTL 超過」の区別にしか使っておらず（[uTracertCollector.pas:195-196](../src/metrics/uTracertCollector.pas#L195)）、宛先到達不能の種類や応答パケットの TTL（`TIcmpEchoReply.Options.Ttl`）は捨てている。
+- **IPv4 のみ。** ICMP の宣言は `IcmpSendEcho` だけ（[uIcmpApi.pas:32-35](../src/metrics/uIcmpApi.pas#L32)）、名前解決は `gethostbyname` の IPv4 のみ（`ResolveIPv4`、[uHostResolve.pas:20-35](../src/metrics/uHostResolve.pas#L20)）。定期 Ping も同じ `ResolveIPv4` を使う（[uPingCollector.pas:473](../src/metrics/uPingCollector.pas#L473)）。
+- 計測対象は `TMetricsCollector.CurrentPingTarget`（[uCollector.pas:215](../src/metrics/uCollector.pas#L215)）で、定期 Ping の対象（既定ゲートウェイの自動選択を含む）と同じ。
+- **ダッシュボードのページ** は `TDashboardPage = (dpOverview, dpProcess)`（[uDashboardForm.pas:38](../src/dashboard/uDashboardForm.pas#L38)）。タブ行・ページ切替・タブ行右端の周期選択・表示中だけ動く収集の仕組みは項目7 で用意済み（`SetPage`、`DrawTabChoice`、`TProcessCollector.SetActive`／`SetPaused` と同じ流儀）。
+
+### 方針
+
+**1. 収集層（`uTracertCollector.pas` を作り直す）**
+- 1 回の計測を「3 ラウンド × TTL 1〜N の同時送信」にする。ICMP は `IcmpSendEcho2`（完了イベント付きの非同期）で TTL ごとに投げ、約 20 ms ずつずらす。宛先に到達した TTL より先は送らない（1 ラウンド目で到達 TTL を確定させ、2 ラウンド目以降はそこまで）。
+- ホップごとに 3 回分の RTT・応答の種類（`Status`）・応答パケットの TTL・応答元アドレスを集め、中央値・最小・平均・最大・ジッター・損失率と区間遅延を計算して、1 回の計測結果として UI へ渡す。応答元アドレスがラウンドで異なる（経路が分岐している）場合は、最も多いアドレスを代表にし、ツールチップに他のアドレスも出す。
+- ワーカースレッドで動かし、`SetActive`（ページ表示中だけ）・計測周期・「今すぐ計測」を受ける。途中で非表示になったら打ち切る。逆引き（既存の非同期方式）と AS の問い合わせは、結果の確定後に IP ごとに行い、届いたら UI を更新する。
+- IPv6: 対象が AAAA しか持たないとき `Icmp6CreateFile`／`Icmp6SendEcho2` で同じ計測をする。名前解決は `GetAddrInfoW` に置き換える（定期 Ping 側の `ResolveIPv4` は変えない）。
+- アドレス区分（LAN・CGNAT `100.64.0.0/10`・グローバル・リンクローカル、IPv6 は ULA `fc00::/7`・リンクローカル `fe80::/10`）はアドレスから判定する。
+
+**2. ページ（`uDashboardForm.pas`、`uDashboardPainter.pas`）**
+- `TDashboardPage` に `dpRoute` を足し、タブ行を 3 つにする。Ctrl+Tab の巡回も 3 ページにする。
+- ページは上部のグラフ（内訳バー＋ウォーターフォール）と下部の一覧。描画は項目7 と同じく自前描画（`TPaintBox`）で、ツールチップは `THoverTip`。
+- タブ行右端に「自動 1分 5分 10分 停止」と「今すぐ計測」を出す（このページ表示中だけ）。設定キーは `[Dashboard] RouteIntervalMin`（0＝停止、1／5／10）。
+- ページ上部に、宛先・IP・ホップ数・全体の RTT・計測時刻・計測中の表示を出す（旧ウィンドウのヘッダー相当）。
+
+**3. 旧ウィンドウの廃止**
+- `uTraceRouteForm.pas`／`.dfm` を削除し、`DiskLED.dpr`・`DiskLED.dproj` の登録、`FTraceRouteForm` と最前面判定の条件、`ShowTraceRouteForm` を外す。`miPingResult` はダッシュボードを「Ping/経路」ページで開く処理（`TDashboardForm` に開くページを指定する口を足す）に置き換える。使わなくなる `trace.*` 文字列は整理し、メニュー文言 `menu.ping_result` は「Ping/経路」に合わせて見直す。
+
+**4. AS 番号・組織名（既定オフ）**
+- オプション画面の「Ping」タブに有効化のチェックを置く。設定キーは `[Ping] LookupAs`（既定 0）。
+- 問い合わせは `DnsQuery_W`（`DNS_TYPE_TEXT`）で、結果の TXT を `|` で区切って AS 番号・国・組織名を取り出す。失敗・タイムアウトは空欄。
+
+**5. 文書**
+- `docs/DESIGN.md` のダッシュボード節に「Ping/経路」ページを追記する。公開文書（`public_docs/` の FEATURES・USAGE・NOTES、JA/EN）はリリース時に更新し、NOTES に AS 問い合わせの送信先と内容を書く。`README.md` の主な機能の「専用ウィンドウで Tracert のように…」の記述をページに合わせて直す。
+
+### 実装ステップ
+
+各ステップの終わりに IDE で Win64 Release をビルドして確認する。
+
+| # | 内容 | 主なファイル | ビルド後に見ること |
+|---|---|---|---|
+| 1 | 「Ping/経路」ページの枠（タブ 3 つ、空のページ）とメニューの付け替え | `uDashboardForm.pas`、`uMainForm.pas`、`uAppStrings.pas` | 3 つのタブと Ctrl+Tab。右クリックの「Ping/経路」でこのページが開く |
+| 2 | 収集層の作り直し（3 ラウンド同時送信・統計・区間遅延・表示中だけ・周期） | `uTracertCollector.pas`、`uIcmpApi.pas` | 別ページ・ダッシュボード非表示で送信が止まる。終了時に固まらない |
+| 3 | グラフ（内訳バー＋ウォーターフォール）と一覧、ヘッダー、周期選択と「今すぐ計測」 | `uDashboardPainter.pas`、`uDashboardForm.pas`、`uSettings.pas` | 区間の棒が前の行の終わりから始まる。見かけだけの遅延がグレー破線になる |
+| 4 | 旧 Ping 結果ウィンドウの削除 | `uTraceRouteForm.*`、`uMainForm.pas`、`DiskLED.dpr`、`DiskLED.dproj` | 旧ウィンドウ関連が残っていない。メニュー・トレイから問題なく開く |
+| 5 | AS 番号・組織名（既定オフ、オプションで有効化） | `uTracertCollector.pas`（または新規ユニット）、`uOptionsForm.*`、`uSettings.pas` | オフの間は問い合わせない。オンで AS・組織名が出る |
+| 6 | IPv6（対象が IPv6 のみのとき） | `uTracertCollector.pas`、`uIcmpApi.pas`、`uHostResolve.pas` | IPv6 のみのホストで経路が出る |
+| 7 | 文書 | `docs/DESIGN.md`、`README.md` | — |
+
+### 実機で見ること（実装時。Win64 Release を IDE でビルド）
+
+- 「Ping/経路」ページを開いた時点で 1 回計測し、自動繰り返しの各周期でその間隔ごとに計測されること。別のページに移る・ダッシュボードを閉じると送信が止まること（Resource Monitor 等で ICMP の送信が止まることを確認）。
+- 区間の横棒が前の行の終わりから始まり、最終行の右端が全体の RTT と一致すること。内訳バーの区間の比率がウォーターフォールと一致すること。
+- 途中のルーターだけ RTT が大きく次で戻るケースで、その行がグレーの破線になること。応答の無いホップがあっても、区間遅延が次のホップにまとめられること。
+- 損失率・最小／最大・ジッター・前回比が、`tracert`／`pathping` の結果とおおむね整合すること。
+- AS 取得がオフの間は外部の DNS 問い合わせが出ないこと、オンにすると AS・組織名が出ること。
+- ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で崩れないこと。
+- 旧 Ping 結果ウィンドウが開かなくなり、右クリック・トレイの「Ping/経路」でダッシュボードのこのページが開くこと。
+
+### 見積り
+
+収集層の作り直し 3〜4 日、ページの描画 3〜4 日、旧ウィンドウ廃止・メニュー付け替え 0.5 日、AS 1 日、IPv6 1〜2 日、実機調整 1〜2 日。合計 1.5〜2 週間。
