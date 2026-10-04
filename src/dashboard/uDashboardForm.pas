@@ -178,6 +178,10 @@ begin
   Caption := S('dash.title');
   Color := Pal.Bg;
   DoubleBuffered := True;
+  { Keep double buffering in Remote Desktop sessions too (VCL turns it off
+    there by default); the header, tab row, right column and process page are
+    paint boxes drawn through this form's buffer. }
+  DoubleBufferedMode := dbmRequested;
   Position := poDesigned;
   if HandleAllocated then
     FWindowDpi := MonitorDpiForWindow(Handle)

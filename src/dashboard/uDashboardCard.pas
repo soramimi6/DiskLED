@@ -74,6 +74,10 @@ constructor TDashboardCard.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
   DoubleBuffered := True;
+  { VCL drops double buffering in Remote Desktop sessions by default
+    (Application.SingleBufferingInRemoteSessions); keep it, or every 1 Hz /
+    5 Hz repaint flickers over RDP. }
+  DoubleBufferedMode := dbmRequested;
   TabStop := False;
   FMaxY := 1.0;
   FLevel := 0;
