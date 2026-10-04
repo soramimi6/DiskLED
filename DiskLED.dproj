@@ -137,8 +137,8 @@
         <DCCReference Include="src\metrics\uIcmpApi.pas"/>
         <DCCReference Include="src\metrics\uHostResolve.pas"/>
         <DCCReference Include="src\metrics\uPingCollector.pas"/>
-        <DCCReference Include="src\metrics\uTracertCollector.pas"/>
         <DCCReference Include="src\metrics\uProcessCollector.pas"/>
+        <DCCReference Include="src\metrics\uRouteCollector.pas"/>
         <DCCReference Include="src\metrics\uAudioCollector.pas"/>
         <DCCReference Include="src\metrics\uRangeEngine.pas"/>
         <DCCReference Include="src\metrics\uHistoryBuffer.pas"/>
@@ -157,12 +157,9 @@
         </DCCReference>
         <DCCReference Include="src\dashboard\uDashboardTheme.pas"/>
         <DCCReference Include="src\uThemedHudForm.pas"/>
-        <DCCReference Include="src\uTraceRouteForm.pas">
-            <Form>TraceRouteForm</Form>
-            <FormType>dfm</FormType>
-        </DCCReference>
         <DCCReference Include="src\dashboard\uDashboardGraph.pas"/>
         <DCCReference Include="src\dashboard\uDashboardPainter.pas"/>
+        <DCCReference Include="src\dashboard\uRoutePainter.pas"/>
         <DCCReference Include="src\dashboard\uDashboardCard.pas"/>
         <DCCReference Include="src\dashboard\uDashboardForm.pas">
             <Form>DashboardForm</Form>

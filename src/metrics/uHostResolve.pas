@@ -1,6 +1,6 @@
 unit uHostResolve;
 
-{ Blocking IPv4 name resolution (gethostbyname), shared by the ping and tracert
+{ Blocking IPv4 name resolution (gethostbyname), shared by the ping and route
   collectors. In its own unit because it needs Winapi.Winsock, which clashes
   with Winapi.IpExport (both declare in_addr / inet_ntoa) — so it cannot live
   in uIcmpApi. Callers do their own WSAStartup/WSACleanup. }

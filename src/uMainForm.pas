@@ -23,7 +23,6 @@ uses
   uHoverTip,
   uMeterRenderer,
   uDashboardForm,
-  uTraceRouteForm,
   uWindowPlacement,
   uUpdateCheck;
 
@@ -111,7 +110,6 @@ type
     FDashboardLastPushTick: Cardinal;
     FHasDashboardPushTick: Boolean;
     FDashboardForm: TDashboardForm;
-    FTraceRouteForm: TTraceRouteForm;
     { Set around TOptionsForm.Execute's ShowModal call: that dialog is an
       owned, non-topmost window, so PollStayOnTop must not re-assert
       HWND_TOPMOST on the (disabled-while-modal) main form while it's up,
@@ -133,7 +131,7 @@ type
     function ResolveScale100: Integer;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
-    procedure ShowTraceRouteForm;
+    procedure ShowDashboardPage(APage: TDashboardPage);
     procedure ToggleCompactFull;
     procedure SetCompactView(ACompact: Boolean);
     procedure Render;
@@ -593,7 +591,6 @@ begin
   if FTimer <> nil then
     FTimer.Enabled := False;
   FreeAndNil(FDashboardForm);
-  FreeAndNil(FTraceRouteForm);
   FreeAndNil(FTraySlots[0].OffIcon);
   FreeAndNil(FTraySlots[0].OnIcon);
   FreeAndNil(FTraySlots[1].OffIcon);
@@ -823,12 +820,11 @@ begin
   if (FSettings = nil) or (not FSettings.StayOnTop) or FDragging or
     FClosing or (not HandleAllocated) then
     Exit;
-  { Options/Dashboard/TraceRoute are owned windows that never set FormStyle
-    themselves. Re-asserting HWND_TOPMOST on the main form while one of them
-    is open would bury it behind the (possibly disabled) main form, since
-    SetWindowPos doesn't re-elevate an already-open owned window for us. }
-  if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) or
-    ((FTraceRouteForm <> nil) and FTraceRouteForm.Visible) then
+  { Options/Dashboard are owned windows that never set FormStyle themselves.
+    Re-asserting HWND_TOPMOST on the main form while one of them is open
+    would bury it behind the (possibly disabled) main form, since SetWindowPos
+    doesn't re-elevate an already-open owned window for us. }
+  if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) then
     Exit;
   { A right-click / tray menu is a TrackPopupMenu modal loop that still
     dispatches WM_TIMER, so this poll keeps running while it is open. The menu
@@ -880,14 +876,14 @@ begin
   FDashboardForm.Show;
 end;
 
-procedure TMainForm.ShowTraceRouteForm;
+procedure TMainForm.ShowDashboardPage(APage: TDashboardPage);
 begin
-  if FTraceRouteForm = nil then
-    FTraceRouteForm := TTraceRouteForm.Create(Self, FCollector);
-  { FormShow (fired only on the hidden->visible transition) kicks the
-    tracert; re-selecting the menu while already open just refocuses it. }
-  FTraceRouteForm.Show;
-  FTraceRouteForm.BringToFront;
+  if FDashboardForm = nil then
+    FDashboardForm := TDashboardForm.Create(Self, FPipeline, FDashboardHistory,
+      FCollector, FSettings);
+  if FSettings <> nil then
+    FSettings.DashboardOpen := True;
+  FDashboardForm.ShowPage(APage);
 end;
 
 procedure TMainForm.ApplyViewSize;
@@ -1502,7 +1498,8 @@ end;
 
 procedure TMainForm.miPingResultClick(Sender: TObject);
 begin
-  ShowTraceRouteForm;
+  { The Ping result window became the dashboard's Ping/route page (3.3.0). }
+  ShowDashboardPage(dpRoute);
 end;
 
 procedure TMainForm.miDashboardClick(Sender: TObject);
@@ -1570,6 +1567,10 @@ begin
       if Visible then
         BringWindowForward;
     end;
+    { The dashboard draws its page controls from the settings and drives its
+      collectors with them (the Ping target especially): resync it. }
+    if FDashboardForm <> nil then
+      FDashboardForm.SettingsChanged;
     PersistSettings;
     if UpdateCheckEnabled then
       ScheduleUpdateCheck

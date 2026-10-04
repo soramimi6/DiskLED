@@ -53,7 +53,7 @@ begin
   if GStringsReady then
     Exit;
 
-  AddStr('menu.ping_result', 'Ping結果表示', 'View Trace Route');
+  AddStr('menu.ping_result', 'Ping/経路', 'Ping / Route');
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
@@ -75,20 +75,6 @@ begin
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
 
-  AddStr('trace.title', 'Ping結果表示', 'Trace Route Result');
-  AddStr('trace.target', '宛先', 'Target');
-  AddStr('trace.hops', 'ホップ数', 'Hops');
-  AddStr('trace.total', '合計時間', 'Total');
-  AddStr('trace.measured_at', '計測日時', 'Measured at');
-  AddStr('trace.col_ttl', 'TTL', 'TTL');
-  AddStr('trace.col_ip', 'IP', 'IP');
-  AddStr('trace.col_host', 'ホスト名', 'Host');
-  AddStr('trace.col_rtt', 'RTT', 'RTT');
-  AddStr('trace.refresh', 'Ping/経路 更新', 'Refresh Ping/Trace');
-  AddStr('trace.close', '閉じる', 'Close');
-  AddStr('trace.running', '計測中…', 'Tracing…');
-  AddStr('trace.unreachable', '到達できませんでした', 'Destination unreachable');
-  AddStr('trace.error', 'エラーが発生しました（名前解決または通信の初期化に失敗）', 'An error occurred (name resolution or setup failed)');
 
   AddStr('opt.title', 'DiskLED オプション', 'DiskLED Options');
   AddStr('opt.tab.general', '全般', 'General');
@@ -262,6 +248,66 @@ begin
   AddStr('dash.live', 'LIVE', 'LIVE');
   AddStr('dash.tab_overview', '概要', 'Overview');
   AddStr('dash.tab_process', 'プロセス', 'Processes');
+  AddStr('dash.tab_route', 'Ping/経路', 'Ping / Route');
+  AddStr('dash.route_auto', '自動', 'Auto');
+  AddStr('dash.route_min', '%d分', '%d min');
+  AddStr('dash.route_now', '今すぐ計測', 'Measure now');
+  AddStr('dash.route_hops', '%d ホップ', '%d hops');
+  AddStr('dash.route_total', '往復 %s', 'Round trip %s');
+  AddStr('dash.route_measured', '計測 %s', 'Measured %s');
+  AddStr('dash.route_running', '計測中…', 'Measuring…');
+  AddStr('dash.route_unreached', '宛先に到達できませんでした', 'Target not reached');
+  AddStr('dash.route_failed', 'エラー（名前解決または通信の初期化に失敗）',
+    'Error (name resolution or setup failed)');
+  AddStr('dash.route_none', 'まだ計測していません', 'Not measured yet');
+  AddStr('dash.route_noreply', '応答なし', 'No reply');
+  AddStr('dash.route_minmax', '最小 %s / 最大 %s', 'min %s / max %s');
+  AddStr('dash.route_col_host', 'ホスト', 'Host');
+  AddStr('dash.route_col_seg', '区間', 'Segment');
+  AddStr('dash.route_col_rtt', 'RTT', 'RTT');
+  AddStr('dash.route_col_loss', '損失', 'Loss');
+  AddStr('dash.route_col_jitter', 'ジッター', 'Jitter');
+  AddStr('dash.route_col_delta', '前回比', 'vs last');
+  AddStr('dash.route_cls_lan', 'LAN', 'LAN');
+  AddStr('dash.route_cls_cgnat', 'CGNAT', 'CGNAT');
+  AddStr('dash.route_cls_linklocal', 'リンクローカル', 'Link-local');
+  AddStr('dash.route_cls_loopback', 'ループバック', 'Loopback');
+  AddStr('dash.route_cls_global', 'グローバル', 'Global');
+  AddStr('dash.route_kind_ttl', 'TTL 超過', 'TTL expired');
+  AddStr('dash.route_kind_reached', '到達', 'Reached');
+  AddStr('dash.route_kind_net', 'ネット到達不能', 'Net unreachable');
+  AddStr('dash.route_kind_host', 'ホスト到達不能', 'Host unreachable');
+  AddStr('dash.route_kind_proto', 'プロトコル到達不能', 'Protocol unreachable');
+  AddStr('dash.route_kind_port', 'ポート到達不能', 'Port unreachable');
+  AddStr('dash.route_kind_other', 'その他', 'Other');
+  AddStr('dash.route_as', '事業者名を表示', 'Show network operators');
+  AddStr('dash.route_tip_operator', '事業者', 'Operator');
+  AddStr('dash.route_as_pending', '事業者名を取得中…', 'Looking up operator…');
+  AddStr('dash.route_as_unknown', '事業者不明', 'Operator unknown');
+  AddStr('dash.route_as_tip',
+    '経路上の各ホップを運用しているネットワーク事業者名（AS 番号）を表示します。' + sLineBreak +
+    'オンの間、経路上のグローバル IP アドレスを外部の DNS サービス（Team Cymru）に問い合わせます。' +
+    sLineBreak + '家庭内 LAN と CGNAT のアドレスは送りません。',
+    'Shows the network operator (AS number) running each hop.' + sLineBreak +
+    'While on, the route''s global IP addresses are sent to an external DNS service (Team Cymru).' +
+    sLineBreak + 'Home LAN and CGNAT addresses are never sent.');
+  AddStr('dash.route_leg_range', '最小〜最大', 'Min–max');
+  AddStr('dash.route_leg_excess', 'ルーター自身の応答遅れ（経路の遅延ではない）',
+    'Router''s own reply delay (not path delay)');
+  AddStr('dash.route_tip_addr', 'アドレス', 'Address');
+  AddStr('dash.route_tip_other', '他のアドレス', 'Other addresses');
+  AddStr('dash.route_tip_class', '区分', 'Class');
+  AddStr('dash.route_tip_kind', '応答', 'Reply');
+  AddStr('dash.route_tip_replyttl', '応答パケットの TTL', 'Reply TTL');
+  AddStr('dash.route_tip_seg', '区間遅延', 'Segment delay');
+  AddStr('dash.route_tip_eff', '累積', 'Cumulative');
+  AddStr('dash.route_tip_rtt', '最小 / 中央値 / 平均 / 最大', 'Min / median / avg / max');
+  AddStr('dash.route_tip_jitter', 'ジッター', 'Jitter');
+  AddStr('dash.route_tip_received', '応答 %d / %d（損失 %.0f%%）', 'Replies %d / %d (loss %.0f%%)');
+  AddStr('dash.route_tip_delta', '前回比', 'vs last');
+  AddStr('dash.route_tip_excess',
+    'このルーター自身の応答遅れ %s（後続には持ち越されない遅延で、経路の遅延ではありません）',
+    'Own reply delay of this router %s (not carried to later hops, so not path delay)');
   AddStr('dash.proc_cpu', 'CPU使用率の高い順', 'By CPU usage');
   AddStr('dash.proc_mem', 'メモリ使用量の多い順', 'By memory used');
   AddStr('dash.proc_io', 'I/O量の多い順', 'By I/O (read + write)');

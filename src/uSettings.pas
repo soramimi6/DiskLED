@@ -44,6 +44,8 @@ type
     FDashboardH: Integer;
     FDashboardMaximized: Boolean;
     FDashboardProcessIntervalSec: Integer;
+    FDashboardRouteIntervalMin: Integer;
+    FDashboardRouteLookupAs: Boolean;
     FUpdateEnabled: Boolean;
     FUpdateLastNotified: string;
     FUpdateLatestKnown: string;
@@ -121,6 +123,14 @@ type
     { Process page refresh period: 3, 5 or 10 seconds. }
     property DashboardProcessIntervalSec: Integer read FDashboardProcessIntervalSec
       write FDashboardProcessIntervalSec;
+    { Ping/route page automatic re-measurement: 0 (off), 1, 5 or 10 minutes. }
+    property DashboardRouteIntervalMin: Integer read FDashboardRouteIntervalMin
+      write FDashboardRouteIntervalMin;
+    { Ping/route page: look up each global hop's AS number and operator via
+      Team Cymru's DNS service (toggled on the page). Off by default -- it
+      sends the route's addresses to a third party. }
+    property DashboardRouteLookupAs: Boolean read FDashboardRouteLookupAs
+      write FDashboardRouteLookupAs;
     { GitHub Latest check at startup. LastNotified is balloon-once; LatestKnown keeps the menu. }
     property UpdateEnabled: Boolean read FUpdateEnabled write FUpdateEnabled;
     property UpdateLastNotified: string read FUpdateLastNotified write FUpdateLastNotified;
@@ -307,6 +317,8 @@ begin
   FDashboardH := 720;
   FDashboardMaximized := False;
   FDashboardProcessIntervalSec := 3;
+  FDashboardRouteIntervalMin := 0;
+  FDashboardRouteLookupAs := False;
   FUpdateEnabled := True;
   FUpdateLastNotified := '';
   FUpdateLatestKnown := '';
@@ -357,6 +369,10 @@ begin
   if not ((FDashboardProcessIntervalSec = 3) or (FDashboardProcessIntervalSec = 5) or
     (FDashboardProcessIntervalSec = 10)) then
     FDashboardProcessIntervalSec := 3;
+  if not ((FDashboardRouteIntervalMin = 0) or (FDashboardRouteIntervalMin = 1) or
+    (FDashboardRouteIntervalMin = 5) or (FDashboardRouteIntervalMin = 10)) then
+    FDashboardRouteIntervalMin := 0;
+  FDashboardRouteLookupAs := False;
   if FPingIntervalSec < 300 then
     FPingIntervalSec := 300;
   if Trim(FPingHost) = '' then
@@ -462,6 +478,10 @@ begin
     FDashboardMaximized := Ini.ReadBool('Dashboard', 'Maximized', FDashboardMaximized);
     FDashboardProcessIntervalSec := Ini.ReadInteger('Dashboard', 'ProcessIntervalSec',
       FDashboardProcessIntervalSec);
+    FDashboardRouteIntervalMin := Ini.ReadInteger('Dashboard', 'RouteIntervalMin',
+      FDashboardRouteIntervalMin);
+    FDashboardRouteLookupAs := Ini.ReadBool('Dashboard', 'RouteLookupAs',
+      FDashboardRouteLookupAs);
     FUpdateEnabled := Ini.ReadBool('Update', 'Enabled', FUpdateEnabled);
     FUpdateLastNotified := Trim(Ini.ReadString('Update', 'LastNotified', FUpdateLastNotified));
     FUpdateLatestKnown := Trim(Ini.ReadString('Update', 'LatestKnown', FUpdateLatestKnown));
@@ -530,6 +550,8 @@ begin
     Ini.WriteInteger('Dashboard', 'WindowH', FDashboardH);
     Ini.WriteBool('Dashboard', 'Maximized', FDashboardMaximized);
     Ini.WriteInteger('Dashboard', 'ProcessIntervalSec', FDashboardProcessIntervalSec);
+    Ini.WriteInteger('Dashboard', 'RouteIntervalMin', FDashboardRouteIntervalMin);
+    Ini.WriteBool('Dashboard', 'RouteLookupAs', FDashboardRouteLookupAs);
     Ini.WriteBool('Update', 'Enabled', FUpdateEnabled);
     Ini.WriteString('Update', 'LastNotified', FUpdateLastNotified);
     Ini.WriteString('Update', 'LatestKnown', FUpdateLatestKnown);

@@ -26,6 +26,10 @@ type
     Icon: THandle;
   end;
 
+{ Design pixels (96 dpi) scaled with the current metrics. }
+function Dip(const AMetrics: THudMetrics; V: Integer): Integer;
+{ S cut with '...' to fit AMaxW pixels in the canvas' current font. }
+function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string;
 procedure FillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
   AColor: TColor);
 procedure StrokeRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
@@ -46,12 +50,14 @@ procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
 procedure DrawTabRow(ACanvas: TCanvas; const ARect: TRect;
   const ATitles: array of string; AActive: Integer; const APalette: THudPalette;
   const AMetrics: THudMetrics; out ATabRects: TArray<TRect>);
-{ Right-aligned "label  opt1 opt2 ..." choice inside the tab row. AOptRects
-  receives each option's hit rectangle. }
-procedure DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
+{ Right-aligned "label  opt1 opt2 ..." choice inside the tab row (its right
+  edge at ARect.Right - Margin). AOptRects receives each option's hit
+  rectangle; AActive = -1 highlights none. Returns the x where the drawn
+  group starts, so another group can be placed to its left. }
+function DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
   const ALabel: string; const AOptions: array of string; AActive: Integer;
   const APalette: THudPalette; const AMetrics: THudMetrics;
-  out AOptRects: TArray<TRect>);
+  out AOptRects: TArray<TRect>): Integer;
 { One resource column of the process page: card, title, value headings on the
   title row, and ARowSlots entries of up to four lines each (icon slot + name +
   values / detail / status / path). AValid=False (no sample yet) shows a dash
@@ -199,7 +205,6 @@ begin
   ACanvas.TextOut(ARect.Left + AMetrics.Margin, ARect.Top + Dip(AMetrics, 34), Txt);
 end;
 
-function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string; forward;
 function ProcessRowsTop(const ARect: TRect; const AMetrics: THudMetrics): Integer; forward;
 
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
@@ -445,10 +450,10 @@ begin
     Result := AMax;
 end;
 
-procedure DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
+function DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
   const ALabel: string; const AOptions: array of string; AActive: Integer;
   const APalette: THudPalette; const AMetrics: THudMetrics;
-  out AOptRects: TArray<TRect>);
+  out AOptRects: TArray<TRect>): Integer;
 var
   i, X, W, Pad, TextY: Integer;
   R: TRect;
@@ -478,8 +483,13 @@ begin
     ACanvas.TextOut(R.Left + Pad, TextY, AOptions[i]);
     Dec(X, W);
   end;
-  ACanvas.Font.Color := APalette.TextMuted;
-  ACanvas.TextOut(X - Pad - ACanvas.TextWidth(ALabel), TextY, ALabel);
+  Result := X;
+  if ALabel <> '' then
+  begin
+    ACanvas.Font.Color := APalette.TextMuted;
+    Result := X - Pad - ACanvas.TextWidth(ALabel);
+    ACanvas.TextOut(Result, TextY, ALabel);
+  end;
 end;
 
 function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string;
