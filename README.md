@@ -24,7 +24,7 @@ Windows XP 時代に Delphi 4.0 で作られた常駐モニター（HDD / ネッ
   - CPU / 物理メモリ / SWAP … 0～100%
   - ディスク／ネット速度 … デバイス上限 → だめなら実測オートセンス（手動レンジは二期）
   - Ping … 応答時間を 4 段階（正常／やや遅い／遅い／タイムアウト）で表示
-- **非採用**: ユーザー向けスキン配布（`.dla`）、SSTP、**サウンド全般**、フローティング、複数起動、ダッシュボード描画の Direct2D 移行（レンダーターゲットのリサイズ／デバイスロスト管理がカード単位の独立ウィンドウ構成で煩雑化するため。GDI+ への統一に留める）
+- **非採用**: ユーザー向けスキン配布（`.dla`）、SSTP、**サウンド全般**、フローティング、複数起動、ダッシュボード描画の Direct2D 移行（レンダーターゲットのリサイズ／デバイスロスト管理がカード単位の独立ウィンドウ構成で煩雑化するため。GDI+ への統一に留める）、ダッシュボードの CRT／キャラクター表示タイプ（作業量に対して得られるものが小さく、縦横比を自由に変えられるダッシュボードでは文字グリッドの設計が難しいため）
 - **非採用（権限・API 方針上）**: アクセス中のファイル一覧（ETW カーネルプロバイダ＝管理者権限が必要）、メモリ内訳 Standby/Modified・GPU VRAM 内訳（いずれも非公開 API 依存。一般権限・公式 API 優先の方針に反する。GPU 使用率は PDH で公式に取れるため対象）
 
 ## 主な機能
@@ -96,7 +96,7 @@ This application rebuilds a resident monitor (HDD / network / CPU / memory) orig
   - CPU / physical memory / SWAP … 0–100%
   - Disk / network speed … device maximum → if that fails, measured auto-sense (manual range is a later phase)
   - Ping … response time shown in 4 levels (OK / somewhat slow / slow / timeout)
-- **Not adopted**: User-facing skin distribution (`.dla`), SSTP, **sound in general**, floating, multiple instances
+- **Not adopted**: User-facing skin distribution (`.dla`), SSTP, **sound in general**, floating, multiple instances, moving dashboard drawing to Direct2D (render-target resizing and device-loss handling get unwieldy with each card being its own window; drawing is unified on GDI+ instead), a CRT / character-cell dashboard style (little gain for the work involved, and a character grid is hard to design for a dashboard whose aspect ratio is freely resizable)
 - **Not adopted (privilege / API policy)**: List of files currently being accessed (ETW kernel provider = requires administrator rights), memory Standby/Modified breakdown and GPU VRAM breakdown (both depend on undocumented APIs, against the "prefer non-elevated, official APIs" policy; GPU utilization is in scope since PDH exposes it officially)
 
 ## Key features
