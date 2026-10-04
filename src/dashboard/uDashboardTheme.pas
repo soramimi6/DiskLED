@@ -35,6 +35,9 @@ type
     VolYellow: TColor;
     VolRed: TColor;
     VolOff: TColor;
+    { Halo around the donut's center values: dark on the dark theme, the
+      card color on the light one so the digits read without a black rim. }
+    ValueOutline: TColor;
     GraphFillAlpha: Byte;
   end;
 
@@ -160,6 +163,7 @@ begin
   Result.VolYellow := RGB($F0, $C4, $14);
   Result.VolRed := RGB($E8, $2A, $2A);
   Result.VolOff := RGB($18, $10, $0C);
+  Result.ValueOutline := clBlack;
   Result.GraphFillAlpha := 80;
 end;
 
@@ -195,6 +199,7 @@ begin
   Result.VolYellow := RGB($C4, $88, $12);
   Result.VolRed := RGB($C4, $28, $28);
   Result.VolOff := RGB($E0, $D6, $CC);
+  Result.ValueOutline := Result.Card;
   Result.GraphFillAlpha := 56;
 end;
 
