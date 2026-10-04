@@ -133,6 +133,7 @@ type
     function ResolveScale100: Integer;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
+    procedure ShowDashboardPage(APage: TDashboardPage);
     procedure ShowTraceRouteForm;
     procedure ToggleCompactFull;
     procedure SetCompactView(ACompact: Boolean);
@@ -880,6 +881,16 @@ begin
   FDashboardForm.Show;
 end;
 
+procedure TMainForm.ShowDashboardPage(APage: TDashboardPage);
+begin
+  if FDashboardForm = nil then
+    FDashboardForm := TDashboardForm.Create(Self, FPipeline, FDashboardHistory,
+      FCollector, FSettings);
+  if FSettings <> nil then
+    FSettings.DashboardOpen := True;
+  FDashboardForm.ShowPage(APage);
+end;
+
 procedure TMainForm.ShowTraceRouteForm;
 begin
   if FTraceRouteForm = nil then
@@ -1502,7 +1513,8 @@ end;
 
 procedure TMainForm.miPingResultClick(Sender: TObject);
 begin
-  ShowTraceRouteForm;
+  { The Ping result window became the dashboard's Ping/route page (3.3.0). }
+  ShowDashboardPage(dpRoute);
 end;
 
 procedure TMainForm.miDashboardClick(Sender: TObject);

@@ -35,7 +35,7 @@ uses
   プロセスページ: リソース別 TOP5
   Do not put subsection facts inside a left-column section. }
 type
-  TDashboardPage = (dpOverview, dpProcess);
+  TDashboardPage = (dpOverview, dpProcess, dpRoute);
 
   TDashboardForm = class(TThemedHudForm)
     procedure FormCreate(Sender: TObject);
@@ -55,6 +55,10 @@ type
     FIntervalRects: TArray<TRect>;
     FPage: TDashboardPage;
     FProcessPaint: TPaintBox;
+    { Ping/route page (item 14). }
+    FRoutePaint: TPaintBox;
+    { Page FormShow opens on; reset to the overview after each show. }
+    FOpenPage: TDashboardPage;
     FProcess: TProcessCollector;
     FProcessIcons: TProcessIconCache;
     { Per column, rectangle and tooltip of each drawn entry (from the last
@@ -96,6 +100,7 @@ type
     procedure SetPage(APage: TDashboardPage);
     procedure ApplyPageVisibility;
     procedure ProcessPaint(Sender: TObject);
+    procedure RoutePaint(Sender: TObject);
     procedure CpuPaint(Sender: TObject);
     procedure MemPaint(Sender: TObject);
     procedure QueuePaint(Sender: TObject);
@@ -130,6 +135,8 @@ type
       off-screen. No-op while maximized/minimized. Called on every show and from
       the gadget's "Reset position" menu item. }
     procedure ClampIntoView;
+    { Shows the dashboard on APage (or switches to it if already open). }
+    procedure ShowPage(APage: TDashboardPage);
   end;
 
 implementation
@@ -280,6 +287,9 @@ begin
   FProcessPaint.OnMouseMove := ProcessMouseMove;
   FProcessPaintWndProc := FProcessPaint.WindowProc;
   FProcessPaint.WindowProc := ProcessPaintWndProc;
+  FRoutePaint := TPaintBox.Create(Self);
+  FRoutePaint.Parent := Self;
+  FRoutePaint.OnPaint := RoutePaint;
   FProcTip := THoverTip.Create;
   FProcTipDelay := TTimer.Create(Self);
   FProcTipDelay.Enabled := False;
@@ -687,6 +697,9 @@ begin
   { The process page spans both columns of the same body area. }
   FProcessPaint.SetBounds(Met.Margin, BodyTop,
     LeftColW + Met.CardGap + RightColW, BodyH);
+  if FRoutePaint <> nil then
+    FRoutePaint.SetBounds(Met.Margin, BodyTop,
+      LeftColW + Met.CardGap + RightColW, BodyH);
 end;
 
 procedure TDashboardForm.ApplyPageVisibility;
@@ -709,7 +722,9 @@ begin
   if FPingPaint <> nil then
     FPingPaint.Visible := Overview;
   if FProcessPaint <> nil then
-    FProcessPaint.Visible := not Overview;
+    FProcessPaint.Visible := FPage = dpProcess;
+  if FRoutePaint <> nil then
+    FRoutePaint.Visible := FPage = dpRoute;
 end;
 
 procedure TDashboardForm.SetPage(APage: TDashboardPage);
@@ -792,7 +807,7 @@ var
   i, Active, Sec: Integer;
 begin
   DrawTabRow(FTabPaint.Canvas, FTabPaint.ClientRect,
-    [S('dash.tab_overview'), S('dash.tab_process')], Ord(FPage), HudPalette,
+    [S('dash.tab_overview'), S('dash.tab_process'), S('dash.tab_route')], Ord(FPage), HudPalette,
     CurrentMetrics, FTabRects);
   if FPage <> dpProcess then
   begin
@@ -928,6 +943,30 @@ begin
   finally
     Lines.Free;
   end;
+end;
+
+procedure TDashboardForm.ShowPage(APage: TDashboardPage);
+begin
+  if Visible then
+    SetPage(APage)
+  else
+  begin
+    FOpenPage := APage;
+    Show;
+  end;
+  if WindowState = wsMinimized then
+    WindowState := wsNormal;
+  BringToFront;
+end;
+
+procedure TDashboardForm.RoutePaint(Sender: TObject);
+var
+  Pal: THudPalette;
+begin
+  { Step-1 placeholder: the page frame only. }
+  Pal := HudPalette;
+  DrawCardHeader(FRoutePaint.Canvas, FRoutePaint.ClientRect, S('dash.tab_route'),
+    '', Pal.AccentStart, Pal, CurrentMetrics);
 end;
 
 procedure TDashboardForm.ProcessPaint(Sender: TObject);
@@ -1130,11 +1169,12 @@ begin
   FHeaderPaint.Invalidate;
   { Hidden overview widgets need no repaint; SetPage refreshes them on return.
     History keeps accumulating on the MainForm side, so graphs stay continuous. }
+  if FPage = dpProcess then
+    FProcessPaint.Invalidate
+  else if (FPage = dpRoute) and (FRoutePaint <> nil) then
+    FRoutePaint.Invalidate;
   if FPage <> dpOverview then
-  begin
-    FProcessPaint.Invalidate;
     Exit;
-  end;
   for i := 0 to 4 do
     FCards[i].Invalidate;
   FCpuPaint.Invalidate;
@@ -1250,8 +1290,10 @@ procedure TDashboardForm.FormShow(Sender: TObject);
 begin
   { A monitor may have been removed/rearranged while the window was hidden. }
   ClampIntoView;
-  { Always open on the overview; FPage survives a caHide close. }
-  SetPage(dpOverview);
+  { Open on the overview unless ShowPage asked for another page; FPage
+    survives a caHide close, so it is set every time. }
+  SetPage(FOpenPage);
+  FOpenPage := dpOverview;
   FUiTimer.Enabled := True;
   FMeterTimer.Enabled := True;
   RefreshData;

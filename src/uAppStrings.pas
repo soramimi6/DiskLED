@@ -53,7 +53,7 @@ begin
   if GStringsReady then
     Exit;
 
-  AddStr('menu.ping_result', 'Ping結果表示', 'View Trace Route');
+  AddStr('menu.ping_result', 'Ping/経路', 'Ping / Route');
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
@@ -262,6 +262,7 @@ begin
   AddStr('dash.live', 'LIVE', 'LIVE');
   AddStr('dash.tab_overview', '概要', 'Overview');
   AddStr('dash.tab_process', 'プロセス', 'Processes');
+  AddStr('dash.tab_route', 'Ping/経路', 'Ping / Route');
   AddStr('dash.proc_cpu', 'CPU使用率の高い順', 'By CPU usage');
   AddStr('dash.proc_mem', 'メモリ使用量の多い順', 'By memory used');
   AddStr('dash.proc_io', 'I/O量の多い順', 'By I/O (read + write)');
