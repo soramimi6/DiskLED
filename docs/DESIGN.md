@@ -303,6 +303,8 @@ ThresholdTimeoutMs=1000
 
 ```
 DISKLED HUD（ヘッダー）
+タブ行（概要 | プロセス）                        ……プロセスページでは右端に更新周期
+概要ページ
 + 左カラム
 | + CPUセクション      ドーナツグラフ | 履歴グラフ
 | + メモリセクション   ドーナツグラフ | 履歴グラフ
@@ -315,11 +317,17 @@ DISKLED HUD（ヘッダー）
   + 電源サブセクション     AC／バッテリ、残量、残時間
   + ディスクキュー         キュー長と IOPS
   + Ping
+プロセスページ
++ CPUリスト | メモリリスト | I/Oリスト      各リストは上位 N 件（既定 5、高さで増える）
 ```
 
 | 日本語 | 英語（コード） | 役割 |
 |--------|----------------|------|
 | ヘッダー | Header | タイトル・版・LIVE（`FHeaderPaint`） |
+| タブ行 | Tab row | 概要／プロセスの切替（`FTabPaint`、クリック・Ctrl+Tab）。ページは保存せず、開くと常に概要 |
+| 概要ページ | Overview page | 左カラム＋右カラム（下記） |
+| プロセスページ | Process page | リソース別の上位プロセス（`FProcessPaint`） |
+| リスト | Process list | プロセスページの各列。CPU使用率／メモリ使用量／I/O量（読込＋書込）の多い順 |
 | 左カラム | Left column | 負荷の現在値と推移（`LeftColW`） |
 | セクション | Section | CPU / メモリ / SWAP / ディスク / ネット（`FCards[0..4]`） |
 | ドーナツグラフ | Donut | セクション左。同心円＋現在値（`MeterPaneWidth`） |
@@ -332,7 +340,10 @@ DISKLED HUD（ヘッダー）
 - CPU パッケージ温度は一般権限 API では安定して取れないため出さない
 - NIC 名一覧（`DrawNicList`）はペインタに残るが、現行レイアウトでは出さない（合算のまま）
 - Ping 履歴: `TPingCollector` リング 24 件、画面は最大 5 行
-- ini `[Dashboard]`: Open, WindowX/Y/W/H（DIP）。`Open=1` なら起動時に復元
+- 概要ページが非表示の間は、概要の再描画を省く（履歴は MainForm 側で積まれ続ける）
+- プロセスページ: `TProcessCollector`（`src/metrics/uProcessCollector.pas`）がワーカースレッドで PDH `\Process V2(*)`（無い OS では旧 `\Process(*)`）を 3／5／10 秒ごとに収集し、同名プロセスを名前で合算する。収集はプロセスページ表示中だけ。更新は「停止」で止められる（保存しない）
+- プロセスの各件は 4 行: 名前（件数）と値／ウィンドウタイトルまたは説明と会社名／ユーザー・コミット・ハンドル・スレッド／パス。全詳細はガジェットと同じネイティブのツールチップ（`THoverTip`）。パス・ユーザー等はプロセスを開ける場合のみ（非昇格で約半数）
+- ini `[Dashboard]`: Open, WindowX/Y/W/H（DIP）, ProcessIntervalSec（3／5／10）。`Open=1` なら起動時に復元
 - HUD ペインタ: `src/dashboard/uDashboard*.pas`（VCL Style 非使用）
 
 ## 16. 次の実装着手点
