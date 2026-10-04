@@ -53,7 +53,6 @@ begin
   if GStringsReady then
     Exit;
 
-  AddStr('menu.ping_result', 'Ping/経路', 'Ping / Route');
   AddStr('menu.dashboard', 'ダッシュボード', 'Dashboard');
   AddStr('menu.compact', 'コンパクト', 'Compact');
   AddStr('menu.full', 'フル', 'Full');
