@@ -222,8 +222,10 @@
 
 - **表示場所は別ウィンドウではなく、ダッシュボード内のページ。** ヘッダー直下にタブ行（「概要」「プロセス」）を置き、クリックで本体の表示を切り替える。オプション画面のタブと同じ使い方。概要ページは現行のセクション×5＋サブセクション×5 で、変更しない。
 - **同名プロセスは名前で合算して 1 行**（例 `chrome (12)`）。順位は合算値で決める。
-- **配置は縦に 3 段**（上から CPU → メモリ → I/O）、各 5 行。
-- **3 段目の見出しは「I/O」。** 値は PDH の `IO Read Bytes/sec`・`IO Write Bytes/sec` で、ファイル・ネットワーク・デバイスの全 I/O を数える（ディスクだけの値ではない）ため「ディスク」とは呼ばない。タスクマネージャーの「ディスク」列とは一致しない。
+- **配置は横に 3 列**（左から CPU → メモリ → I/O）、各列は縦長のリストで 5 件。
+- **1 件ごとに詳細を出す。** 名前（件数）と値に加え、実行ファイルの説明（`FileDescription`）・会社名（`CompanyName`）・バージョン（`FileVersion`）と、実行ファイルのパスを出す。合算した行は代表 PID のものを出す。開けないプロセス（非昇格で約半数、項目8）は詳細の代わりに「取得できません」と出す。
+- **更新周期は 3／5／10 秒から選ぶ**（既定 3 秒）。1 秒では読み取る前に値が変わるため。切替はプロセスページ表示中だけタブ行の右端に出す。選んだ周期は `[Dashboard] ProcessIntervalSec` に保存する。値は周期の間の平均（PDH のレート系カウンタは 2 回の収集の間の平均を返す）。
+- **3 列目の見出しは「I/O」。** 値は PDH の `IO Read Bytes/sec`・`IO Write Bytes/sec` で、ファイル・ネットワーク・デバイスの全 I/O を数える（ディスクだけの値ではない）ため「ディスク」とは呼ばない。タスクマネージャーの「ディスク」列とは一致しない。
 - **I/O は読み＋書きの合計 B/s で順位を決め**、行には読み・書きを別々に出す。
 - プロセスアイコンを表示する。
 - **旧 `\Process(*)` へフォールバックした OS では、全行を既定のアプリアイコンにする**（PID の突き合わせをしない）。
@@ -254,10 +256,10 @@
 - タブ行の高さは `FormCreate`・`ApplyDpiChromeFor`・`LayoutContent` の `BodyTop` の 3 か所に反映する。`alTop` が 2 つ並ぶので、`FTabPaint.Top` をヘッダーの下に置いてから `Align` を設定し、並び順を固定する。`ApplyTheme` の `Invalidate` 群にタブ行とプロセスページを足す。
 - Ctrl+Tab は `KeyPreview := True`＋`OnKeyDown` で受ける。フォームに届かない場合は `CM_DIALOGKEY` のメッセージハンドラで受ける（`TPageControl` と同じ方式。要実機確認）。
 - 概要ページが非表示の間は、カードと右カラムの再描画（`RefreshData` の `Invalidate` 群、`MeterTimerTick`）を省く。履歴は MainForm 側で積まれ続けるので、概要に戻ったときグラフは途切れない。
-- 選んだページは ini に保存しない（ダッシュボードは常に概要ページで開く）。閉じても `FPage` は残るので、`FormShow` で概要ページに戻す。設定キーは増やさない。
+- 選んだページは ini に保存しない（ダッシュボードは常に概要ページで開く）。閉じても `FPage` は残るので、`FormShow` で概要ページに戻す。保存するのは更新周期（`ProcessIntervalSec`）だけ。
 
 **2. 収集層（新規 `src/metrics/uProcessCollector.pas`）**
-- `TProcessCollector` は専用のワーカースレッドで、約 1 秒ごとに PDH の `\Process V2(*)\` から `% Processor Time`・`Working Set - Private`・`IO Read Bytes/sec`・`IO Write Bytes/sec` を `PdhGetFormattedCounterArrayW` で取る（バッファ拡張の作法は `uGpuCollector` と同じ）。`% Processor Time` は `PDH_FMT_DOUBLE or PDH_FMT_NOCAP100` で取り、100 を超える値をそのまま受ける（定数値は Windows SDK の `pdh.h` で確認して宣言する）。
+- `TProcessCollector` は専用のワーカースレッドで、選んだ更新周期（3／5／10 秒、`SetInterval`）ごとに PDH の `\Process V2(*)\` から `% Processor Time`・`Working Set - Private`・`IO Read Bytes/sec`・`IO Write Bytes/sec` を `PdhGetFormattedCounterArrayW` で取る（バッファ拡張の作法は `uGpuCollector` と同じ）。`% Processor Time` は `PDH_FMT_DOUBLE or PDH_FMT_NOCAP100` で取り、100 を超える値をそのまま受ける（定数値は Windows SDK の `pdh.h` で確認して宣言する）。
 - インスタンス名 `名前:PID` の最後の `:` より前を名前として合算し、件数も数える。`_Total`・`Idle` は除外する。合算後、3 種それぞれの上位 5 件と代表 PID を `TCriticalSection` 越しのコピー（`CopyTop`）で UI に渡す。
 - **プロセスページ表示中だけ収集する**（`SetActive`）。概要ページ表示中やダッシュボード非表示中は PDH クエリを閉じ、スレッドはイベント待ちで止める。平常時のコストはゼロ。
 - `TMetricsSnapshot` には入れない。スナップショットはガジェットのフレームごとの `Collect`（[uMainForm.pas:1031](../src/uMainForm.pas#L1031)）で回るため、1 Hz の別系統として `TDashboardForm` が所有する。`TDashboardForm` に `destructor Destroy; override` を足し、そこでスレッドを止めて待ち合わせてから解放する（`TPingCollector.Destroy` と同じ手順）。`FormHide` でも `SetActive(False)` にする。
@@ -265,19 +267,21 @@
 - 実行中の PDH 失敗は `uGpuCollector` と同じく連続失敗で再初期化する。
 - `uProcessCollector.pas` は `DiskLED.dpr` の `uses` と `DiskLED.dproj` の `<DCCReference>` の両方に足す。
 
-**3. アイコン**
-- 名前ごとにキャッシュする。初回だけワーカーで代表 PID を `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`＋`QueryFullProcessImageNameW` で実行ファイルのパスにし、UI スレッドで `SHGetFileInfo` からアイコンを作る（COM 初期化済みのスレッドで呼ぶため）。開けないプロセス（非昇格で約半数、項目8）は既定のアプリアイコン（`SHGetStockIconInfo(SIID_APPLICATION)`）にする。
+**3. 詳細とアイコン**
+- 名前ごとにキャッシュする。初回だけワーカーで代表 PID を `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`＋`QueryFullProcessImageNameW` で実行ファイルのパスにし、同じくワーカーで `GetFileVersionInfoW`／`VerQueryValueW` から説明・会社名・バージョンを読む（ファイル I/O なので UI スレッドに載せない）。言語は `\VarFileInfo\Translation` の先頭の言語・コードページを使う。
+- アイコンは UI スレッドで、パスから `SHGetFileInfo` で作る（COM 初期化済みのスレッドで呼ぶため）。開けないプロセス（非昇格で約半数、項目8）は既定のアプリアイコン（`SHGetStockIconInfo(SIID_APPLICATION)`）にする。
 - 高 DPI では大アイコンを取り、`DrawIconEx` で行の高さに合わせて描く。
 - キャッシュした `HICON` はフォーム破棄時に `DestroyIcon` で解放する。`QueryFullProcessImageNameW` などの API 宣言は、PDH と同じくユニット内に `external` で持つ。
 
 **4. 描画（`uDashboardPainter.pas`）**
-- `DrawProcessTop` を足す。カード枠（既存の `FillRoundRect`/`StrokeRoundRect`）＋見出し＋5 行で、1 段＝1 リソース。列は次のとおり（項目8 の「絶対値・割合」はここで満たす）:
+- `DrawProcessTop` を足す。カード枠（既存の `FillRoundRect`/`StrokeRoundRect`）＋見出し＋5 件で、1 列＝1 リソース。1 件は 3 行で、1 行目にアイコン・名前（件数）・値、2 行目に説明・会社名・バージョン、3 行目にパスを出す（2・3 行目は `TextMuted`、長い場合は `Ellipsize`）。件の間は細い区切り線。値は次のとおり（項目8 の「絶対値・割合」はここで満たす）:
   - CPU: アイコン｜名前 (件数)｜システム比 %（`% Processor Time ÷ CpuThreads`）
   - メモリ: アイコン｜名前 (件数)｜プライベート ワーキング セット（MB／GB を切り替える整形関数を `uMetricsTypes.pas` に新設）｜物理メモリ比 %
   - I/O: アイコン｜名前 (件数)｜読み｜書き（`FormatRateBps`、[uMetricsTypes.pas:205](../src/metrics/uMetricsTypes.pas#L205)）
-- 名前は既存の `Ellipsize`（[uDashboardPainter.pas:200-211](../src/dashboard/uDashboardPainter.pas#L200)）で切り詰める。初回 1 秒など値が無い間は行を「—」にする。
-- 列見出しは独立した行にせず、段の見出し行の右側に載せる（最小サイズ 800×600 DIP で 3 段×5 行の行高を確保するため）。
-- 文字列は `uAppStrings.pas` に JA/EN で足す（タブ名・段見出し・列見出し）。
+- 名前は既存の `Ellipsize`（[uDashboardPainter.pas:200-211](../src/dashboard/uDashboardPainter.pas#L200)）で切り詰める。開いた直後など値が無い間は各件を「—」にする。
+- 値の列見出しは独立した行にせず、カードの見出し行の右側に載せる。
+- 更新周期の切替（「更新 3秒 5秒 10秒」）はタブ行の右端に自前描画し、クリックで `SetInterval` と ini 保存を行う。プロセスページ表示中だけ出す。
+- 文字列は `uAppStrings.pas` に JA/EN で足す（タブ名・列見出し・値の見出し・更新周期・「取得できません」）。
 
 **5. 文書**
 - `docs/DESIGN.md` のダッシュボード節（`docs/DESIGN.md:300-336`）と `.cursor/rules/dashboard-regions.mdc` に、ページ（概要／プロセス）とタブ行を追記する。公開文書（`public_docs/` の FEATURES・USAGE、JA/EN）はリリース時に更新する。
@@ -291,8 +295,8 @@
 |---|---|---|---|
 | 1 | ページ切替とタブ行（プロセスページは空の枠だけ） | `uDashboardForm.pas`、`uDashboardTheme.pas`（`TabHeight`）、`uDashboardPainter.pas`（タブ行の描画）、`uAppStrings.pas` | クリックと Ctrl+Tab で切り替わる。概要に戻って履歴が途切れない。DPI 変更で崩れない |
 | 2 | 収集層（`Process V2` のみ。NOCAP100・名前合算・上位 5・`SetActive`） | 新規 `uProcessCollector.pas`、`DiskLED.dpr`、`DiskLED.dproj`、`TDashboardForm` のデストラクタ | 終了時に固まらない。概要表示中は収集が止まる |
-| 3 | 3 段×5 行の描画（アイコンなし） | `uDashboardPainter.pas`（`DrawProcessTop`）、`uMetricsTypes.pas`（MB／GB 整形） | タスクマネージャーとの比較。ライト／ダーク。最小サイズ |
-| 4 | アイコン | `uProcessCollector.pas`、`uDashboardForm.pas`、`uDashboardPainter.pas` | 開けないプロセスが既定アイコンになる。125〜200% でにじまない |
+| 3 | 3 列×5 件の描画（詳細・アイコンなし）と更新周期の切替 | `uDashboardPainter.pas`（`DrawProcessTop`・周期の切替）、`uMetricsTypes.pas`（MB／GB 整形）、`uProcessCollector.pas`（`SetInterval`）、`uSettings.pas`（`ProcessIntervalSec`） | タスクマネージャーとの比較。周期の切替と保存。ライト／ダーク。最小サイズ |
+| 4 | 詳細（パス・説明・会社名・バージョン）とアイコン | `uProcessCollector.pas`、`uDashboardForm.pas`、`uDashboardPainter.pas` | 開けないプロセスが「取得できません」と既定アイコンになる。125〜200% でにじまない |
 | 5 | 旧 `\Process(*)` へのフォールバック（アイコンは既定のみ） | `uProcessCollector.pas` | Windows 10 実機で表示される |
 | 6 | 文書 | `docs/DESIGN.md`、`.cursor/rules/dashboard-regions.mdc` | — |
 
@@ -302,7 +306,8 @@
 - プロセスページの CPU とメモリの値が、タスクマネージャーの「プロセス」タブとおおむね一致すること（CPU はシステム比、メモリはプライベート ワーキング セット）。I/O の段は全 I/O の値なので、タスクマネージャーの「ディスク」列とは比べない。
 - 複数コアを使い切るプロセス（動画エンコード等）で、CPU のシステム比が「100 ÷ 論理プロセッサ数」% を超えて表示されること（100 で頭打ちになっていないこと）。非昇格で `svchost` などのサービスも出ること。開けないプロセスは既定アイコンになること。
 - 概要ページ表示中とダッシュボード非表示中に、プロセス収集が止まっていること（DiskLED 自身の CPU 使用率が上がらない）。
-- ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で、3 段×5 行が崩れず収まること。
+- ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で、3 列×5 件が崩れず収まること。
+- 更新周期を 3／5／10 秒に切り替えると、その間隔で値が変わること。再起動後も選んだ周期のままであること。
 - Windows 10 実機で `Process V2` が無い場合に、旧 `Process` へのフォールバックで表示されること。
 
 ### 見積り
