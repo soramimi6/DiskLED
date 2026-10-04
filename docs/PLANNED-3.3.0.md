@@ -222,8 +222,16 @@
 
 - **表示場所は別ウィンドウではなく、ダッシュボード内のページ。** ヘッダー直下にタブ行（「概要」「プロセス」）を置き、クリックで本体の表示を切り替える。オプション画面のタブと同じ使い方。概要ページは現行のセクション×5＋サブセクション×5 で、変更しない。
 - **同名プロセスは名前で合算して 1 行**（例 `chrome (12)`）。順位は合算値で決める。
-- **配置は横に 3 列**（左から CPU → メモリ → I/O）、各列は縦長のリストで 5 件。
-- **1 件ごとに詳細を出す。** 名前（件数）と値に加え、実行ファイルの説明（`FileDescription`）・会社名（`CompanyName`）・バージョン（`FileVersion`）と、実行ファイルのパスを出す。合算した行は代表 PID のものを出す。開けないプロセス（非昇格で約半数、項目8）は詳細の代わりに「取得できません」と出す。
+- **配置は横に 3 列**（左から CPU → メモリ → I/O）、各列は縦長のリスト。件数は既定の大きさ（960×720 DIP）以下で 5 件、高さが約 90 DIP 増えるごとに 1 件ずつ増やす（最大 20 件）。1 件の高さをほぼ一定に保ち、広げても間延びさせない。
+- **1 件は 4 行で、目的（負荷をかけているプロセスの特定・調査）に効く順に上から並べる。**
+  - 1 行目: アイコン｜名前（件数）｜値
+  - 2 行目（何か）: メインウィンドウのタイトル。無ければ説明（`FileDescription`）、それも無ければ製品名（`ProductName`）。後ろに会社名（`CompanyName`）。
+  - 3 行目（状態）: 実行ユーザー名（昇格していれば「管理者」）・コミットサイズ（`Private Bytes`）・ハンドル数・スレッド数。
+  - 4 行目（どこ）: 実行ファイルのパス。1 件の高さが 4 行に足りないとき（最小サイズ付近）は省く。
+  - ツールチップ（件の上にマウスを乗せる）: 上記すべてに、バージョン（`FileVersion`）・64bit／32bit・著作権（`LegalCopyright`）を加える。
+  - 仮想メモリ量は 64bit では判断材料にならないため出さない。
+- **取れないときの扱い。** ユーザー名・昇格・64bit／32bit・パスと実行ファイル由来の情報は、プロセスを開ける場合だけ（非昇格で約半数、項目8）。開けないときは 2 行目に「詳細を取得できません」と出す。ウィンドウタイトル・コミット・ハンドル・スレッドは全プロセスで取れる。
+- **同名で合算した行**は、コミット・ハンドル・スレッドを合計し、ウィンドウタイトルは合算したプロセスのうち最初に見つかったもの、それ以外は代表 PID のものを出す。
 - **更新周期は 3／5／10 秒から選ぶ**（既定 3 秒）。1 秒では読み取る前に値が変わるため。切替はプロセスページ表示中だけタブ行の右端に出す。選んだ周期は `[Dashboard] ProcessIntervalSec` に保存する。値は周期の間の平均（PDH のレート系カウンタは 2 回の収集の間の平均を返す）。
 - **3 列目の見出しは「I/O」。** 値は PDH の `IO Read Bytes/sec`・`IO Write Bytes/sec` で、ファイル・ネットワーク・デバイスの全 I/O を数える（ディスクだけの値ではない）ため「ディスク」とは呼ばない。タスクマネージャーの「ディスク」列とは一致しない。
 - **I/O は読み＋書きの合計 B/s で順位を決め**、行には読み・書きを別々に出す。
@@ -268,13 +276,15 @@
 - `uProcessCollector.pas` は `DiskLED.dpr` の `uses` と `DiskLED.dproj` の `<DCCReference>` の両方に足す。
 
 **3. 詳細とアイコン**
-- 名前ごとにキャッシュする。初回だけワーカーで代表 PID を `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`＋`QueryFullProcessImageNameW` で実行ファイルのパスにし、同じくワーカーで `GetFileVersionInfoW`／`VerQueryValueW` から説明・会社名・バージョンを読む（ファイル I/O なので UI スレッドに載せない）。言語は `\VarFileInfo\Translation` の先頭の言語・コードページを使う。
+- コミット・ハンドル・スレッドは PDH の `Private Bytes`・`Handle Count`・`Thread Count` を同じクエリに足して取る。合算行のため、名前ごとに全 PID を持つ。
+- 名前ごとにキャッシュする。初回だけワーカーで代表 PID を `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` で開き、`QueryFullProcessImageNameW`（パス）・`OpenProcessToken`＋`GetTokenInformation`（`TokenUser` からユーザー名、`TokenElevation` から昇格）・`IsWow64Process`（32bit か）を取る。同じくワーカーで `GetFileVersionInfoW`／`VerQueryValueW` から説明・会社名・バージョン・製品名・著作権を読む（ファイル I/O なので UI スレッドに載せない）。言語は `\VarFileInfo\Translation` の先頭の言語・コードページを使う。
+- ウィンドウタイトルはキャッシュせず、毎回ワーカーで `EnumWindows` から PID→タイトル（表示中・所有者なし・タイトルあり）を作って引く。DiskLED 自身のウィンドウは除く（自プロセスのウィンドウへの `GetWindowText` は UI スレッドへメッセージを送るため、終了時にスレッドの終了待ちと行き詰まる）。
 - アイコンは UI スレッドで、パスから `SHGetFileInfo` で作る（COM 初期化済みのスレッドで呼ぶため）。開けないプロセス（非昇格で約半数、項目8）は既定のアプリアイコン（`SHGetStockIconInfo(SIID_APPLICATION)`）にする。
 - 高 DPI では大アイコンを取り、`DrawIconEx` で行の高さに合わせて描く。
 - キャッシュした `HICON` はフォーム破棄時に `DestroyIcon` で解放する。`QueryFullProcessImageNameW` などの API 宣言は、PDH と同じくユニット内に `external` で持つ。
 
 **4. 描画（`uDashboardPainter.pas`）**
-- `DrawProcessTop` を足す。カード枠（既存の `FillRoundRect`/`StrokeRoundRect`）＋見出し＋5 件で、1 列＝1 リソース。1 件は 3 行で、1 行目にアイコン・名前（件数）・値、2 行目に説明・会社名・バージョン、3 行目にパスを出す（2・3 行目は `TextMuted`、長い場合は `Ellipsize`）。件の間は細い区切り線。値は次のとおり（項目8 の「絶対値・割合」はここで満たす）:
+- `DrawProcessTop` を足す。カード枠（既存の `FillRoundRect`/`StrokeRoundRect`）＋見出し＋N 件（`ProcessRowSlots` が列の高さから決める）で、1 列＝1 リソース。1 件の行構成は決定事項のとおり（2〜4 行目は `TextMuted`、長い場合は `Ellipsize`）。件の間は細い区切り線。各件の矩形を返し、フォーム側でマウス位置からツールチップを切り替える。値は次のとおり（項目8 の「絶対値・割合」はここで満たす）:
   - CPU: アイコン｜名前 (件数)｜システム比 %（`% Processor Time ÷ CpuThreads`）
   - メモリ: アイコン｜名前 (件数)｜プライベート ワーキング セット（MB／GB を切り替える整形関数を `uMetricsTypes.pas` に新設）｜物理メモリ比 %
   - I/O: アイコン｜名前 (件数)｜読み｜書き（`FormatRateBps`、[uMetricsTypes.pas:205](../src/metrics/uMetricsTypes.pas#L205)）
@@ -296,7 +306,7 @@
 | 1 | ページ切替とタブ行（プロセスページは空の枠だけ） | `uDashboardForm.pas`、`uDashboardTheme.pas`（`TabHeight`）、`uDashboardPainter.pas`（タブ行の描画）、`uAppStrings.pas` | クリックと Ctrl+Tab で切り替わる。概要に戻って履歴が途切れない。DPI 変更で崩れない |
 | 2 | 収集層（`Process V2` のみ。NOCAP100・名前合算・上位 5・`SetActive`） | 新規 `uProcessCollector.pas`、`DiskLED.dpr`、`DiskLED.dproj`、`TDashboardForm` のデストラクタ | 終了時に固まらない。概要表示中は収集が止まる |
 | 3 | 3 列×5 件の描画（詳細・アイコンなし）と更新周期の切替 | `uDashboardPainter.pas`（`DrawProcessTop`・周期の切替）、`uMetricsTypes.pas`（MB／GB 整形）、`uProcessCollector.pas`（`SetInterval`）、`uSettings.pas`（`ProcessIntervalSec`） | タスクマネージャーとの比較。周期の切替と保存。ライト／ダーク。最小サイズ |
-| 4 | 詳細（パス・説明・会社名・バージョン）とアイコン | `uProcessCollector.pas`、`uDashboardForm.pas`、`uDashboardPainter.pas` | 開けないプロセスが「取得できません」と既定アイコンになる。125〜200% でにじまない |
+| 4 | 詳細（4 行構成・ツールチップ）とアイコン、高さに応じた件数 | `uProcessCollector.pas`、`uDashboardForm.pas`、`uDashboardPainter.pas` | ウィンドウタイトル・ユーザー・コミット等が出る。開けないプロセスが「詳細を取得できません」と既定アイコンになる。広げると件数が増える。125〜200% でにじまない |
 | 5 | 旧 `\Process(*)` へのフォールバック（アイコンは既定のみ） | `uProcessCollector.pas` | Windows 10 実機で表示される |
 | 6 | 文書 | `docs/DESIGN.md`、`.cursor/rules/dashboard-regions.mdc` | — |
 
@@ -306,7 +316,7 @@
 - プロセスページの CPU とメモリの値が、タスクマネージャーの「プロセス」タブとおおむね一致すること（CPU はシステム比、メモリはプライベート ワーキング セット）。I/O の段は全 I/O の値なので、タスクマネージャーの「ディスク」列とは比べない。
 - 複数コアを使い切るプロセス（動画エンコード等）で、CPU のシステム比が「100 ÷ 論理プロセッサ数」% を超えて表示されること（100 で頭打ちになっていないこと）。非昇格で `svchost` などのサービスも出ること。開けないプロセスは既定アイコンになること。
 - 概要ページ表示中とダッシュボード非表示中に、プロセス収集が止まっていること（DiskLED 自身の CPU 使用率が上がらない）。
-- ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で、3 列×5 件が崩れず収まること。
+- ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で、3 列×5 件が崩れず収まること（最小サイズ付近では 4 行目のパスが省かれる）。ウィンドウを縦に広げると件数が 6 件、7 件と増え、1 件の高さがほぼ変わらないこと。
 - 更新周期を 3／5／10 秒に切り替えると、その間隔で値が変わること。再起動後も選んだ周期のままであること。
 - Windows 10 実機で `Process V2` が無い場合に、旧 `Process` へのフォールバックで表示されること。
 
