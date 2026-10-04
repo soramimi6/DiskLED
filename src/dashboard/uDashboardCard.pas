@@ -209,10 +209,10 @@ begin
     Tw := Canvas.TextWidth(FValue);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
     ValueY := MeterR.Top + ((MeterR.Bottom - MeterR.Top) - (Th * 2 + Gap)) div 2;
-    TextOutOutlined(Canvas, ValueX, ValueY, FValue, FAccent, clBlack, OutlinePx);
+    TextOutOutlined(Canvas, ValueX, ValueY, FValue, FAccent, Pal.ValueOutline, OutlinePx);
     Tw := Canvas.TextWidth(FValue2);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
-    TextOutOutlined(Canvas, ValueX, ValueY + Th + Gap, FValue2, FAccent2, clBlack,
+    TextOutOutlined(Canvas, ValueX, ValueY + Th + Gap, FValue2, FAccent2, Pal.ValueOutline,
       OutlinePx);
   end
   else
@@ -225,7 +225,7 @@ begin
     Th := Canvas.TextHeight(FValue);
     ValueX := MeterR.Left + ((MeterR.Right - MeterR.Left) - Tw) div 2;
     ValueY := MeterR.Top + ((MeterR.Bottom - MeterR.Top) - Th) div 2;
-    TextOutOutlined(Canvas, ValueX, ValueY, FValue, Pal.TextPrimary, clBlack,
+    TextOutOutlined(Canvas, ValueX, ValueY, FValue, Pal.TextPrimary, Pal.ValueOutline,
       OutlinePx);
   end;
 
