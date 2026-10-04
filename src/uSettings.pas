@@ -42,6 +42,7 @@ type
     FDashboardW: Integer;
     FDashboardH: Integer;
     FDashboardMaximized: Boolean;
+    FDashboardProcessIntervalSec: Integer;
     FUpdateEnabled: Boolean;
     FUpdateLastNotified: string;
     FUpdateLatestKnown: string;
@@ -113,6 +114,9 @@ type
     { Restored bounds are 96dpi DIP. Maximized is stored separately so a
       maximized frame is not written as WindowW/WindowH. }
     property DashboardMaximized: Boolean read FDashboardMaximized write FDashboardMaximized;
+    { Process page refresh period: 3, 5 or 10 seconds. }
+    property DashboardProcessIntervalSec: Integer read FDashboardProcessIntervalSec
+      write FDashboardProcessIntervalSec;
     { GitHub Latest check at startup. LastNotified is balloon-once; LatestKnown keeps the menu. }
     property UpdateEnabled: Boolean read FUpdateEnabled write FUpdateEnabled;
     property UpdateLastNotified: string read FUpdateLastNotified write FUpdateLastNotified;
@@ -296,6 +300,7 @@ begin
   FDashboardW := 960;
   FDashboardH := 720;
   FDashboardMaximized := False;
+  FDashboardProcessIntervalSec := 3;
   FUpdateEnabled := True;
   FUpdateLastNotified := '';
   FUpdateLatestKnown := '';
@@ -342,6 +347,9 @@ begin
     FGraphRateHz := 1.0;
   if FSpeedScale <> ssLog then
     FSpeedScale := ssLinear;
+  if not ((FDashboardProcessIntervalSec = 3) or (FDashboardProcessIntervalSec = 5) or
+    (FDashboardProcessIntervalSec = 10)) then
+    FDashboardProcessIntervalSec := 3;
   if FPingIntervalSec < 300 then
     FPingIntervalSec := 300;
   if Trim(FPingHost) = '' then
@@ -444,6 +452,8 @@ begin
     FDashboardW := Ini.ReadInteger('Dashboard', 'WindowW', FDashboardW);
     FDashboardH := Ini.ReadInteger('Dashboard', 'WindowH', FDashboardH);
     FDashboardMaximized := Ini.ReadBool('Dashboard', 'Maximized', FDashboardMaximized);
+    FDashboardProcessIntervalSec := Ini.ReadInteger('Dashboard', 'ProcessIntervalSec',
+      FDashboardProcessIntervalSec);
     FUpdateEnabled := Ini.ReadBool('Update', 'Enabled', FUpdateEnabled);
     FUpdateLastNotified := Trim(Ini.ReadString('Update', 'LastNotified', FUpdateLastNotified));
     FUpdateLatestKnown := Trim(Ini.ReadString('Update', 'LatestKnown', FUpdateLatestKnown));
@@ -510,6 +520,7 @@ begin
     Ini.WriteInteger('Dashboard', 'WindowW', FDashboardW);
     Ini.WriteInteger('Dashboard', 'WindowH', FDashboardH);
     Ini.WriteBool('Dashboard', 'Maximized', FDashboardMaximized);
+    Ini.WriteInteger('Dashboard', 'ProcessIntervalSec', FDashboardProcessIntervalSec);
     Ini.WriteBool('Update', 'Enabled', FUpdateEnabled);
     Ini.WriteString('Update', 'LastNotified', FUpdateLastNotified);
     Ini.WriteString('Update', 'LatestKnown', FUpdateLatestKnown);

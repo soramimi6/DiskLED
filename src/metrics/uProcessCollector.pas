@@ -6,9 +6,9 @@ unit uProcessCollector;
   "name:pid", unique per process.
 
   Same-named processes (chrome, svchost, ...) are summed into one row and ranked
-  by that sum. Sampling runs on a worker thread at about 1 Hz -- one cycle over
-  ~500 instances costs ~15 ms of PDH work -- and only while the process page is
-  shown (SetActive). While inactive the PDH query is closed and the thread
+  by that sum. Sampling runs on a worker thread every 3/5/10 s (SetInterval) --
+  one cycle over ~500 instances costs ~15 ms of PDH work -- and only while the
+  process page is shown (SetActive). While inactive the PDH query is closed and the thread
   sleeps on its event, so the overview page costs nothing. }
 
 interface
@@ -52,6 +52,7 @@ type
     FWake: TEvent;
     FStop: Boolean;
     FActive: Boolean;
+    FIntervalMs: Cardinal;
     FTop: TProcessTop;
     { Worker-thread only. }
     FQuery: THandle;
@@ -75,6 +76,9 @@ type
       result, so the next activation starts from "no data" rather than
       showing a stale list. }
     procedure SetActive(AActive: Boolean);
+    { Sampling period in seconds. Rate counters average over the period, so a
+      longer one also smooths the values. }
+    procedure SetInterval(ASec: Integer);
     procedure CopyTop(out ATop: TProcessTop);
   end;
 
@@ -98,7 +102,8 @@ const
   CMemPath = '\Process V2(*)\Working Set - Private';
   CIoReadPath = '\Process V2(*)\IO Read Bytes/sec';
   CIoWritePath = '\Process V2(*)\IO Write Bytes/sec';
-  CSampleIntervalMs = 1000;
+  CDefaultIntervalMs = 3000;
+  CFirstSampleMs = 1000;
   { Same policy as uGpuCollector: re-initialise after repeated failures, and
     retry a failed init this often while the page stays open. }
   CRetryIntervalMs = 30000;
@@ -293,6 +298,7 @@ begin
   inherited Create;
   FLock := TCriticalSection.Create;
   FWake := TEvent.Create(nil, False, False, '');
+  FIntervalMs := CDefaultIntervalMs;
   FThread := TProcessWorker.Create(Self);
 end;
 
@@ -328,6 +334,23 @@ begin
   finally
     FLock.Leave;
   end;
+  FWake.SetEvent;
+end;
+
+procedure TProcessCollector.SetInterval(ASec: Integer);
+begin
+  if ASec < 1 then
+    ASec := 1;
+  FLock.Enter;
+  try
+    if FIntervalMs = Cardinal(ASec) * 1000 then
+      Exit;
+    FIntervalMs := Cardinal(ASec) * 1000;
+  finally
+    FLock.Leave;
+  end;
+  { Wake the worker so the new period applies now: it samples once (averaged
+    over the time since the last sample) and then waits the new period. }
   FWake.SetEvent;
 end;
 
@@ -494,6 +517,7 @@ begin
     try
       Stop := FStop;
       Active := FActive;
+      Wait := FIntervalMs;
     finally
       FLock.Leave;
     end;
@@ -507,13 +531,16 @@ begin
       Continue;
     end;
 
-    Wait := CSampleIntervalMs;
     try
       if FQuery = 0 then
       begin
-        { A fresh init only primes the counters; the first values come one
-          interval later. A failed init waits for the retry interval. }
-        if not InitPdh then
+        { A fresh init only primes the counters. Take the first sample after a
+          short wait rather than a full (up to 10 s) period, so the page isn't
+          blank for long; later samples follow the chosen period. A failed init
+          waits for the retry interval. }
+        if InitPdh then
+          Wait := CFirstSampleMs
+        else
           Wait := CRetryIntervalMs;
       end
       else if SamplePdh(Top) then

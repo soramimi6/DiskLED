@@ -178,6 +178,9 @@ function FormatRateBps(ABps: Double): string;
 function FormatLinkSpeedBps(ABps: Double): string;
 function FormatBytesPair(AUsed, ATotal: UInt64): string;
 function FormatBytesGiB(ABytes: UInt64): string;
+{ MB below 1 GB, GB above -- for per-process sizes, where FormatBytesGiB's
+  fixed GB would show tens of MB as "0.05 GB". }
+function FormatBytesMB(ABytes: UInt64): string;
 function FormatIops(AIops: Double): string;
 function DefaultBallisticParams: TBallisticParams;
 function DefaultMeterBallistics: TMeterBallistics;
@@ -265,6 +268,17 @@ begin
     Result := Format('%.1f GB', [V])
   else
     Result := Format('%.2f GB', [V]);
+end;
+
+function FormatBytesMB(ABytes: UInt64): string;
+const
+  CMiB = 1024.0 * 1024.0;
+  CGiB = 1024.0 * 1024.0 * 1024.0;
+begin
+  if ABytes < CGiB then
+    Result := Format('%.0f MB', [ABytes / CMiB])
+  else
+    Result := FormatBytesGiB(ABytes);
 end;
 
 function FormatIops(AIops: Double): string;

@@ -51,6 +51,7 @@ type
     FHeaderPaint: TPaintBox;
     FTabPaint: TPaintBox;
     FTabRects: TArray<TRect>;
+    FIntervalRects: TArray<TRect>;
     FPage: TDashboardPage;
     FProcessPaint: TPaintBox;
     FProcess: TProcessCollector;
@@ -119,6 +120,10 @@ uses
   Winapi.MultiMon,
   uAppStrings,
   uWindowPlacement;
+
+const
+  { Process page refresh choices in seconds (uSettings normalizes to these). }
+  CProcessIntervals: array[0..2] of Integer = (3, 5, 10);
 
 constructor TDashboardForm.Create(AOwner: TComponent; APipeline: TDisplayPipeline;
   AHistory: TDashboardHistory; ACollector: TMetricsCollector;
@@ -245,6 +250,8 @@ begin
   FProcessPaint.Parent := Self;
   FProcessPaint.OnPaint := ProcessPaint;
   FProcess := TProcessCollector.Create;
+  if FSettings <> nil then
+    FProcess.SetInterval(FSettings.DashboardProcessIntervalSec);
   ApplyPageVisibility;
 
   FUiTimer := TTimer.Create(Self);
@@ -693,6 +700,18 @@ begin
       SetPage(TDashboardPage(i));
       Exit;
     end;
+  if FPage <> dpProcess then
+    Exit;
+  for i := 0 to High(FIntervalRects) do
+    if (i <= High(CProcessIntervals)) and PtInRect(FIntervalRects[i], Point(X, Y)) then
+    begin
+      if FSettings <> nil then
+        FSettings.DashboardProcessIntervalSec := CProcessIntervals[i];
+      if FProcess <> nil then
+        FProcess.SetInterval(CProcessIntervals[i]);
+      FTabPaint.Invalidate;
+      Exit;
+    end;
 end;
 
 procedure TDashboardForm.FormKeyDown(Sender: TObject; var Key: Word;
@@ -711,57 +730,114 @@ begin
 end;
 
 procedure TDashboardForm.TabPaint(Sender: TObject);
+var
+  Opts: array[0..High(CProcessIntervals)] of string;
+  i, Active, Sec: Integer;
 begin
   DrawTabRow(FTabPaint.Canvas, FTabPaint.ClientRect,
     [S('dash.tab_overview'), S('dash.tab_process')], Ord(FPage), HudPalette,
     CurrentMetrics, FTabRects);
+  if FPage <> dpProcess then
+  begin
+    FIntervalRects := nil;
+    Exit;
+  end;
+  Sec := 3;
+  if FSettings <> nil then
+    Sec := FSettings.DashboardProcessIntervalSec;
+  Active := 0;
+  for i := 0 to High(CProcessIntervals) do
+  begin
+    Opts[i] := Format(S('dash.proc_sec'), [CProcessIntervals[i]]);
+    if CProcessIntervals[i] = Sec then
+      Active := i;
+  end;
+  DrawTabChoice(FTabPaint.Canvas, FTabPaint.ClientRect, S('dash.proc_interval'),
+    Opts, Active, HudPalette, CurrentMetrics, FIntervalRects);
+end;
+
+{ "chrome (12)" for a merged row, the bare name for a single process. }
+function ProcessRowName(const AEntry: TProcessTopEntry): string;
+begin
+  if AEntry.Count > 1 then
+    Result := Format('%s (%d)', [AEntry.Name, AEntry.Count])
+  else
+    Result := AEntry.Name;
 end;
 
 procedure TDashboardForm.ProcessPaint(Sender: TObject);
-const
-  ResName: array[TProcessResource] of string = ('CPU', 'MEM', 'I/O');
 var
   Pal: THudPalette;
   Met: THudMetrics;
   ProcTop: TProcessTop;
+  Snap: TMetricsSnapshot;
+  Rows: TArray<TProcessRowText>;
   Res: TProcessResource;
+  i, ColW, X: Integer;
+  Threads: Integer;
   E: TProcessTopEntry;
-  Line: string;
-  Y: Integer;
-  C: TCanvas;
+  SecRect: TRect;
 begin
   Pal := HudPalette;
   Met := CurrentMetrics;
-  C := FProcessPaint.Canvas;
-  DrawCardHeader(C, FProcessPaint.ClientRect, S('dash.tab_process'), '',
-    Pal.AccentStart, Pal, Met);
-  { Step-2 placeholder: raw collector output, one line per resource. Replaced
-    by DrawProcessTop in step 3. }
-  if FProcess = nil then
-    Exit;
-  FProcess.CopyTop(ProcTop);
-  C.Brush.Style := bsClear;
-  C.Font.Name := 'Segoe UI';
-  C.Font.Style := [];
-  C.Font.Size := Met.BodySize;
-  C.Font.Color := Pal.TextPrimary;
-  Y := Met.CardHeaderHeight + Met.CardPad;
+  ProcTop := Default(TProcessTop);
+  if FProcess <> nil then
+    FProcess.CopyTop(ProcTop);
+  Snap := Default(TMetricsSnapshot);
+  if FPipeline <> nil then
+    Snap := FPipeline.LastSnap;
+  { PDH reports one busy core as 100%; divide by logical processors for the
+    share of the whole machine, as Task Manager's Processes tab does. }
+  Threads := Snap.CpuThreads;
+  if Threads < 1 then
+    Threads := 1;
+
+  { Three tall columns side by side: CPU | Memory | I/O. }
+  ColW := (FProcessPaint.ClientWidth - Met.CardGap * 2) div 3;
+  X := 0;
   for Res := Low(TProcessResource) to High(TProcessResource) do
   begin
-    Line := ResName[Res] + ':';
-    if not ProcTop.Valid then
-      Line := Line + ' ' + #$2014
+    if Res = High(TProcessResource) then
+      SecRect := Rect(X, 0, FProcessPaint.ClientWidth, FProcessPaint.ClientHeight)
     else
-      for E in ProcTop.Items[Res] do
-        case Res of
-          prCpu: Line := Line + Format('  %s(%d) %.1f', [E.Name, E.Count, E.CpuPct]);
-          prMem: Line := Line + Format('  %s(%d) %d MB', [E.Name, E.Count, E.MemBytes div (1024 * 1024)]);
-        else
-          Line := Line + Format('  %s(%d) R %s W %s', [E.Name, E.Count,
-            FormatRateBps(E.IoReadBps), FormatRateBps(E.IoWriteBps)]);
-        end;
-    C.TextOut(Met.CardPad, Y, Line);
-    Inc(Y, C.TextHeight('Ag') + Met.CardGap);
+      SecRect := Rect(X, 0, X + ColW, FProcessPaint.ClientHeight);
+    Inc(X, ColW + Met.CardGap);
+    SetLength(Rows, Length(ProcTop.Items[Res]));
+    for i := 0 to High(Rows) do
+    begin
+      E := ProcTop.Items[Res][i];
+      Rows[i].Name := ProcessRowName(E);
+      { Placeholder until per-process icons arrive in step 4. }
+      Rows[i].Icon := Application.Icon.Handle;
+      case Res of
+        prCpu:
+          Rows[i].Values := [Format('%.1f%%', [E.CpuPct / Threads])];
+        prMem:
+          begin
+            if Snap.MemTotalBytes > 0 then
+              Rows[i].Values := [FormatBytesMB(E.MemBytes),
+                Format('%.1f%%', [E.MemBytes / Snap.MemTotalBytes * 100])]
+            else
+              Rows[i].Values := [FormatBytesMB(E.MemBytes), string(#$2014)];
+          end;
+      else
+        Rows[i].Values := [FormatRateBps(E.IoReadBps), FormatRateBps(E.IoWriteBps)];
+      end;
+    end;
+    case Res of
+      prCpu:
+        DrawProcessTop(FProcessPaint.Canvas, SecRect, S('dash.proc_cpu'),
+          [S('dash.proc_col_usage')], Rows, ProcTop.Valid, CProcessTopCount,
+          Pal.Cpu, Pal, Met);
+      prMem:
+        DrawProcessTop(FProcessPaint.Canvas, SecRect, S('dash.proc_mem'),
+          [S('dash.proc_col_used'), S('dash.proc_col_share')], Rows,
+          ProcTop.Valid, CProcessTopCount, Pal.Mem, Pal, Met);
+    else
+      DrawProcessTop(FProcessPaint.Canvas, SecRect, S('dash.proc_io'),
+        [S('dash.proc_col_read'), S('dash.proc_col_write')], Rows,
+        ProcTop.Valid, CProcessTopCount, Pal.Disk, Pal, Met);
+    end;
   end;
 end;
 

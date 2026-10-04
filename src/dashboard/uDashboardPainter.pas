@@ -10,6 +10,19 @@ uses
   uDashboardHistory,
   uDashboardGraph;
 
+type
+  { One row of the process page, already formatted. Values line up with the
+    column headings passed to DrawProcessTop. }
+  TProcessRowText = record
+    Name: string;
+    Values: TArray<string>;
+    { Second line: description / company / version. Third line: image path. }
+    Detail: string;
+    Path: string;
+    { HICON drawn in the row's icon slot; 0 leaves the slot empty. Not owned. }
+    Icon: THandle;
+  end;
+
 procedure FillRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
   AColor: TColor);
 procedure StrokeRoundRect(ACanvas: TCanvas; const ARect: TRect; ARadius: Integer;
@@ -30,6 +43,19 @@ procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
 procedure DrawTabRow(ACanvas: TCanvas; const ARect: TRect;
   const ATitles: array of string; AActive: Integer; const APalette: THudPalette;
   const AMetrics: THudMetrics; out ATabRects: TArray<TRect>);
+{ Right-aligned "label  opt1 opt2 ..." choice inside the tab row. AOptRects
+  receives each option's hit rectangle. }
+procedure DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
+  const ALabel: string; const AOptions: array of string; AActive: Integer;
+  const APalette: THudPalette; const AMetrics: THudMetrics;
+  out AOptRects: TArray<TRect>);
+{ One resource column of the process page: card, title, value headings on the
+  title row, and ARowSlots entries of three lines each (icon slot + name +
+  values / detail / path). AValid=False (no sample yet) shows a dash per entry. }
+procedure DrawProcessTop(ACanvas: TCanvas; const ARect: TRect;
+  const ATitle: string; const AColHeads: array of string;
+  const ARows: TArray<TProcessRowText>; AValid: Boolean; ARowSlots: Integer;
+  AAccent: TColor; const APalette: THudPalette; const AMetrics: THudMetrics);
 procedure DrawCpuPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, ANameLbl, ATopoLbl, AClockLbl,
   AUserLbl, AKernelLbl: string; const APalette: THudPalette;
@@ -114,20 +140,26 @@ procedure DrawCardHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle: str
   const AMetrics: THudMetrics);
 var
   Bar: TRect;
+  TitleY: Integer;
+  Tm: TTextMetric;
 begin
   FillRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.Card);
   StrokeRoundRect(ACanvas, ARect, AMetrics.CardRadius, APalette.CardBorder);
-  Bar := Rect(ARect.Left + AMetrics.CardPad, ARect.Top + Dip(AMetrics, 6),
-    ARect.Left + AMetrics.CardPad + Dip(AMetrics, 3),
-    ARect.Top + AMetrics.CardHeaderHeight);
-  GpFillRect(ACanvas, Bar, AAccent);
   TransparentText(ACanvas);
   ACanvas.Font.Name := 'Segoe UI';
   ACanvas.Font.Style := [fsBold];
   ACanvas.Font.Size := AMetrics.HeadingSize;
+  TitleY := ARect.Top + Dip(AMetrics, 8);
+  { Span the bar over the glyphs (internal leading to baseline), not the
+    whole text cell, so it lines up with the title instead of hanging below. }
+  GetTextMetrics(ACanvas.Handle, Tm);
+  Bar := Rect(ARect.Left + AMetrics.CardPad, TitleY + Tm.tmInternalLeading,
+    ARect.Left + AMetrics.CardPad + Dip(AMetrics, 3), TitleY + Tm.tmAscent);
+  GpFillRect(ACanvas, Bar, AAccent);
+  ACanvas.Brush.Style := bsClear;
   ACanvas.Font.Color := APalette.TextMuted;
   ACanvas.TextOut(ARect.Left + AMetrics.CardPad + Dip(AMetrics, 10),
-    ARect.Top + Dip(AMetrics, 8), UpperCase(ATitle));
+    TitleY, UpperCase(ATitle));
   ACanvas.Font.Style := [];
   ACanvas.Font.Color := APalette.TextPrimary;
   ACanvas.TextOut(ARect.Right - ACanvas.TextWidth(AValue) - AMetrics.CardPad,
@@ -240,6 +272,163 @@ begin
     ACanvas.TextOut(X + Pad, TextY, ATitles[i]);
     Inc(X, W);
   end;
+end;
+
+procedure DrawProcessTop(ACanvas: TCanvas; const ARect: TRect;
+  const ATitle: string; const AColHeads: array of string;
+  const ARows: TArray<TProcessRowText>; AValid: Boolean; ARowSlots: Integer;
+  AAccent: TColor; const APalette: THudPalette; const AMetrics: THudMetrics);
+var
+  ColCount, ColGap, ValuesW, IconS, TextX, TextRight, NameMaxW: Integer;
+  RowsTop, EntryH, EntryTop, BlockH, BodyH, SmallH, LineGap, Y, i, c, X: Integer;
+  ColW: TArray<Integer>;
+  Txt: string;
+  Tm: TTextMetric;
+  HeadY: Integer;
+begin
+  DrawCardHeader(ACanvas, ARect, ATitle, '', AAccent, APalette, AMetrics);
+  ColCount := Length(AColHeads);
+  ColGap := Dip(AMetrics, 10);
+  TransparentText(ACanvas);
+  ACanvas.Font.Name := 'Segoe UI';
+  ACanvas.Font.Style := [];
+
+  { Value columns are as wide as their widest heading or value, so a narrow
+    column card still leaves the name as much room as possible. }
+  SetLength(ColW, ColCount);
+  ACanvas.Font.Size := AMetrics.BodySize;
+  for c := 0 to ColCount - 1 do
+  begin
+    ColW[c] := 0;
+    for i := 0 to High(ARows) do
+      if c <= High(ARows[i].Values) then
+        if ACanvas.TextWidth(ARows[i].Values[c]) > ColW[c] then
+          ColW[c] := ACanvas.TextWidth(ARows[i].Values[c]);
+  end;
+  ACanvas.Font.Size := AMetrics.AxisSize;
+  for c := 0 to ColCount - 1 do
+    if ACanvas.TextWidth(AColHeads[c]) > ColW[c] then
+      ColW[c] := ACanvas.TextWidth(AColHeads[c]);
+  ValuesW := 0;
+  for c := 0 to ColCount - 1 do
+    Inc(ValuesW, ColW[c] + ColGap);
+
+  { Value headings share the title row (no row of their own), sitting on the
+    title's baseline (DrawCardHeader puts the title at Top + 8 DIP). }
+  ACanvas.Font.Style := [fsBold];
+  ACanvas.Font.Size := AMetrics.HeadingSize;
+  GetTextMetrics(ACanvas.Handle, Tm);
+  HeadY := ARect.Top + Dip(AMetrics, 8) + Tm.tmAscent;
+  ACanvas.Font.Style := [];
+  ACanvas.Font.Size := AMetrics.AxisSize;
+  GetTextMetrics(ACanvas.Handle, Tm);
+  Dec(HeadY, Tm.tmAscent);
+  ACanvas.Font.Color := APalette.TextMuted;
+  X := ARect.Right - AMetrics.CardPad;
+  for c := ColCount - 1 downto 0 do
+  begin
+    ACanvas.TextOut(X - ACanvas.TextWidth(AColHeads[c]), HeadY, AColHeads[c]);
+    Dec(X, ColW[c] + ColGap);
+  end;
+
+  if ARowSlots < 1 then
+    Exit;
+  ACanvas.Font.Size := AMetrics.HeaderMetaSize;
+  SmallH := ACanvas.TextHeight('Ag');
+  ACanvas.Font.Size := AMetrics.BodySize;
+  BodyH := ACanvas.TextHeight('Ag');
+  LineGap := Dip(AMetrics, 2);
+  BlockH := BodyH + (SmallH + LineGap) * 2;
+  RowsTop := ARect.Top + AMetrics.CardHeaderHeight + Dip(AMetrics, 6);
+  EntryH := (ARect.Bottom - AMetrics.CardPad - RowsTop) div ARowSlots;
+  if EntryH < BlockH then
+    EntryH := BlockH;
+  { Square icon slot spanning the first two lines. }
+  IconS := BodyH + LineGap + SmallH;
+  TextX := ARect.Left + AMetrics.CardPad + IconS + Dip(AMetrics, 8);
+  TextRight := ARect.Right - AMetrics.CardPad;
+  NameMaxW := TextRight - ValuesW - TextX;
+
+  for i := 0 to ARowSlots - 1 do
+  begin
+    EntryTop := RowsTop + i * EntryH;
+    if i > 0 then
+    begin
+      GpFillRect(ACanvas, Rect(ARect.Left + AMetrics.CardPad, EntryTop,
+        TextRight, EntryTop + Dip(AMetrics, 1)), APalette.Grid);
+      ACanvas.Brush.Style := bsClear;
+    end;
+    Y := EntryTop + (EntryH - BlockH) div 2;
+    ACanvas.Font.Size := AMetrics.BodySize;
+    if not AValid then
+    begin
+      ACanvas.Font.Color := APalette.TextMuted;
+      ACanvas.TextOut(TextX, Y, #$2014);
+      Continue;
+    end;
+    if i > High(ARows) then
+      Break;
+
+    if ARows[i].Icon <> 0 then
+      DrawIconEx(ACanvas.Handle, ARect.Left + AMetrics.CardPad, Y,
+        HICON(ARows[i].Icon), IconS, IconS, 0, 0, DI_NORMAL);
+    ACanvas.Font.Color := APalette.TextPrimary;
+    ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Name, NameMaxW));
+    X := TextRight;
+    for c := ColCount - 1 downto 0 do
+    begin
+      if c <= High(ARows[i].Values) then
+      begin
+        Txt := ARows[i].Values[c];
+        ACanvas.TextOut(X - ACanvas.TextWidth(Txt), Y, Txt);
+      end;
+      Dec(X, ColW[c] + ColGap);
+    end;
+
+    ACanvas.Font.Size := AMetrics.HeaderMetaSize;
+    ACanvas.Font.Color := APalette.TextMuted;
+    Inc(Y, BodyH + LineGap);
+    ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Detail, TextRight - TextX));
+    Inc(Y, SmallH + LineGap);
+    ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Path, TextRight - TextX));
+  end;
+end;
+
+procedure DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
+  const ALabel: string; const AOptions: array of string; AActive: Integer;
+  const APalette: THudPalette; const AMetrics: THudMetrics;
+  out AOptRects: TArray<TRect>);
+var
+  i, X, W, Pad, TextY: Integer;
+  R: TRect;
+begin
+  TransparentText(ACanvas);
+  ACanvas.Font.Name := 'Segoe UI';
+  ACanvas.Font.Style := [];
+  ACanvas.Font.Size := AMetrics.BodySize;
+  Pad := Dip(AMetrics, 8);
+  TextY := ARect.Top + (ARect.Height - ACanvas.TextHeight('Ag')) div 2;
+  SetLength(AOptRects, Length(AOptions));
+  X := ARect.Right - AMetrics.Margin;
+  for i := High(AOptions) downto 0 do
+  begin
+    W := ACanvas.TextWidth(AOptions[i]) + Pad * 2;
+    R := Rect(X - W, ARect.Top, X, ARect.Bottom);
+    AOptRects[i] := R;
+    if i = AActive then
+    begin
+      GpFillRect(ACanvas, Rect(R.Left, R.Bottom - AMetrics.AccentLine, R.Right,
+        R.Bottom), APalette.AccentStart);
+      ACanvas.Brush.Style := bsClear;
+      ACanvas.Font.Color := APalette.TextPrimary;
+    end
+    else
+      ACanvas.Font.Color := APalette.TextMuted;
+    ACanvas.TextOut(R.Left + Pad, TextY, AOptions[i]);
+    Dec(X, W);
+  end;
+  ACanvas.Font.Color := APalette.TextMuted;
+  ACanvas.TextOut(X - Pad - ACanvas.TextWidth(ALabel), TextY, ALabel);
 end;
 
 function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string;
