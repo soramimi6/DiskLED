@@ -19,7 +19,7 @@
 | 10 | 右クリックメニューの整理（表示モード3択・表示倍率をオプション画面へ移し、後半を並べ替え） | 完了 | 高（既存の設定・ハンドラを移すだけ。新機能なし） | 低〜中（オプション画面の配置変更と、既存ハンドラの呼び出し整理） | 1〜1.5日 |
 | 11 | トレイ LED の色に黄色を追加 | 完了 | 高（生成スクリプトに色を1つ足すだけ） | 低 | 0.5日 |
 | 12 | トレイ LED の色をディスクとネットで個別に指定 | 完了 | 高 | 低〜中（設定キー1つ追加と、オプション画面の色選択を表の形にする配置変更） | 1日 |
-| 13 | リモートデスクトップ接続中のダッシュボードのちらつき解消 | 未着手 | 高（VCL のプロパティ指定のみ） | 低 | 0.5日 |
+| 13 | リモートデスクトップ接続中のダッシュボードのちらつき解消 | 完了 | 高（VCL のプロパティ指定のみ） | 低 | 0.5日 |
 
 **優先順位の理由:**
 - **1**（0.5日）: 低コスト・低リスクで他項目に依存しない単独修正。先に片付けて着手障壁を減らす。
@@ -454,7 +454,7 @@
 1 日（設定キーと読み込みの分岐は小さい。オプション画面の表の形への配置変更と実機確認が中心）。
 
 
-## 13. リモートデスクトップ接続中のダッシュボードのちらつき解消
+## 13. リモートデスクトップ接続中のダッシュボードのちらつき解消（完了）
 
 リモートデスクトップ越しにダッシュボードを表示すると、更新（1 Hz の値更新、約 5 Hz のドーナツ更新）のたびに表示がちらつく。項目7 以前から起きている既存の挙動。
 
@@ -463,12 +463,12 @@
 - ダッシュボードはフォームとカードの両方で `DoubleBuffered := True` を指定している（[uDashboardForm.pas:123](../src/dashboard/uDashboardForm.pas#L123)、[uDashboardCard.pas:76](../src/dashboard/uDashboardCard.pas#L76)）。
 - VCL はリモートセッション中、この指定を無視する。`TWinControl.CanUseDoubleBuffering`（RAD Studio 37.0 の `source\vcl\Vcl.Controls.pas`）が `(FDoubleBufferedMode = dbmRequested) or not (Application.InRemoteSession and Application.SingleBufferingInRemoteSessions)` を返し、既定値（`DoubleBufferedMode = dbmDefault`、`SingleBufferingInRemoteSessions = True`）ではリモートセッション中にダブルバッファリングが切れる。描画結果のビットマップを毎回転送するより GDI の描画命令を送るほうが帯域が少ない、という VCL 側の判断。
 - その結果、背景の消去と各要素の描画が画面に直接見え、ちらつきになる。
-- ガジェット本体（`TMainForm`）も `DoubleBuffered := True`（[uMainForm.pas:330](../src/uMainForm.pas#L330)）で同じ条件に当たる。リモート越しにちらつくかは未確認。
+- ガジェット本体（`TMainForm`）も `DoubleBuffered := True`（[uMainForm.pas:330](../src/uMainForm.pas#L330)）で同じ条件に当たるが、リモート越しの実機確認でちらつきは見られなかった（Ping/Tracert 結果窓も同じ）。
 
 ### 方針
 
 - ダッシュボードのフォームと `TDashboardCard` に `DoubleBufferedMode := dbmRequested` を指定し、リモートセッション中もダブルバッファリングを使う。`Application.SingleBufferingInRemoteSessions` はアプリ全体に効くので触らず、対象のコントロールだけに指定する。
-- ガジェット本体・Ping/Tracert 結果窓は、リモート越しに実機で見て、ちらつくものだけ同じ指定を足す。
+- ガジェット本体・Ping/Tracert 結果窓はちらつかないため、指定を足さない。
 - 代償としてリモート接続時の転送量は増える（更新のたびにカード単位のビットマップが送られる）。ダッシュボードは表示中だけ更新されるので、許容範囲と見込む。
 
 ### 実機で見ること（実装時。Win64 Release を IDE でビルド）
