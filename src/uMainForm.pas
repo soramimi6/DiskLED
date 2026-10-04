@@ -1171,7 +1171,7 @@ end;
 
 procedure TMainForm.ReloadTrayIcons;
 var
-  TypeDir, PrimarySrc: string;
+  DiskDir, NetDir, PrimaryDir, PrimarySrc: string;
 begin
   FreeAndNil(FTraySlots[0].OffIcon);
   FreeAndNil(FTraySlots[0].OnIcon);
@@ -1183,26 +1183,35 @@ begin
     Exit;
   { Skin-independent: assets/tray/<type>/<source>Off|On.ico, unrelated to the
     gadget's current display mode. }
-  TypeDir := 'tray' + PathDelim + FSettings.TrayLedType;
+  { Disk and network each have their own color (TrayLedType /
+    TrayLedTypeNet). }
+  DiskDir := 'tray' + PathDelim + FSettings.TrayLedType;
+  NetDir := 'tray' + PathDelim + FSettings.TrayLedTypeNet;
   if PrimarySourceIsDisk then
-    PrimarySrc := 'disk'
+  begin
+    PrimaryDir := DiskDir;
+    PrimarySrc := 'disk';
+  end
   else
+  begin
+    PrimaryDir := NetDir;
     PrimarySrc := 'net';
+  end;
   FTraySlots[0].OffIcon := TAssetStore.LoadIconFile(
-    TAssetStore.BuildPath(FAssetsRoot, TypeDir, PrimarySrc + 'Off.ico'), LIM_SMALL);
+    TAssetStore.BuildPath(FAssetsRoot, PrimaryDir, PrimarySrc + 'Off.ico'), LIM_SMALL);
   FTraySlots[0].OnIcon := TAssetStore.LoadIconFile(
-    TAssetStore.BuildPath(FAssetsRoot, TypeDir, PrimarySrc + 'On.ico'), LIM_SMALL);
+    TAssetStore.BuildPath(FAssetsRoot, PrimaryDir, PrimarySrc + 'On.ico'), LIM_SMALL);
   if BothLedSourcesOn then
   begin
     FTraySlots[1].OffIcon := TAssetStore.LoadIconFile(
-      TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOff.ico'), LIM_SMALL);
+      TAssetStore.BuildPath(FAssetsRoot, NetDir, 'netOff.ico'), LIM_SMALL);
     FTraySlots[1].OnIcon := TAssetStore.LoadIconFile(
-      TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'netOn.ico'), LIM_SMALL);
+      TAssetStore.BuildPath(FAssetsRoot, NetDir, 'netOn.ico'), LIM_SMALL);
   end;
   FDriveOffIcon := TAssetStore.LoadIconFile(
-    TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'diskOff.ico'), LIM_SMALL);
+    TAssetStore.BuildPath(FAssetsRoot, DiskDir, 'diskOff.ico'), LIM_SMALL);
   FDriveOnIcon := TAssetStore.LoadIconFile(
-    TAssetStore.BuildPath(FAssetsRoot, TypeDir, 'diskOn.ico'), LIM_SMALL);
+    TAssetStore.BuildPath(FAssetsRoot, DiskDir, 'diskOn.ico'), LIM_SMALL);
 end;
 
 procedure TMainForm.ResetTrayToAppIcon;

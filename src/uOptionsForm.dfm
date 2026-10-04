@@ -394,44 +394,80 @@ object OptionsForm: TOptionsForm
           ParentFont = False
         end
         object ImgLedGreen: TImage
-          Left = 36
-          Top = 74
-          Width = 48
-          Height = 48
+          Left = 112
+          Top = 38
+          Width = 16
+          Height = 16
           Center = True
           Proportional = True
           Stretch = True
           Transparent = True
         end
         object ImgLedBlue: TImage
-          Left = 128
-          Top = 74
-          Width = 48
-          Height = 48
+          Left = 184
+          Top = 38
+          Width = 16
+          Height = 16
           Center = True
           Proportional = True
           Stretch = True
           Transparent = True
         end
         object ImgLedRed: TImage
-          Left = 220
-          Top = 74
-          Width = 48
-          Height = 48
+          Left = 256
+          Top = 38
+          Width = 16
+          Height = 16
           Center = True
           Proportional = True
           Stretch = True
           Transparent = True
         end
         object ImgLedYellow: TImage
-          Left = 312
-          Top = 74
-          Width = 48
-          Height = 48
+          Left = 328
+          Top = 38
+          Width = 16
+          Height = 16
           Center = True
           Proportional = True
           Stretch = True
           Transparent = True
+        end
+        object LblLedGreen: TLabel
+          Left = 90
+          Top = 56
+          Width = 60
+          Height = 15
+          Alignment = taCenter
+          AutoSize = False
+          Caption = 'Green'
+        end
+        object LblLedBlue: TLabel
+          Left = 162
+          Top = 56
+          Width = 60
+          Height = 15
+          Alignment = taCenter
+          AutoSize = False
+          Caption = 'Blue'
+        end
+        object LblLedRed: TLabel
+          Left = 234
+          Top = 56
+          Width = 60
+          Height = 15
+          Alignment = taCenter
+          AutoSize = False
+          Caption = 'Red'
+        end
+        object LblLedYellow: TLabel
+          Left = 306
+          Top = 56
+          Width = 60
+          Height = 15
+          Alignment = taCenter
+          AutoSize = False
+          Caption = 'Yellow'
         end
         object LblSecTrayDrives: TLabel
           Left = 20
@@ -446,39 +482,99 @@ object OptionsForm: TOptionsForm
           Font.Style = [fsBold]
           ParentFont = False
         end
-        object RbLedGreen: TRadioButton
-          Left = 20
-          Top = 47
-          Width = 88
-          Height = 21
-          Caption = 'Green'
-          Checked = True
+        object PnlLedDisk: TPanel
+          Left = 0
+          Top = 76
+          Width = 400
+          Height = 24
+          BevelOuter = bvNone
+          ParentColor = True
           TabOrder = 0
-          TabStop = True
+          object LblLedDisk: TLabel
+            Left = 20
+            Top = 4
+            Width = 80
+            Height = 15
+            AutoSize = False
+            Caption = 'Disk'
+          end
+          object RbLedDiskGreen: TRadioButton
+            Left = 112
+            Top = 3
+            Width = 17
+            Height = 17
+            Checked = True
+            TabOrder = 0
+            TabStop = True
+          end
+          object RbLedDiskBlue: TRadioButton
+            Left = 184
+            Top = 3
+            Width = 17
+            Height = 17
+            TabOrder = 1
+          end
+          object RbLedDiskRed: TRadioButton
+            Left = 256
+            Top = 3
+            Width = 17
+            Height = 17
+            TabOrder = 2
+          end
+          object RbLedDiskYellow: TRadioButton
+            Left = 328
+            Top = 3
+            Width = 17
+            Height = 17
+            TabOrder = 3
+          end
         end
-        object RbLedBlue: TRadioButton
-          Left = 112
-          Top = 47
-          Width = 88
-          Height = 21
-          Caption = 'Blue'
+        object PnlLedNet: TPanel
+          Left = 0
+          Top = 102
+          Width = 400
+          Height = 24
+          BevelOuter = bvNone
+          ParentColor = True
           TabOrder = 1
-        end
-        object RbLedRed: TRadioButton
-          Left = 204
-          Top = 47
-          Width = 88
-          Height = 21
-          Caption = 'Red'
-          TabOrder = 2
-        end
-        object RbLedYellow: TRadioButton
-          Left = 296
-          Top = 47
-          Width = 88
-          Height = 21
-          Caption = 'Yellow'
-          TabOrder = 3
+          object LblLedNet: TLabel
+            Left = 20
+            Top = 4
+            Width = 80
+            Height = 15
+            AutoSize = False
+            Caption = 'Network'
+          end
+          object RbLedNetGreen: TRadioButton
+            Left = 112
+            Top = 3
+            Width = 17
+            Height = 17
+            Checked = True
+            TabOrder = 0
+            TabStop = True
+          end
+          object RbLedNetBlue: TRadioButton
+            Left = 184
+            Top = 3
+            Width = 17
+            Height = 17
+            TabOrder = 1
+          end
+          object RbLedNetRed: TRadioButton
+            Left = 256
+            Top = 3
+            Width = 17
+            Height = 17
+            TabOrder = 2
+          end
+          object RbLedNetYellow: TRadioButton
+            Left = 328
+            Top = 3
+            Width = 17
+            Height = 17
+            TabOrder = 3
+          end
         end
         object ChkLedDisk: TCheckBox
           Left = 20
@@ -488,7 +584,7 @@ object OptionsForm: TOptionsForm
           Caption = 'Disk'
           Checked = True
           State = cbChecked
-          TabOrder = 4
+          TabOrder = 2
           OnClick = ChkLedDiskClick
         end
         object ChkLedNet: TCheckBox
@@ -497,7 +593,7 @@ object OptionsForm: TOptionsForm
           Width = 120
           Height = 21
           Caption = 'Network'
-          TabOrder = 5
+          TabOrder = 3
           OnClick = ChkLedNetClick
         end
         object ChkLedTotal: TCheckBox
@@ -506,7 +602,7 @@ object OptionsForm: TOptionsForm
           Width = 360
           Height = 21
           Caption = 'Also show the total LED'
-          TabOrder = 6
+          TabOrder = 4
         end
         object LstDrives: TCheckListBox
           Left = 20
@@ -514,7 +610,7 @@ object OptionsForm: TOptionsForm
           Width = 360
           Height = 120
           ItemHeight = 17
-          TabOrder = 7
+          TabOrder = 5
         end
       end
     end

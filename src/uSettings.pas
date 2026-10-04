@@ -23,6 +23,7 @@ type
     FWindowHidden: Boolean;
     FTrayLed: Boolean;
     FTrayLedType: string;
+    FTrayLedTypeNet: string;
     FTrayLedDisk: Boolean;
     FTrayLedNet: Boolean;
     FTrayLedDrives: TDriveFlags;
@@ -86,9 +87,12 @@ type
       Independent of WindowHidden: the window can stay visible while the
       tray also shows the LED ("window + tray LED"). }
     property TrayLed: Boolean read FTrayLed write FTrayLed;
-    { Tray LED color, skin-independent: 'green' / 'blue' / 'red' / 'yellow'. Assets live
-      under assets/tray/<type>/. }
+    { Tray LED colors, skin-independent: 'green' / 'blue' / 'red' / 'yellow'.
+      Assets live under assets/tray/<type>/. TrayLedType colors the disk LEDs
+      (total and per-drive), TrayLedTypeNet the network LED; an ini without
+      LedTypeNet (before 3.3.0) gives the network LED the disk color. }
     property TrayLedType: string read FTrayLedType write FTrayLedType;
+    property TrayLedTypeNet: string read FTrayLedTypeNet write FTrayLedTypeNet;
     { Which activity the tray LED reflects. Both may be on at once: a second
       tray icon appears for whichever of the two is not the primary display
       (see TMainForm.PrimarySourceIsDisk). Normalize forces at least one on
@@ -282,6 +286,7 @@ begin
   FWindowHidden := False;
   FTrayLed := False;
   FTrayLedType := 'green';
+  FTrayLedTypeNet := 'green';
   FTrayLedDisk := True;
   FTrayLedNet := False;
   FTrayLedDrives := Default(TDriveFlags);
@@ -338,6 +343,7 @@ begin
     FScale := 0;
   FLanguage := NormalizeLang(FLanguage);
   FTrayLedType := NormalizeTrayLedType(FTrayLedType);
+  FTrayLedTypeNet := NormalizeTrayLedType(FTrayLedTypeNet);
   if not (FTrayLedDisk or FTrayLedNet) then
     FTrayLedDisk := True;
   if Abs(FGraphRateHz - 2.0) < 0.01 then
@@ -424,6 +430,7 @@ begin
       FTrayLed := Ini.ReadBool('Tray', 'Led', FTrayLed);
     end;
     FTrayLedType := Ini.ReadString('Tray', 'LedType', FTrayLedType);
+    FTrayLedTypeNet := Ini.ReadString('Tray', 'LedTypeNet', FTrayLedType);
     { LedSource is the legacy (pre-release) single-choice key; LedDisk/LedNet
       are the current pair that lets both be on at once. }
     if Ini.ValueExists('Tray', 'LedSource') then
@@ -498,6 +505,7 @@ begin
     Ini.DeleteKey('View', 'Size');
     Ini.WriteBool('Tray', 'Led', FTrayLed);
     Ini.WriteString('Tray', 'LedType', FTrayLedType);
+    Ini.WriteString('Tray', 'LedTypeNet', FTrayLedTypeNet);
     Ini.WriteBool('Tray', 'LedDisk', FTrayLedDisk);
     Ini.WriteBool('Tray', 'LedNet', FTrayLedNet);
     Ini.WriteString('Tray', 'LedDrives', DriveFlagsToString(FTrayLedDrives));
