@@ -16,8 +16,11 @@ type
   TProcessRowText = record
     Name: string;
     Values: TArray<string>;
-    { Second line: description / company / version. Third line: image path. }
+    { Second line: what it is (window title / description, company). Third
+      line: state (user, commit, handles, threads). Fourth line: image path,
+      dropped when the entry is too short for four lines. }
     Detail: string;
+    Status: string;
     Path: string;
     { HICON drawn in the row's icon slot; 0 leaves the slot empty. Not owned. }
     Icon: THandle;
@@ -50,12 +53,20 @@ procedure DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;
   const APalette: THudPalette; const AMetrics: THudMetrics;
   out AOptRects: TArray<TRect>);
 { One resource column of the process page: card, title, value headings on the
-  title row, and ARowSlots entries of three lines each (icon slot + name +
-  values / detail / path). AValid=False (no sample yet) shows a dash per entry. }
+  title row, and ARowSlots entries of up to four lines each (icon slot + name +
+  values / detail / status / path). AValid=False (no sample yet) shows a dash
+  per entry. AEntryRects receives the rectangle of each drawn row (index =
+  row in ARows) for hover hit-testing. }
 procedure DrawProcessTop(ACanvas: TCanvas; const ARect: TRect;
   const ATitle: string; const AColHeads: array of string;
   const ARows: TArray<TProcessRowText>; AValid: Boolean; ARowSlots: Integer;
-  AAccent: TColor; const APalette: THudPalette; const AMetrics: THudMetrics);
+  AAccent: TColor; const APalette: THudPalette; const AMetrics: THudMetrics;
+  out AEntryRects: TArray<TRect>);
+{ How many entries a process column of ARect's height shows: AMin by default,
+  one more for each further ~90 DIP of height, at most AMax. Keeps entries at
+  a steady height instead of stretching them as the window grows. }
+function ProcessRowSlots(const ARect: TRect; AMin, AMax: Integer;
+  const AMetrics: THudMetrics): Integer;
 procedure DrawCpuPanel(ACanvas: TCanvas; const ARect: TRect;
   const ASnap: TMetricsSnapshot; const AHeading, ANameLbl, ATopoLbl, AClockLbl,
   AUserLbl, AKernelLbl: string; const APalette: THudPalette;
@@ -189,6 +200,7 @@ begin
 end;
 
 function Ellipsize(ACanvas: TCanvas; const S: string; AMaxW: Integer): string; forward;
+function ProcessRowsTop(const ARect: TRect; const AMetrics: THudMetrics): Integer; forward;
 
 procedure DrawHudHeader(ACanvas: TCanvas; const ARect: TRect; const ATitle,
   ALiveText, AVersion, AUptimeText, ACumText: string; ALiveOn: Boolean; const APalette: THudPalette;
@@ -277,7 +289,8 @@ end;
 procedure DrawProcessTop(ACanvas: TCanvas; const ARect: TRect;
   const ATitle: string; const AColHeads: array of string;
   const ARows: TArray<TProcessRowText>; AValid: Boolean; ARowSlots: Integer;
-  AAccent: TColor; const APalette: THudPalette; const AMetrics: THudMetrics);
+  AAccent: TColor; const APalette: THudPalette; const AMetrics: THudMetrics;
+  out AEntryRects: TArray<TRect>);
 var
   ColCount, ColGap, ValuesW, IconS, TextX, TextRight, NameMaxW: Integer;
   RowsTop, EntryH, EntryTop, BlockH, BodyH, SmallH, LineGap, Y, i, c, X: Integer;
@@ -285,7 +298,9 @@ var
   Txt: string;
   Tm: TTextMetric;
   HeadY: Integer;
+  ShowPath: Boolean;
 begin
+  AEntryRects := nil;
   DrawCardHeader(ACanvas, ARect, ATitle, '', AAccent, APalette, AMetrics);
   ColCount := Length(AColHeads);
   ColGap := Dip(AMetrics, 10);
@@ -338,11 +353,21 @@ begin
   ACanvas.Font.Size := AMetrics.BodySize;
   BodyH := ACanvas.TextHeight('Ag');
   LineGap := Dip(AMetrics, 2);
-  BlockH := BodyH + (SmallH + LineGap) * 2;
-  RowsTop := ARect.Top + AMetrics.CardHeaderHeight + Dip(AMetrics, 6);
+  RowsTop := ProcessRowsTop(ARect, AMetrics);
   EntryH := (ARect.Bottom - AMetrics.CardPad - RowsTop) div ARowSlots;
+  { Four lines when they fit with a little air; near the minimum window size
+    the path (least important, also in the tooltip) is dropped. }
+  BlockH := BodyH + (SmallH + LineGap) * 3;
+  ShowPath := EntryH >= BlockH + Dip(AMetrics, 4);
+  if not ShowPath then
+    BlockH := BodyH + (SmallH + LineGap) * 2;
   if EntryH < BlockH then
     EntryH := BlockH;
+  if AValid then
+    if Length(ARows) < ARowSlots then
+      SetLength(AEntryRects, Length(ARows))
+    else
+      SetLength(AEntryRects, ARowSlots);
   { Square icon slot spanning the first two lines. }
   IconS := BodyH + LineGap + SmallH;
   TextX := ARect.Left + AMetrics.CardPad + IconS + Dip(AMetrics, 8);
@@ -368,6 +393,7 @@ begin
     end;
     if i > High(ARows) then
       Break;
+    AEntryRects[i] := Rect(ARect.Left, EntryTop, ARect.Right, EntryTop + EntryH);
 
     if ARows[i].Icon <> 0 then
       DrawIconEx(ACanvas.Handle, ARect.Left + AMetrics.CardPad, Y,
@@ -390,8 +416,33 @@ begin
     Inc(Y, BodyH + LineGap);
     ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Detail, TextRight - TextX));
     Inc(Y, SmallH + LineGap);
-    ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Path, TextRight - TextX));
+    ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Status, TextRight - TextX));
+    if ShowPath then
+    begin
+      Inc(Y, SmallH + LineGap);
+      ACanvas.TextOut(TextX, Y, Ellipsize(ACanvas, ARows[i].Path, TextRight - TextX));
+    end;
   end;
+end;
+
+{ Entry area of a process column; must match DrawProcessTop's RowsTop. }
+function ProcessRowsTop(const ARect: TRect; const AMetrics: THudMetrics): Integer;
+begin
+  Result := ARect.Top + AMetrics.CardHeaderHeight + Dip(AMetrics, 6);
+end;
+
+function ProcessRowSlots(const ARect: TRect; AMin, AMax: Integer;
+  const AMetrics: THudMetrics): Integer;
+const
+  { Entry height at which the default 960x720 DIP window shows five. }
+  CEntryTargetDip = 90;
+begin
+  Result := (ARect.Bottom - AMetrics.CardPad - ProcessRowsTop(ARect, AMetrics)) div
+    Dip(AMetrics, CEntryTargetDip);
+  if Result < AMin then
+    Result := AMin;
+  if Result > AMax then
+    Result := AMax;
 end;
 
 procedure DrawTabChoice(ACanvas: TCanvas; const ARect: TRect;

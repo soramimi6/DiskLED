@@ -261,9 +261,9 @@ begin
   AddStr('dash.live', 'LIVE', 'LIVE');
   AddStr('dash.tab_overview', '概要', 'Overview');
   AddStr('dash.tab_process', 'プロセス', 'Processes');
-  AddStr('dash.proc_cpu', 'CPU', 'CPU');
-  AddStr('dash.proc_mem', 'メモリ', 'Memory');
-  AddStr('dash.proc_io', 'I/O', 'I/O');
+  AddStr('dash.proc_cpu', 'CPU使用率の高い順', 'By CPU usage');
+  AddStr('dash.proc_mem', 'メモリ使用量の多い順', 'By memory used');
+  AddStr('dash.proc_io', 'I/O量の多い順', 'By I/O (read + write)');
   AddStr('dash.proc_col_usage', '使用率', 'Usage');
   AddStr('dash.proc_col_used', '使用量', 'Used');
   AddStr('dash.proc_col_share', '割合', 'Share');
@@ -271,6 +271,21 @@ begin
   AddStr('dash.proc_col_write', '書込', 'Write');
   AddStr('dash.proc_interval', '更新', 'Refresh');
   AddStr('dash.proc_sec', '%d秒', '%ds');
+  AddStr('dash.proc_stop', '停止', 'Stop');
+  AddStr('dash.proc_noaccess', '詳細を取得できません', 'Details not available');
+  AddStr('dash.proc_user_admin', '%s（管理者）', '%s (admin)');
+  AddStr('dash.tip_window', 'ウィンドウ', 'Window');
+  AddStr('dash.tip_desc', '説明', 'Description');
+  AddStr('dash.tip_product', '製品名', 'Product');
+  AddStr('dash.tip_company', '会社名', 'Company');
+  AddStr('dash.tip_version', 'バージョン', 'Version');
+  AddStr('dash.tip_copyright', '著作権', 'Copyright');
+  AddStr('dash.tip_user', 'ユーザー', 'User');
+  AddStr('dash.tip_bitness', '種類', 'Type');
+  AddStr('dash.tip_commit', 'コミット', 'Commit');
+  AddStr('dash.tip_handles', 'ハンドル', 'Handles');
+  AddStr('dash.tip_threads', 'スレッド', 'Threads');
+  AddStr('dash.tip_path', 'パス', 'Path');
   AddStr('dash.axis_now', '現在', 'now');
   AddStr('dash.axis_5m', '5分', '5m');
 
