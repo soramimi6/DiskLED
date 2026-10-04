@@ -3,7 +3,8 @@ unit uProcessCollector;
 { Per-resource TOP5 processes for the dashboard's process page, via PDH
   "\Process V2(*)\...". Process V2 covers every process without elevation (the
   OpenProcess route reaches only about half of them); its instance names are
-  "name:pid", unique per process.
+  "name:pid", unique per process. Where Process V2 is missing the legacy
+  "\Process(*)" set is used instead (no PIDs, so no per-process details).
 
   Same-named processes (chrome, svchost, ...) are summed into one row and ranked
   by that sum. Sampling runs on a worker thread every 3/5/10 s (SetInterval) --
@@ -100,11 +101,14 @@ type
     FCounters: array[TProcessCounter] of THandle;
     FBufs: array[TProcessCounter] of TBytes;
     FFailCount: Integer;
+    { The query uses the legacy "\Process(*)" set: no PIDs in instance names. }
+    FLegacy: Boolean;
     { Lower-cased process name -> details. Successful lookups only, so a
       process that couldn't be opened is retried later (with whichever PID
       represents the name then). }
     FDetails: TDictionary<string, TProcessDetail>;
     procedure WorkerExecute;
+    function OpenCounterSet(const ASet: string): Boolean;
     function InitPdh: Boolean;
     procedure ClosePdh;
     function SamplePdh(out ATop: TProcessTop): Boolean;
@@ -159,14 +163,20 @@ const
   PDH_MORE_DATA = $800007D2;
   PDH_CSTATUS_VALID_DATA = $00000000;
   PDH_CSTATUS_NEW_DATA = $00000001;
-  CCounterPaths: array[TProcessCounter] of string = (
-    '\Process V2(*)\% Processor Time',
-    '\Process V2(*)\Working Set - Private',
-    '\Process V2(*)\IO Read Bytes/sec',
-    '\Process V2(*)\IO Write Bytes/sec',
-    '\Process V2(*)\Private Bytes',
-    '\Process V2(*)\Handle Count',
-    '\Process V2(*)\Thread Count');
+  { Counter names, shared by both counter sets below. }
+  CCounterNames: array[TProcessCounter] of string = (
+    '% Processor Time',
+    'Working Set - Private',
+    'IO Read Bytes/sec',
+    'IO Write Bytes/sec',
+    'Private Bytes',
+    'Handle Count',
+    'Thread Count');
+  CProcessV2Set = '\Process V2(*)\';
+  { Fallback for systems without Process V2 (some Windows 10 builds). Its
+    instance names carry no PID and repeat for same-named processes, which
+    the name-merge absorbs; rows then have no details, titles or own icon. }
+  CProcessLegacySet = '\Process(*)\';
   CCounterFormats: array[TProcessCounter] of DWORD = (
     PDH_FMT_DOUBLE or PDH_FMT_NOCAP100,
     PDH_FMT_LARGE,
@@ -446,22 +456,32 @@ begin
   FOwner.WorkerExecute;
 end;
 
-{ "chrome:1234" -> name "chrome", pid 1234. Splits on the last ':' since the
-  name part itself is not guaranteed colon-free. }
-function SplitInstance(const AInstance: string; out AName: string;
-  out APid: Cardinal): Boolean;
+{ Process V2: "chrome:1234" -> name "chrome", pid 1234 (split on the last ':'
+  since the name part itself is not guaranteed colon-free).
+  Legacy set: "chrome" or "chrome#3" -> name "chrome", pid 0. }
+function SplitInstance(const AInstance: string; ALegacy: Boolean;
+  out AName: string; out APid: Cardinal): Boolean;
 var
   P: Integer;
   V: Integer;
 begin
   AName := AInstance;
   APid := 0;
-  P := LastDelimiter(':', AInstance);
-  if P > 0 then
+  if ALegacy then
   begin
-    AName := Copy(AInstance, 1, P - 1);
-    if TryStrToInt(Copy(AInstance, P + 1, MaxInt), V) and (V >= 0) then
-      APid := Cardinal(V);
+    P := LastDelimiter('#', AInstance);
+    if (P > 1) and TryStrToInt(Copy(AInstance, P + 1, MaxInt), V) then
+      AName := Copy(AInstance, 1, P - 1);
+  end
+  else
+  begin
+    P := LastDelimiter(':', AInstance);
+    if P > 0 then
+    begin
+      AName := Copy(AInstance, 1, P - 1);
+      if TryStrToInt(Copy(AInstance, P + 1, MaxInt), V) and (V >= 0) then
+        APid := Cardinal(V);
+    end;
   end;
   Result := (AName <> '') and not SameText(AName, '_Total') and
     not SameText(AName, 'Idle');
@@ -693,7 +713,7 @@ begin
   end;
 end;
 
-function TProcessCollector.InitPdh: Boolean;
+function TProcessCollector.OpenCounterSet(const ASet: string): Boolean;
 var
   C: TProcessCounter;
 begin
@@ -705,12 +725,25 @@ begin
     Exit;
   end;
   for C := Low(TProcessCounter) to High(TProcessCounter) do
-    if PdhAddEnglishCounterW(FQuery, PWideChar(CCounterPaths[C]), 0,
+    if PdhAddEnglishCounterW(FQuery, PWideChar(ASet + CCounterNames[C]), 0,
       FCounters[C]) <> 0 then
     begin
       ClosePdh;
       Exit;
     end;
+  Result := True;
+end;
+
+function TProcessCollector.InitPdh: Boolean;
+begin
+  Result := False;
+  FLegacy := False;
+  if not OpenCounterSet(CProcessV2Set) then
+  begin
+    if not OpenCounterSet(CProcessLegacySet) then
+      Exit;
+    FLegacy := True;
+  end;
   { Rate counters need two collects; this one primes them. }
   PdhCollectQueryData(FQuery);
   FFailCount := 0;
@@ -745,7 +778,7 @@ var
     Pid: Cardinal;
   begin
     Result := -1;
-    if not SplitInstance(AItem.szName, Name, Pid) then
+    if not SplitInstance(AItem.szName, FLegacy, Name, Pid) then
       Exit;
     Key := LowerCase(Name);
     if not Index.TryGetValue(Key, Result) then
