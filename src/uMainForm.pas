@@ -211,7 +211,7 @@ type
     procedure UpdateDelayTick(Sender: TObject);
     procedure ApplyUpdateCheckResult(AGen: Integer; const AResult: TUpdateCheckResult);
     procedure OpenUpdatePage;
-    procedure ShowUpdateBalloon(const AVersion: string);
+    function ShowUpdateBalloon(const AVersion: string): Boolean;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -477,6 +477,7 @@ begin
   FTraySlots[AIndex].Icon.PopupMenu := FPopup;
   FTraySlots[AIndex].Icon.OnDblClick := TrayDblClick;
   FTraySlots[AIndex].Icon.OnClick := TrayClick;
+  FTraySlots[AIndex].Icon.OnBalloonClick := TrayBalloonClick;
   FTraySlots[AIndex].ClickDelay := TTimer.Create(Self);
   FTraySlots[AIndex].ClickDelay.Enabled := False;
   FTraySlots[AIndex].ClickDelay.Interval := GetDoubleClickTime;
@@ -1453,6 +1454,9 @@ begin
     Exit;
   if not FSettings.TrayLed then
   begin
+    { Slot 0 may have been hidden in favor of per-drive LEDs; it is the app's
+      tray icon again now. }
+    EnsureTraySlot(0);
     ResetTrayToAppIcon;
     HideTraySlot(1);
     ReleaseDriveTrays;
@@ -1679,22 +1683,36 @@ begin
       (CDebugForceNewerRelease or
        (not SameText(NormalizeVersionText(FSettings.UpdateLastNotified), Remote))) then
     begin
-      ShowUpdateBalloon(Remote);
-      FSettings.UpdateLastNotified := Remote;
+      { Only a balloon actually shown counts as notified. }
+      if ShowUpdateBalloon(Remote) then
+        FSettings.UpdateLastNotified := Remote;
     end;
     PersistSettings;
   end;
   SyncUpdateMenu;
 end;
 
-procedure TMainForm.ShowUpdateBalloon(const AVersion: string);
+function TMainForm.ShowUpdateBalloon(const AVersion: string): Boolean;
+var
+  I, Slot: Integer;
 begin
-  if FTraySlots[0].Icon = nil then
+  Result := False;
+  { Slot 0 is hidden while per-drive LEDs stand in for it; a balloon on a
+    hidden icon never shows, so use the first visible one. }
+  Slot := -1;
+  for I := 0 to High(FTraySlots) do
+    if (FTraySlots[I].Icon <> nil) and FTraySlots[I].Icon.Visible then
+    begin
+      Slot := I;
+      Break;
+    end;
+  if Slot < 0 then
     Exit;
-  FTraySlots[0].Icon.BalloonTitle := S('tray.update_title');
-  FTraySlots[0].Icon.BalloonHint := Format(S('tray.update'), [AVersion]);
-  FTraySlots[0].Icon.BalloonFlags := bfInfo;
-  FTraySlots[0].Icon.ShowBalloonHint;
+  FTraySlots[Slot].Icon.BalloonTitle := S('tray.update_title');
+  FTraySlots[Slot].Icon.BalloonHint := Format(S('tray.update'), [AVersion]);
+  FTraySlots[Slot].Icon.BalloonFlags := bfInfo;
+  FTraySlots[Slot].Icon.ShowBalloonHint;
+  Result := True;
 end;
 
 procedure TMainForm.OpenUpdatePage;

@@ -118,7 +118,9 @@ type
     procedure TabMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure SetPage(APage: TDashboardPage);
+    { AForce re-applies APage even when it is already current (FormShow:
+      FPage survives a hide, but the hide stopped the page's collectors). }
+    procedure SetPage(APage: TDashboardPage; AForce: Boolean = False);
     procedure ApplyPageVisibility;
     procedure ProcessPaint(Sender: TObject);
     procedure RoutePaint(Sender: TObject);
@@ -777,9 +779,9 @@ begin
     FRoutePaint.Visible := FPage = dpRoute;
 end;
 
-procedure TDashboardForm.SetPage(APage: TDashboardPage);
+procedure TDashboardForm.SetPage(APage: TDashboardPage; AForce: Boolean);
 begin
-  if APage = FPage then
+  if (APage = FPage) and not AForce then
     Exit;
   FPage := APage;
   ApplyPageVisibility;
@@ -1878,7 +1880,7 @@ begin
   ClampIntoView;
   { Open on the overview unless ShowPage asked for another page; FPage
     survives a caHide close, so it is set every time. }
-  SetPage(FOpenPage);
+  SetPage(FOpenPage, True);
   FOpenPage := dpOverview;
   FUiTimer.Enabled := True;
   FMeterTimer.Enabled := True;
