@@ -22,10 +22,9 @@ $MasterSize = 256
 # size TAssetStore.LoadIconFile requests (GetSystemMetrics(SM_CXSMICON) via
 # LoadImage, LIM_SMALL), Windows stretches the nearest one and the tray icon
 # looks visibly soft at every scale except 100/200/300%.
-# 64/96 additionally cover SM_CXICON (LIM_LARGE) at 200%/300% -- used by
-# uOptionsForm.pas's LoadLedPreviewIcons for the Tray LED color swatches, which
-# deliberately asks for LIM_LARGE rather than LIM_SMALL (see that function's
-# comment). LIM_LARGE at 100/125/150% already lands on 32/40/48 above.
+# 64/96 additionally cover SM_CXICON (LIM_LARGE) at 200%/300%. Nothing asks
+# for LIM_LARGE since the Options color swatches went to 16 DIP / LIM_SMALL
+# (3.3.0); the frames stay so regenerating doesn't change the shipped icons.
 $Sizes = @(16, 20, 24, 28, 32, 40, 48, 64, 96)
 
 function New-Color([int]$r, [int]$g, [int]$b, [int]$a = 255) {

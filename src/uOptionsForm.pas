@@ -53,10 +53,22 @@ type
     ImgLedBlue: TImage;
     ImgLedRed: TImage;
     ImgLedYellow: TImage;
-    RbLedGreen: TRadioButton;
-    RbLedBlue: TRadioButton;
-    RbLedRed: TRadioButton;
-    RbLedYellow: TRadioButton;
+    LblLedGreen: TLabel;
+    LblLedBlue: TLabel;
+    LblLedRed: TLabel;
+    LblLedYellow: TLabel;
+    PnlLedDisk: TPanel;
+    LblLedDisk: TLabel;
+    RbLedDiskGreen: TRadioButton;
+    RbLedDiskBlue: TRadioButton;
+    RbLedDiskRed: TRadioButton;
+    RbLedDiskYellow: TRadioButton;
+    PnlLedNet: TPanel;
+    LblLedNet: TLabel;
+    RbLedNetGreen: TRadioButton;
+    RbLedNetBlue: TRadioButton;
+    RbLedNetRed: TRadioButton;
+    RbLedNetYellow: TRadioButton;
     ChkLedDisk: TCheckBox;
     ChkLedNet: TCheckBox;
     LblSecTrayDrives: TLabel;
@@ -226,6 +238,35 @@ begin
   end;
 end;
 
+const
+  { Tray LED color ids, in the column order of the Options color matrix
+    (each radio row lists its buttons in this order). }
+  CLedColors: array[0..3] of string = ('green', 'blue', 'red', 'yellow');
+
+{ Checks the button for AColor in one matrix row; green when unknown. }
+procedure CheckLedColor(const AButtons: array of TRadioButton; const AColor: string);
+var
+  i: Integer;
+begin
+  for i := 0 to High(CLedColors) do
+    if SameText(AColor, CLedColors[i]) then
+    begin
+      AButtons[i].Checked := True;
+      Exit;
+    end;
+  AButtons[0].Checked := True;
+end;
+
+function CheckedLedColor(const AButtons: array of TRadioButton): string;
+var
+  i: Integer;
+begin
+  for i := 0 to High(CLedColors) do
+    if AButtons[i].Checked then
+      Exit(CLedColors[i]);
+  Result := CLedColors[0];
+end;
+
 procedure TOptionsForm.LoadLedPreviewIcons;
 var
   Root: string;
@@ -233,12 +274,11 @@ var
 
   procedure Load(AImg: TImage; const AColor: string);
   begin
-    { LIM_LARGE (not LIM_SMALL, as uMainForm's tray icon uses): this is a
-      decorative color swatch in a dialog, not the actual tray icon, so it
-      should look as sharp as possible at its own fixed on-screen size rather
-      than matching the system tray's small-icon DPI metric. }
+    { LIM_SMALL, like the real tray icon: the swatch is 16 DIP, which the
+      scaled Options form sizes to SM_CXSMICON, so the matching icon frame is
+      drawn without resampling. }
     Icon := TAssetStore.LoadIconFile(
-      TAssetStore.BuildPath(Root, 'tray' + PathDelim + AColor, 'diskOn.ico'), LIM_LARGE);
+      TAssetStore.BuildPath(Root, 'tray' + PathDelim + AColor, 'diskOn.ico'), LIM_SMALL);
     try
       AImg.Picture.Assign(Icon);
     finally
@@ -289,10 +329,12 @@ begin
   RbScaleLinear.Caption := S('opt.speed_scale_linear');
   RbScaleLog.Caption := S('opt.speed_scale_log');
   LblSecTrayLedColor.Caption := S('opt.tray_led_color');
-  RbLedGreen.Caption := S('opt.tray_led_color_green');
-  RbLedBlue.Caption := S('opt.tray_led_color_blue');
-  RbLedRed.Caption := S('opt.tray_led_color_red');
-  RbLedYellow.Caption := S('opt.tray_led_color_yellow');
+  LblLedGreen.Caption := S('opt.tray_led_color_green');
+  LblLedBlue.Caption := S('opt.tray_led_color_blue');
+  LblLedRed.Caption := S('opt.tray_led_color_red');
+  LblLedYellow.Caption := S('opt.tray_led_color_yellow');
+  LblLedDisk.Caption := S('opt.tray_led_info_disk');
+  LblLedNet.Caption := S('opt.tray_led_info_net');
   LblSecTrayLedInfo.Caption := S('opt.tray_led_info');
   LblSecTrayDrives.Caption := S('opt.tray_drives');
   ChkLedTotal.Caption := S('opt.tray_drive_total');
@@ -476,14 +518,10 @@ begin
     RbScaleLog.Checked := True
   else
     RbScaleLinear.Checked := True;
-  if SameText(FSettings.TrayLedType, 'blue') then
-    RbLedBlue.Checked := True
-  else if SameText(FSettings.TrayLedType, 'red') then
-    RbLedRed.Checked := True
-  else if SameText(FSettings.TrayLedType, 'yellow') then
-    RbLedYellow.Checked := True
-  else
-    RbLedGreen.Checked := True;
+  CheckLedColor([RbLedDiskGreen, RbLedDiskBlue, RbLedDiskRed, RbLedDiskYellow],
+    FSettings.TrayLedType);
+  CheckLedColor([RbLedNetGreen, RbLedNetBlue, RbLedNetRed, RbLedNetYellow],
+    FSettings.TrayLedTypeNet);
   { OnClick, not just user clicks: TCustomCheckBox.SetState (Vcl.StdCtrls)
     fires Click on every programmatic Checked assignment too. Loading
     Disk=False/Net=True straight into the two checkboxes would trip
@@ -634,14 +672,10 @@ begin
     FSettings.SpeedScale := ssLog
   else
     FSettings.SpeedScale := ssLinear;
-  if RbLedBlue.Checked then
-    FSettings.TrayLedType := 'blue'
-  else if RbLedRed.Checked then
-    FSettings.TrayLedType := 'red'
-  else if RbLedYellow.Checked then
-    FSettings.TrayLedType := 'yellow'
-  else
-    FSettings.TrayLedType := 'green';
+  FSettings.TrayLedType := CheckedLedColor(
+    [RbLedDiskGreen, RbLedDiskBlue, RbLedDiskRed, RbLedDiskYellow]);
+  FSettings.TrayLedTypeNet := CheckedLedColor(
+    [RbLedNetGreen, RbLedNetBlue, RbLedNetRed, RbLedNetYellow]);
   { ChkLedDiskClick/ChkLedNetClick keep at least one checked; Normalize is
     just a backstop against the two ever both landing on False here. }
   FSettings.TrayLedDisk := ChkLedDisk.Checked;
