@@ -52,9 +52,11 @@ type
     ImgLedGreen: TImage;
     ImgLedBlue: TImage;
     ImgLedRed: TImage;
+    ImgLedYellow: TImage;
     RbLedGreen: TRadioButton;
     RbLedBlue: TRadioButton;
     RbLedRed: TRadioButton;
+    RbLedYellow: TRadioButton;
     ChkLedDisk: TCheckBox;
     ChkLedNet: TCheckBox;
     LblSecTrayDrives: TLabel;
@@ -251,6 +253,7 @@ begin
   Load(ImgLedGreen, 'green');
   Load(ImgLedBlue, 'blue');
   Load(ImgLedRed, 'red');
+  Load(ImgLedYellow, 'yellow');
 end;
 
 procedure TOptionsForm.BindSettings(ASettings: TAppSettings; APresence: TDrivePresenceFunc);
@@ -289,6 +292,7 @@ begin
   RbLedGreen.Caption := S('opt.tray_led_color_green');
   RbLedBlue.Caption := S('opt.tray_led_color_blue');
   RbLedRed.Caption := S('opt.tray_led_color_red');
+  RbLedYellow.Caption := S('opt.tray_led_color_yellow');
   LblSecTrayLedInfo.Caption := S('opt.tray_led_info');
   LblSecTrayDrives.Caption := S('opt.tray_drives');
   ChkLedTotal.Caption := S('opt.tray_drive_total');
@@ -476,6 +480,8 @@ begin
     RbLedBlue.Checked := True
   else if SameText(FSettings.TrayLedType, 'red') then
     RbLedRed.Checked := True
+  else if SameText(FSettings.TrayLedType, 'yellow') then
+    RbLedYellow.Checked := True
   else
     RbLedGreen.Checked := True;
   { OnClick, not just user clicks: TCustomCheckBox.SetState (Vcl.StdCtrls)
@@ -632,6 +638,8 @@ begin
     FSettings.TrayLedType := 'blue'
   else if RbLedRed.Checked then
     FSettings.TrayLedType := 'red'
+  else if RbLedYellow.Checked then
+    FSettings.TrayLedType := 'yellow'
   else
     FSettings.TrayLedType := 'green';
   { ChkLedDiskClick/ChkLedNetClick keep at least one checked; Normalize is

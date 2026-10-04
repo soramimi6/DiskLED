@@ -1,7 +1,7 @@
 <#
 Generates the skin-independent tray LED icon set for assets/tray/<type>/.
 
-12 icons: 3 colors (green/blue/red) x 2 sources (disk/net) x 2 states (off/on).
+16 icons: 4 colors (green/blue/red/yellow) x 2 sources (disk/net) x 2 states (off/on).
 Colors are a fixed procedural gradient (not derived from any skin's own art),
 so this script is the only source of truth -- rerun it to regenerate or retune.
 Each icon is a multi-size .ico (16/32/48) with PNG-compressed frames, matching
@@ -47,6 +47,13 @@ $Palette = @{
   red = @{
     OffCore = New-Color 37 12 9;     OffEdge = New-Color 12 4 3
     OnCore  = New-Color 255 213 184; OnEdge  = New-Color 223 42 6
+  }
+  # Like red, yellow's Off is kept dark so an idle LED doesn't read as a
+  # caution light. On follows a common ~590 nm yellow LED: green nearly as
+  # strong as red, no blue, so it doesn't drift toward amber/orange.
+  yellow = @{
+    OffCore = New-Color 60 58 10;    OffEdge = New-Color 20 19 3
+    OnCore  = New-Color 255 255 205; OnEdge  = New-Color 238 222 0
   }
 }
 $RingColor = New-Color 18 18 18
@@ -221,7 +228,7 @@ function Write-Ico([string]$Path, [System.Collections.IDictionary]$SizeToPngByte
   $bw.Dispose(); $ms.Dispose()
 }
 
-$colors = @('green', 'blue', 'red')
+$colors = @('green', 'blue', 'red', 'yellow')
 $sources = @('disk', 'net')
 
 foreach ($color in $colors) {

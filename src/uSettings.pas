@@ -86,7 +86,7 @@ type
       Independent of WindowHidden: the window can stay visible while the
       tray also shows the LED ("window + tray LED"). }
     property TrayLed: Boolean read FTrayLed write FTrayLed;
-    { Tray LED color, skin-independent: 'green' / 'blue' / 'red'. Assets live
+    { Tray LED color, skin-independent: 'green' / 'blue' / 'red' / 'yellow'. Assets live
       under assets/tray/<type>/. }
     property TrayLedType: string read FTrayLedType write FTrayLedType;
     { Which activity the tray LED reflects. Both may be on at once: a second
@@ -142,7 +142,8 @@ end;
 function NormalizeTrayLedType(const AValue: string): string;
 begin
   Result := LowerCase(Trim(AValue));
-  if (Result <> 'green') and (Result <> 'blue') and (Result <> 'red') then
+  if (Result <> 'green') and (Result <> 'blue') and (Result <> 'red') and
+    (Result <> 'yellow') then
     Result := 'green';
 end;
 
