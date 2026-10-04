@@ -31,6 +31,10 @@ type
     PhysicalAddress: array[0..31] of Byte;
     PermanentPhysicalAddress: array[0..31] of Byte;
     Mtu: Cardinal;
+    { IFTYPE and TUNNEL_TYPE: without them every field below sits 8 bytes
+      early and the record is short of the 1352 bytes GetIfEntry2 writes. }
+    IfType: Cardinal;
+    TunnelType: Integer;
     MediaType: Integer;
     PhysicalMediumType: Integer;
     AccessType: Integer;

@@ -372,7 +372,6 @@ begin
   if not ((FDashboardRouteIntervalMin = 0) or (FDashboardRouteIntervalMin = 1) or
     (FDashboardRouteIntervalMin = 5) or (FDashboardRouteIntervalMin = 10)) then
     FDashboardRouteIntervalMin := 0;
-  FDashboardRouteLookupAs := False;
   if FPingIntervalSec < 300 then
     FPingIntervalSec := 300;
   if Trim(FPingHost) = '' then
