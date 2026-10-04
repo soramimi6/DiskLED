@@ -353,7 +353,7 @@
 - 表示モードの3択（ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ）は `FMiWindowOnly`／`FMiWindowTrayLed`／`FMiTrayOnly`（グループ 4、[uMainForm.pas:681-702](../src/uMainForm.pas#L681)）。切替は `miWindowOnlyClick`（[uMainForm.pas:1219](../src/uMainForm.pas#L1219)）・`SetWindowTrayState`（[uMainForm.pas:1541](../src/uMainForm.pas#L1541)）・`EnterTrayOnly`（[uMainForm.pas:1560](../src/uMainForm.pas#L1560)）。
 - 表示倍率は `FMiScale` の子項目（自動／100／150／200%、[uMainForm.pas:708-716](../src/uMainForm.pas#L708)）。`miScaleClick`（[uMainForm.pas:1234](../src/uMainForm.pas#L1234)）が即時に `FSettings.Scale` を書き、`ApplyDpiScale`（[uMainForm.pas:811](../src/uMainForm.pas#L811)）・再配置・`PersistSettings` まで行う。
 - 外した後も落ちないよう、項目の同期処理には既に nil ガードがある（`FMiWindowTrayLed` は [uMainForm.pas:1031](../src/uMainForm.pas#L1031)、`FMiScale` は `SyncScaleMenu` の [uMainForm.pas:1058](../src/uMainForm.pas#L1058)）。
-- 後半の現行順は「ダッシュボード → Ping結果表示 → オプション → 位置をリセット → 区切り → 更新（`FMiUpdate`、通常は非表示）→ 終了」（[uMainForm.pas:718-751](../src/uMainForm.pas#L718)）。
+- 着手前の後半の順は「ダッシュボード → Ping結果表示 → オプション → 位置をリセット → 区切り → 更新（`FMiUpdate`、通常は非表示）→ 終了」（[uMainForm.pas:718-751](../src/uMainForm.pas#L718)）。「Ping結果表示」は項目14 でメニューから外した。
 - オプション画面の「全般」タブ（[uOptionsForm.dfm:30](../src/uOptionsForm.dfm#L30)）には「ウィンドウ」カード（`CardWindow`、キャプション `opt.group.window`、[uAppStrings.pas:97](../src/uAppStrings.pas#L97)）がある。「表示」タブ（[uOptionsForm.dfm:128](../src/uOptionsForm.dfm#L128)）には `CardFps`・`CardScale` があるが、`CardScale` は「ネット速度の反応」（`SpeedScale`）であり表示倍率とは別物。
 - オプションの確定は `BtnOkClick`（[uOptionsForm.pas:524](../src/uOptionsForm.pas#L524)）。
 - 表示モードや倍率の保存キー（`WindowHidden`／`TrayLed`／`Scale`）は既存のものをそのまま使い、**設定キーは増やさない**。
@@ -363,13 +363,13 @@
 - **全般タブ「ウィンドウ」カードに表示モードの3択ラジオを移す**（ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ）。既存の「常に手前に表示」等と同じ並びに置く。
 - **表示タブに「表示倍率」（自動／100%／150%／200%）を移す**。文字列は既存の `menu.scale`（[uAppStrings.pas:63](../src/uAppStrings.pas#L63)）を流用し、`CardScale`（ネット速度の反応）とは別カードにする。
 - 両方とも**オプションの OK で確定**する。確定時に、表示モードは既存の `SetWindowTrayState`／`EnterTrayOnly` を呼び、倍率は `miScaleClick` の処理（倍率反映・再配置・保存）を呼び出し側から共通で使う形に寄せる。メニュー側の同処理は削除されるので重複は残らない。
-- **メニュー後半の順序**（上記2項目を外したうえで）: 1. 位置をリセット ／ 2. ダッシュボード ／ 3. Ping結果表示 ／ 4. オプション ／ 区切り ／ 5. 終了。`FMiUpdate` は通常非表示で、表示時は**区切りの直後・終了の直前**に出る。
+- **メニュー後半の順序**（上記2項目を外したうえで）: 1. 位置をリセット ／ 2. ダッシュボード ／ 3. オプション ／ 区切り ／ 4. 終了（「Ping結果表示」は項目14 で廃止）。`FMiUpdate` は通常非表示で、表示時は**区切りの直後・終了の直前**に出る。
 - メニュー前半（表示サイズ コンパクト／フル、`DisplayMode` の各項目、[uMainForm.pas:644-679](../src/uMainForm.pas#L644)）は変更しない。
 - 公開文書の更新: `docs/DESIGN.md:178`（右クリック項目の列挙）と `public_docs/FEATURES.md` の右クリック記述を新しい配置に合わせる。
 
 ### 実機で見ること（実装時。Win64 Release を IDE でビルド）
 
-- メイン窓の右クリックとトレイアイコンの右クリックの両方で、メニューが「コンパクト／フル・表示モード群 → 区切り → 位置をリセット／ダッシュボード／Ping結果表示／オプション → 区切り → 終了」の順になっていること。旧3択と「表示倍率」が出ないこと。
+- メイン窓の右クリックとトレイアイコンの右クリックの両方で、メニューが「コンパクト／フル・表示モード群 → 区切り → 位置をリセット／ダッシュボード／オプション → 区切り → 終了」の順になっていること。旧3択と「表示倍率」が出ないこと。
 - 更新通知が出ている状態（`FMiUpdate` 表示時）で、「更新」項目が区切りの直後・終了の直上にあること。
 - オプション「全般」→「ウィンドウ」で3択を変えて OK → 直ちに表示状態が切り替わること。Cancel → 元の状態のままであること。
 - オプション「表示」→「表示倍率」を 自動 → 100% → 200% と変えて OK → 窓が再配置されること。125／150／200% DPI のそれぞれで、窓が画面外に出ないこと。Cancel → 倍率が変わらないこと。
@@ -473,7 +473,7 @@
 
 ### 決定事項
 
-- **ページ名は「Ping/経路」**（英語は `Ping / Route`）。右クリックメニューの「Ping結果表示」は、ダッシュボードをこのページで開く動作に置き換える。
+- **ページ名は「Ping/経路」**（英語は `Ping / Route`）。頻繁に使う機能ではないため、右クリックメニューの「Ping結果表示」は廃止し、メニューには置かない。入口はダッシュボードのタブと、概要ページの Ping サブセクション（クリックでこのページへ移る。指の形のカーソル）。旧版で「Ping結果表示」を使っていた利用者向けに、リリース時の CHANGELOG・USAGE（JA/EN）に移動先を明記する。
 - **計測はこのページを表示している間だけ。** ダッシュボードを閉じる、または別のページに移ると計測を止め、何も送信しない。途中で離れた計測は打ち切って結果を捨てる。ページを開いた時点で 1 回計測する（自動繰り返しが「停止」でも）。前回の結果は計測時刻と一緒に残し、新しい結果が出るまで表示する。ガジェットの定期 Ping（Ping 段階表示）はこれと独立に従来どおり動く。
 - **自動繰り返しは 1 分／5 分／10 分／停止**（既定は停止）。プロセスページの更新周期と同じく、このページ表示中だけタブ行の右端に出し、選んだ値は ini に保存する。加えて「今すぐ計測」を置く。
 - **計測方式: 1 回の計測 = 3 ラウンド。** 各ラウンドで TTL 1〜N にほぼ同時に送る（ルーターの ICMP 応答の上限に当たらないよう約 20 ms ずつずらす）。各ホップの値は 3 回の中央値で比べ、最小・平均・最大・ジッター・損失率も同じ 3 回から出す。区間遅延は隣り合うホップの中央値の差。前回の計測結果と同じ TTL・同じアドレスのホップがあれば、中央値の差（前回比）を出す。
@@ -517,7 +517,7 @@
 - 一覧が入りきらないときはマウスホイールでスクロールし、右端に位置を示す細い棒を出す。
 
 **3. 旧ウィンドウの廃止**
-- `uTraceRouteForm.pas`／`.dfm` を削除し、`DiskLED.dpr`・`DiskLED.dproj` の登録、`FTraceRouteForm` と最前面判定の条件、`ShowTraceRouteForm` を外す。`miPingResult` はダッシュボードを「Ping/経路」ページで開く処理（`TDashboardForm` に開くページを指定する口を足す）に置き換える。使わなくなる `trace.*` 文字列は整理し、メニュー文言 `menu.ping_result` は「Ping/経路」に合わせて見直す。
+- `uTraceRouteForm.pas`／`.dfm` を削除し、`DiskLED.dpr`・`DiskLED.dproj` の登録、`FTraceRouteForm` と最前面判定の条件、`ShowTraceRouteForm` を外す。右クリックメニューの `miPingResult` と文字列 `menu.ping_result` も削除する。使わなくなる `trace.*` 文字列は整理する。
 
 **4. 事業者名（AS 番号、既定オフ）**
 - タブ行に「事業者名を表示」のスイッチを置く。設定キーは `[Dashboard] RouteLookupAs`（既定 0）。
@@ -525,7 +525,7 @@
 - オンの間は UI から表示中のホップについて問い合わせ済みかを確かめ（`EnsureAsLookups`）、足りなければ問い合わせる。
 
 **5. 文書**
-- `docs/DESIGN.md` のダッシュボード節に「Ping/経路」ページを追記する。公開文書（`public_docs/` の FEATURES・USAGE・NOTES、JA/EN）はリリース時に更新し、NOTES に AS 問い合わせの送信先と内容を書く。`README.md` の主な機能の「専用ウィンドウで Tracert のように…」の記述をページに合わせて直す。
+- `docs/DESIGN.md` のダッシュボード節に「Ping/経路」ページを追記する。公開文書（`public_docs/` の FEATURES・USAGE・NOTES・CHANGELOG、JA/EN）はリリース時に更新し、NOTES に事業者名の問い合わせ先と送る内容を、CHANGELOG・USAGE に「Ping 結果はダッシュボードの『Ping/経路』タブへ移動（概要の Ping の枠から開ける。右クリックメニューからは削除）」を書く。`README.md` の主な機能の「専用ウィンドウで Tracert のように…」の記述をページに合わせて直す。
 
 ### 実装ステップ
 
@@ -533,7 +533,7 @@
 
 | # | 内容 | 主なファイル | ビルド後に見ること |
 |---|---|---|---|
-| 1 | 「Ping/経路」ページの枠（タブ 3 つ、空のページ）とメニューの付け替え | `uDashboardForm.pas`、`uMainForm.pas`、`uAppStrings.pas` | 3 つのタブと Ctrl+Tab。右クリックの「Ping/経路」でこのページが開く |
+| 1 | 「Ping/経路」ページの枠（タブ 3 つ、空のページ）と入口（概要の Ping サブセクションのクリック。メニュー項目は廃止） | `uDashboardForm.pas`、`uMainForm.pas`、`uAppStrings.pas` | 3 つのタブと Ctrl+Tab。概要の Ping の枠のクリックでこのページへ移る |
 | 2 | 収集層の作り直し（3 ラウンド同時送信・統計・区間遅延・表示中だけ・周期） | 新規 `uRouteCollector.pas`、`uIcmpApi.pas` | 別ページ・ダッシュボード非表示で送信が止まる。終了時に固まらない |
 | 3 | グラフ（内訳バー＋ウォーターフォール＋凡例＋アニメーション）と一覧、ヘッダー、周期選択と「今すぐ計測」 | 新規 `uRoutePainter.pas`、`uDashboardForm.pas`、`uSettings.pas` | 区間の棒が前の行の終わりから始まる。見かけだけの遅延がグレー破線になる |
 | 4 | 旧 Ping 結果ウィンドウの削除 | `uTraceRouteForm.*`、`uTracertCollector.pas`、`uMainForm.pas`、`DiskLED.dpr`、`DiskLED.dproj` | 旧ウィンドウ関連が残っていない。メニュー・トレイから問題なく開く |
@@ -550,7 +550,7 @@
 - 事業者名の表示がオフの間は外部の DNS 問い合わせが出ないこと、オンにすると事業者名が出ること。オプションで Ping 先を変えた後や、計測中にスイッチを切り替えた後も、スイッチの状態と表示が一致すること。
 - IPv6 のみの宛先で経路が出ること（ICMPv6 の応答の状態コードの位置を、もっともらしい方で読み分けている。`ipv6.google.com` で実機確認済み）。
 - ライト／ダーク切替、125／150／200% DPI、最小サイズ（800×600 DIP）で崩れないこと。
-- 旧 Ping 結果ウィンドウが開かなくなり、右クリック・トレイの「Ping/経路」でダッシュボードのこのページが開くこと。
+- 旧 Ping 結果ウィンドウと右クリックメニューの項目が無くなり、ダッシュボード概要の Ping の枠のクリックでこのページへ移ること。
 
 ### 見積り
 
