@@ -131,7 +131,6 @@ type
     function ResolveScale100: Integer;
     procedure ApplyDpiClientSize;
     procedure ShowDashboard;
-    procedure ShowDashboardPage(APage: TDashboardPage);
     procedure ToggleCompactFull;
     procedure SetCompactView(ACompact: Boolean);
     procedure Render;
@@ -162,7 +161,6 @@ type
     procedure UpdateTrayLed(AIndex: Integer; AOn: Boolean);
     procedure ResetTrayToAppIcon;
     procedure RefreshTrayIconForState;
-    procedure miPingResultClick(Sender: TObject);
     procedure miOptionsClick(Sender: TObject);
     function CurrentDrivePresence: TDriveFlags;
     procedure miResetPositionClick(Sender: TObject);
@@ -628,7 +626,6 @@ var
   Def: TDisplayModeDef;
   miMode: TMenuItem;
   Sep: TMenuItem;
-  miPingResult: TMenuItem;
   miOpt: TMenuItem;
   miResetPosition: TMenuItem;
   miExit: TMenuItem;
@@ -680,10 +677,6 @@ begin
   miOpt.OnClick := miDashboardClick;
   FPopup.Items.Add(miOpt);
 
-  miPingResult := TMenuItem.Create(FPopup);
-  miPingResult.Caption := S('menu.ping_result');
-  miPingResult.OnClick := miPingResultClick;
-  FPopup.Items.Add(miPingResult);
 
   miOpt := TMenuItem.Create(FPopup);
   miOpt.Caption := S('menu.options');
@@ -875,16 +868,6 @@ begin
   if FSettings <> nil then
     FSettings.DashboardOpen := True;
   FDashboardForm.Show;
-end;
-
-procedure TMainForm.ShowDashboardPage(APage: TDashboardPage);
-begin
-  if FDashboardForm = nil then
-    FDashboardForm := TDashboardForm.Create(Self, FPipeline, FDashboardHistory,
-      FCollector, FSettings);
-  if FSettings <> nil then
-    FSettings.DashboardOpen := True;
-  FDashboardForm.ShowPage(APage);
 end;
 
 procedure TMainForm.ApplyViewSize;
@@ -1498,12 +1481,6 @@ begin
   if (FSettings = nil) or (not FSettings.WindowHidden) then
     Exit;
   SetWindowTrayState(False, False);
-end;
-
-procedure TMainForm.miPingResultClick(Sender: TObject);
-begin
-  { The Ping result window became the dashboard's Ping/route page (3.3.0). }
-  ShowDashboardPage(dpRoute);
 end;
 
 procedure TMainForm.miDashboardClick(Sender: TObject);
