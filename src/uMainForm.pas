@@ -95,6 +95,12 @@ type
     FHoverHeldText: string;
     FDriveHintTick: Cardinal;
     FHasDriveHint: Boolean;
+    { Tray net LED state: ON while net is active, with a one-frame OFF
+      whenever the transfer rate drops, so sustained traffic flickers like a
+      hub's activity lamp. }
+    FNetBlinkOn: Boolean;
+    FPrevNetBps: Double;
+    FHasPrevNetBps: Boolean;
     FHoverTextTick: Cardinal;
     FHasHoverText: Boolean;
     FMonitorDpi: Integer;
@@ -995,6 +1001,8 @@ begin
 end;
 
 procedure TMainForm.TimerTick(Sender: TObject);
+const
+  CNetBlinkDropRatio = 0.10;
 var
   IntervalMs: Cardinal;
   NowTick: Cardinal;
@@ -1002,13 +1010,16 @@ var
   DashSample: TDashboardSample;
   GraphKey: Cardinal;
   Fp: TVisualFingerprint;
+  Snap: TMetricsSnapshot;
+  NetBps: Double;
 begin
   if (FCollector = nil) or (FPipeline = nil) then
     Exit;
   PollMonitorDpiChange;
   PollStayOnTop;
   FCollector.TickPing;
-  FPipeline.Update(FCollector.Collect);
+  Snap := FCollector.Collect;
+  FPipeline.Update(Snap);
 
   if (FHistory <> nil) and (FSettings <> nil) then
   begin
@@ -1060,6 +1071,19 @@ begin
 
   { Window rendering and the tray LED(s) are independent now: either, both,
     or (checked at the settings layer) neither can be active at once. }
+  { ON while active, but a frame whose transfer rate dropped by 10% or more
+    from the previous frame goes OFF for that one frame (the next frame is ON
+    again). }
+  NetBps := Snap.NetInBps + Snap.NetOutBps;
+  if not FPipeline.State.NetActivityOn then
+    FNetBlinkOn := False
+  else if FNetBlinkOn and FHasPrevNetBps and
+    (NetBps <= FPrevNetBps * (1.0 - CNetBlinkDropRatio)) then
+    FNetBlinkOn := False
+  else
+    FNetBlinkOn := True;
+  FPrevNetBps := NetBps;
+  FHasPrevNetBps := True;
   if (FSettings <> nil) and FSettings.TrayLed then
     UpdateTrayLeds;
   if (FSettings = nil) or (not FSettings.WindowHidden) then
@@ -1146,7 +1170,7 @@ begin
   if PrimarySourceIsDisk then
     Result := FPipeline.State.DiskRWOn
   else
-    Result := FPipeline.State.NetActivityOn;
+    Result := FNetBlinkOn;
 end;
 
 procedure TMainForm.ReloadTrayIcons;
@@ -1394,7 +1418,7 @@ begin
   begin
     EnsureTraySlot(1);
     if FPipeline <> nil then
-      UpdateTrayLed(1, FPipeline.State.NetActivityOn);
+      UpdateTrayLed(1, FNetBlinkOn);
   end
   else
     HideTraySlot(1);
