@@ -76,12 +76,13 @@ DiskLED/
 
 | フィールド | 単位 | 備考 |
 |---|---|---|
-| `CpuUsage` | 0..100 % | 全コア平均 |
+| `CpuUsage` | 0..100 % | プロセッサ使用率（タスクマネージャーと同じ。フレームごと） |
+| `CpuUsageAvg` | 0..100 % | 同、直近 1 秒の平均。数値表示用 |
 | `MemUsage` | 0..100 % | 物理 |
-| `SwapUsage` | 0..100 % | ページファイル相当 |
+| `SwapUsage` | 0..100 % | ページファイルの使用率（コミットではない） |
 | `DiskReadBps` / `DiskWriteBps` | Byte/s | 全物理ディスク合算 |
 | `DiskReadActive` / `DiskWriteActive` | bool | 閾値超で LED ON |
-| `NetInBps` / `NetOutBps` | Byte/s | 実 NIC 合算 |
+| `NetInBps` / `NetOutBps` | Byte/s | 実 NIC 合算（NDIS フィルターの行は数えない） |
 | `NetActive` | bool | IN または OUT で活動 |
 | `PingRttMs` | ms | 成功時。失敗時は未定義 |
 | `PingOk` | bool | Echo 成功か |
@@ -119,30 +120,35 @@ DiskLED/
 
 いずれも **管理者不要**の API を優先。失敗時は 0 または前回値維持。
 
-一般権限・公式 API で安定して取れない指標は出さない: CPU パッケージ温度、メモリ内訳 Standby/Modified（`NtQuerySystemInformation` 依存）、GPU VRAM 内訳（D3DKMT 依存）、プロセス別のファイルアクセス一覧（ETW カーネルプロバイダ＝管理者権限必須）。GPU 使用率は PDH `GPU Engine` カウンターで一般権限・公式に取得できるため対象内（`docs/PLANNED-3.2.0.md` 項目 4）。
+一般権限・公式 API で安定して取れない指標は出さない: CPU パッケージ温度、メモリ内訳のうち Modified 等の細目（`NtQuerySystemInformation` 依存。スタンバイの合計は PDH で取れるため対象内）、GPU VRAM 内訳（D3DKMT 依存）、プロセス別のファイルアクセス一覧（ETW カーネルプロバイダ＝管理者権限必須）。GPU 使用率は PDH `GPU Engine` カウンターで一般権限・公式に取得できるため対象内（`docs/PLANNED-3.2.0.md` 項目 4）。
 
 ### 5.1 CPU — `uCpuCollector`
 
-- 全体使用率: **GetSystemTimes**（全コア平均 %）
-- User / Kernel 内訳: 同じ差分。Kernel は idle を除いた特権時間
+- 全体使用率: PDH `Processor Information(_Total)\% Processor Utility`（タスクマネージャーと同じ。クロックを加味するため、ターボ時は単純な稼働時間より高い。100 で頭打ち）。カウンターが無い環境は **GetSystemTimes** の稼働時間
+- メーターはフレームごとの値、数値は直近 1 秒の平均（`CpuUsageAvg`）
+- User / Kernel 内訳: 1 秒ごとの GetSystemTimes の差分。Kernel は idle を除いた特権時間。合計が使用率と一致するよう比率で換算
 - 名前・定格 MHz: レジストリ `HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0`
 - 物理コア / 論理プロセッサ: `GetLogicalProcessorInformation` / `GetSystemInfo`
-- 現在クロック: `CallNtPowerInformation(ProcessorInformation)`（論理 CPU の平均 MHz）
+- 現在クロック: PDH `% Processor Performance` × `Processor Frequency`（タスクマネージャーの「速度」）。`CallNtPowerInformation` の CurrentMhz は各コアの定格を返すだけなので使わない
 
 ### 5.2 メモリ — `uMemCollector`
 
-- `GlobalMemoryStatusEx`（物理・ページファイル使用率、空き）
-- `GetPerformanceInfo`（キャッシュ、コミット／リミット。失敗時は 0）
+- `GlobalMemoryStatusEx`（物理の使用率・空き）
+- SWAP: PDH `Paging File(_Total)\% Usage` の生値（使用中ページ数／サイズ）。`GlobalMemoryStatusEx` のページファイル欄はコミットなので使わない
+- スタンバイ: PDH `Memory\Standby Cache *` の合計。取れないときは `GetPerformanceInfo` の SystemCache
+- `GetPerformanceInfo`（コミット／リミット。失敗時は 0）
 
 ### 5.3 ディスク — `uDiskCollector`
 
-- PDH `PhysicalDisk(_Total)` の Read/Write Bytes/sec、または累積差分
+- PDH `PhysicalDisk(_Total)` の Read/Write Bytes/sec（フレームごと）、または累積差分
+- キュー（`Avg. Disk Queue Length`）・IOPS・アクティブ時間・レイテンシは別のクエリで 1 秒ごとに取り、1 秒の平均にする
 - LED: Bps > ノイズ床
 
 ### 5.4 ネットワーク — `uNetCollector`
 
 - IP Helper: 実 NIC 一覧は数秒ごとに `GetIfTable`、サンプルはキャッシュした index へ `GetIfEntry`
-- リンク速度は RangeEngine へ
+- `GetIfTable` はアダプターに付く NDIS フィルター（WFP・QoS 等）も同じ通信量を持つ別の行として返すため、`GetIfEntry2` のフラグで除外する（一覧の表示からも）
+- リンク速度は `GetIfEntry2` の 64bit 値（`dwSpeed` は 4.29 Gbps で頭打ち）。RangeEngine へ渡すのは接続中のアダプターの最大値
 
 ### 5.5 Ping — `uPingCollector`
 

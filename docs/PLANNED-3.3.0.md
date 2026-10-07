@@ -22,6 +22,9 @@
 | 14 | Ping 結果ウィンドウをダッシュボードの「Ping/経路」ページに統合（区間遅延のウォーターフォール） | 完了 | 高（ICMP は既存の `IcmpSendEcho` 系。事業者名は外部 DNS 依存。IPv6 の経路は `ipv6.google.com` で実機確認済み） | 高（経路計測の作り直し＋ページ描画＋旧ウィンドウ廃止） | 1.5〜2週間 |
 | 15 | ダッシュボードのドーナツグラフ内の値の縁取りをテーマ（ライト／ダーク）に連動 | 完了 | 高（縁取り色を固定値からパレットへ） | 低 | 0.5日 |
 | 16 | トレイのネット LED を、通信が続く間も転送量の減少に合わせて一瞬消灯させる（ハブのアクセスランプ風） | 完了 | 高（毎フレームの転送量は既に取得済み） | 低 | 0.5日 |
+| 17 | 画面表示の用語・表記の統一（トレイのツールチップの「読み／書き」ほか） | 完了 | 高（文字列表の書き換えのみ） | 低 | 0.5日 |
+| 18 | ネット速度の表示単位をバイト（KB/s）からビット（Kbps、1000 区切り）へ変更 | 完了 | 高（表示関数の追加と呼び出し 2 か所の差し替え） | 低 | 0.5日 |
+| 19 | 計測値をタスクマネージャー等と揃える（ネットの重複計上、CPU 使用率・クロック、SWAP、スタンバイ、ディスク詳細・プロセス CPU の算出） | 完了 | 高（すべて一般権限の公式 API。この PC で値を照合済み） | 中（収集ユニット 6 本の修正） | 1.5日 |
 
 **優先順位の理由:**
 - **1**（0.5日）: 低コスト・低リスクで他項目に依存しない単独修正。先に片付けて着手障壁を減らす。
@@ -37,6 +40,9 @@
 - **14**（1.5〜2週間）: 項目7 のページ切替・タブ行・周期選択の仕組みの上に作るため、項目7 の後（番号は後付け）。
 - **15**（0.5日）: 見た目だけの小さな修正で他項目と独立。項目14 と同じ `uDashboardForm.pas` は触らないため、いつ入れてもよい（番号は後付け）。
 - **16**（0.5日）: トレイ LED の点灯判定だけの小さな修正で他項目と独立（番号は後付け）。
+- **17**（0.5日）: 文字列表（`uAppStrings.pas`）だけの修正で他項目と独立（番号は後付け）。
+- **18**（0.5日）: 表示の整形だけの小さな修正で他項目と独立（番号は後付け）。
+- **19**（1.5日）: 項目18 の実機確認で見つかった計測の誤りの修正。表示の値そのものが変わるため、項目18 の直後に続けて実機確認する（番号は後付け）。
 
 ## 1. オプション画面のテーマ連動を止め、VCL 標準の表示に固定（完了）
 
@@ -613,3 +619,140 @@
 ### 見積り
 
 0.5 日（判定は数行。しきい値の見え方の調整が中心）。
+
+## 17. 画面表示の用語・表記の統一（完了）
+
+同じものを指す言葉や表記が画面によって違う箇所を、文字列表（`src/uAppStrings.pas`）で揃える。画面上の文字はすべてこの表から出ており、他のソースに日本語の表示文字列は無い（トレイのホバー表示の `CPU:`／`Disk:` などは 128 文字制限のため英字固定。[uMainForm.pas:1975-1977](../src/uMainForm.pas#L1975)）。
+
+### 揃える基準
+
+- ディスクの読み書きは「読込／書込」（ダッシュボード・プロセス表・累計表示と同じ）。ネットは「受信／送信」。
+- 「閾値」は「しきい値」（オプションのグループ名・エラー文と同じ）。
+- 日本語表示の中に英単語を混ぜない（`RAM`・`SWAP`・`GW`・`DHCP`・`RTT` など略語・固有の表記は除く）。
+- 長音は既存の公開文書に合わせる（「ユーザー」「ルーター」は付ける。「フォルダ」「アダプタ」は付けない）。
+- 英語の時間の短縮表記は `%dh %dm`／`%ds`（稼働時間・プロセスの更新周期と同じ）。日本語は `%d時間 %d分`。
+- 英語のオプション画面の見出しは文頭のみ大文字（右クリックメニューとタブは各語頭大文字のまま）。
+
+### 変更する文字列
+
+- トレイのドライブ別ツールチップ: `読み／書き` → `読込／書込`（[uAppStrings.pas:72](../src/uAppStrings.pas#L72)）。
+- オプション「Ping 判定しきい値」の各欄: `閾値` → `しきい値`（[uAppStrings.pas:132-134](../src/uAppStrings.pas#L132)）。
+- オプション見出し（英語）: `Tray LED Color`／`Tray LED Info` → `Tray LED color`／`Tray LED info`（[uAppStrings.pas:112](../src/uAppStrings.pas#L112)、[uAppStrings.pas:117](../src/uAppStrings.pas#L117)）。
+- ダッシュボード CPU 欄（日本語）: `User`／`Kernel` → `ユーザー`／`カーネル`（[uAppStrings.pas:187-188](../src/uAppStrings.pas#L187)）。
+- ダッシュボードのネット速度グラフの凡例（日本語）: `In`／`Out` → `受信`／`送信`（[uAppStrings.pas:209-210](../src/uAppStrings.pas#L209)）。
+- ヘッダーの累計表示（英語）: `Disk total R … W …` → `Disk total Read … Write …`（[uAppStrings.pas:226-227](../src/uAppStrings.pas#L226)）。
+- 電源の残時間: 英語 `%dmin` → `%dm`、日本語 `%d時間%d分` → `%d時間 %d分`（[uAppStrings.pas:230-231](../src/uAppStrings.pas#L230)）。
+- 「Ping/経路」ページの自動計測間隔（英語）: `%d min` → `%dm`（[uAppStrings.pas:252](../src/uAppStrings.pas#L252)）。
+- 経路の応答種別: `ネット到達不能`／`Net unreachable` → `ネットワーク到達不能`／`Network unreachable`（[uAppStrings.pas:277](../src/uAppStrings.pas#L277)）。
+- `layout.cfg` のエラー文: `数値readout` → `数値表示`（[uAppStrings.pas:179-181](../src/uAppStrings.pas#L179)）。
+
+### 変えないもの
+
+- ディスク情報カードの `Queue`（[uAppStrings.pas:213](../src/uAppStrings.pas#L213)）: 大きな数字の右に付く単位ラベルで、隣の `ms` と対になる（[uDashboardPainter.pas:850-851](../src/dashboard/uDashboardPainter.pas#L850)）。見出しは `キュー`（[uAppStrings.pas:214](../src/uAppStrings.pas#L214)）。
+- 「ネット」と「ネットワーク」: 複合語と狭い欄の見出しは「ネット」（`ネット受信`・`ネット速度の反応`・カード見出しなど）、単独の項目名は「ネットワーク」で使い分けている。
+
+### 公開文書（リリース時）
+
+- `public_docs/EN/USAGE.md` のオプション表の `Tray LED Color`／`Tray LED Info` を新しい見出しに合わせる。
+- `public_docs/FEATURES.md` の「閾値」を「しきい値」に揃える。
+
+### 実機で見ること（実装時。Win64 Release を IDE でビルド）
+
+日本語表示で:
+- トレイのドライブ別アイコンのツールチップが `C: 読込 … ・ 書込 …` になること。
+- オプション「Ping・ネットワーク」タブの 3 欄が「やや遅いしきい値 (ms)」などになり、欄からはみ出さないこと。
+- ダッシュボード概要の CPU 欄の 4 行目が「ユーザー 12%   カーネル 3%」の形で、値が切れずに出ること。
+- ネットのグラフの凡例が「受信／送信」になること。
+- バッテリー駆動の PC では、電源欄の残時間が「1時間 23分」の形になること。
+
+英語表示で（オプションで English にして再起動）:
+- オプションの見出しが `Tray LED color`／`Tray LED info` になること。
+- ダッシュボードのヘッダー右の累計表示が `Disk total Read … Write …` になり、切れずに収まること。
+- 「Ping/経路」ページの間隔の選択肢が `5m` などになること。
+
+### 見積り
+
+0.5 日（文字列表の書き換えのみ）。
+
+## 18. ネット速度の表示単位をビット（Kbps）に変更（完了）
+
+ネットの転送速度をバイト単位（`KB/s`・`MB/s`、1024 区切り）で出しているのを、Windows 標準のタスクマネージャーと同じビット単位（`Kbps`・`Mbps`・`Gbps`、1000 区切り）に揃える。ネットの速度はビットで表すのが一般的で、リンク速度の表示（[uMetricsTypes.pas:325-338](../src/metrics/uMetricsTypes.pas#L325)）も既に `Mbps`／`Gbps`。
+
+### 現状（実ソース確認済み）
+
+- 速度の表示はディスク・ネット・プロセスの I/O で共通の `FormatRateBps`（[uMetricsTypes.pas:211](../src/metrics/uMetricsTypes.pas#L211)。`B/s`〜`GB/s`、1024 区切り）を使っている。
+- ネットの速度を出しているのは、ダッシュボード概要のネットカードの受信・送信（[uDashboardForm.pas:1733-1734](../src/dashboard/uDashboardForm.pas#L1733)）と、ガジェットのホバー表示の `Net:` 行（[uMainForm.pas:1938](../src/uMainForm.pas#L1938)、[uMainForm.pas:1947](../src/uMainForm.pas#L1947)）。ホバー表示の文字列はトレイのツールチップにもそのまま使う（[uMainForm.pas:2006-2008](../src/uMainForm.pas#L2006)）。
+
+### 方針
+
+- ネット専用の `FormatNetRateBps`（[uMetricsTypes.pas:247](../src/metrics/uMetricsTypes.pas#L247)）を追加し、上の 2 か所だけ差し替える。入力はこれまでどおり Byte/s で、関数の中で 8 倍してビットにする。
+- 表記はタスクマネージャーに合わせる: 最小単位は `Kbps`（0 は `0 Kbps`）、1000 で `Mbps`・`Gbps` に上がる。100 未満は小数 1 桁（`8.0 Kbps`）、100 以上は整数（`176 Kbps`）。
+- 内部の値（`NetInBps` 等）は Byte/s のまま。メーターの正規化（`uRangeEngine.pas`）・LED の点灯判定（`CNoiseFloorBps`）・トレイのちらつき判定（項目16）は単位に依存しないため変えない。
+
+### 変えないもの
+
+- ディスクの速度（ダッシュボード・ホバー表示・トレイのドライブ別ツールチップ）とプロセスページの I/O 列は `FormatRateBps` のまま。プロセスの I/O はディスク以外も含む読み書き量で、ネット速度ではない。
+- ヘッダーのネット累計（`FormatBytesGiB`、[uDashboardForm.pas:1804-1805](../src/dashboard/uDashboardForm.pas#L1804)）は速度ではなく量なのでバイト（GB）のまま。
+
+### 公開文書（リリース時）
+
+- `public_docs/` の本文にネット速度の単位を書いた箇所は無い。CHANGELOG（JA/EN）に単位の変更を書く。
+
+### 実機で見ること（実装時。Win64 Release を IDE でビルド）
+
+- ダッシュボード概要のネットカードの受信・送信が `Kbps`／`Mbps` で出て、通信していないときは `0 Kbps` になること。値が欄からはみ出さないこと。
+- ダウンロード中の値が、同じ時刻のタスクマネージャー（パフォーマンス → イーサネット／Wi-Fi の送信・受信）とおおむね同じ桁・単位になること。
+- ガジェットにマウスを乗せたときのホバー表示の `Net:` 行と、トレイアイコンのツールチップの `Net:` 行が `Kbps`／`Mbps` になること。
+- ディスクの速度（ネットカードの隣のディスクカード、ホバー表示の `Disk:` 行）は `KB/s`／`MB/s` のままであること。
+
+### 見積り
+
+0.5 日（表示関数 1 つと呼び出しの差し替え）。
+
+## 19. 計測値をタスクマネージャー等と揃える（完了）
+
+専門ツール並みの精度は求めないが、タスクマネージャーなど一般的なツールと食い違う値は出さない。全収集ユニットを見直し、この PC（Core i9-12900K・64 GB・Killer E3100G 2.5GbE、Windows 11）で、同じ時刻にタスクマネージャーが使う値と照合した。
+
+### 見つかった誤りと修正
+
+| 対象 | 誤り（着手前） | 実測（この PC） | 修正 |
+|---|---|---|---|
+| ネット速度・ネット累計・ネットのメーター | `GetIfTable` がアダプターに付く NDIS フィルター（WFP Native MAC・QoS Packet Scheduler・WFP 802.3 MAC）を、同じ通信量を持つ別の行として返し、それを合計していた | 有線 1 枚が 4 行に数えられ、ちょうど 4 倍（実 1.6 Gbps → 表示 6.3 Gbps） | `GetIfEntry2` のフラグでフィルター行を除外（[uNetCollector.pas:306](../src/metrics/uNetCollector.pas#L306)、[uNetCollector.pas:505](../src/metrics/uNetCollector.pas#L505)）。アダプター一覧の表示からも外れる |
+| リンク速度（アダプター一覧・ネットメーターの基準） | 32bit の `dwSpeed` を使っていたため 4.29 Gbps で頭打ち。未接続のアダプターの定格もメーターの基準に入っていた | 10GbE の仮想アダプターが 4294 Mbps | `GetIfEntry2` の 64bit 値を使い、基準は接続中のアダプターの最大値（[uNetCollector.pas:526](../src/metrics/uNetCollector.pas#L526)） |
+| ネットの取りこぼし | 前回と同じ時刻（経過 0）のサンプルで、基準値だけ更新して転送量を捨てていた | — | 経過 0 のサンプルは基準値を更新しない（[uNetCollector.pas:583](../src/metrics/uNetCollector.pas#L583)） |
+| CPU 使用率 | `GetSystemTimes` の稼働時間。タスクマネージャーはクロックを加味したプロセッサ使用率（`% Processor Utility`）を出す | 1 秒平均で DiskLED 8.7% に対しタスクマネージャー 13% 前後 | PDH `% Processor Utility` に変更（[uCpuCollector.pas:321](../src/metrics/uCpuCollector.pas#L321)）。User / Kernel の内訳は合計が使用率と一致するよう換算 |
+| CPU 使用率の数値 | 数値はメーター針（上昇は速く下降は遅い）の、1 秒ごとのその瞬間の位置。1 フレーム（約 60 ms）の値を拾うため揺れ、高めに出る | — | 直近 1 秒の平均（`CpuUsageAvg`）を数値に使う（[uCpuCollector.pas:360](../src/metrics/uCpuCollector.pas#L360)、[uDisplayPipeline.pas:238](../src/metrics/uDisplayPipeline.pas#L238)）。メーターは従来どおりフレームごと |
+| CPU クロック | `CallNtPowerInformation` の CurrentMhz の平均。現在の Windows では各コアの定格を返すだけで、実クロックではない | 常に 2.93 GHz（P コア 3.2 GHz と E コア 2.4 GHz の定格平均）。タスクマネージャー方式では 3.85 GHz | PDH `% Processor Performance` × `Processor Frequency`（[uCpuCollector.pas:395](../src/metrics/uCpuCollector.pas#L395)） |
+| SWAP | `GlobalMemoryStatusEx` のページファイル欄を使っていたが、これはコミット（＝ダッシュボードの「コミット」欄と同じ数字） | SWAP 49%（33.2/67.7 GB）に対し、実際のページファイル使用率は 3.2%（132/4,096 MB） | PDH `Paging File(_Total)\% Usage` の生値（使用中／サイズ）に変更（[uMemCollector.pas:242](../src/metrics/uMemCollector.pas#L242)） |
+| メモリのスタンバイ | `GetPerformanceInfo` の SystemCache（システムのワーキングセットを含み、スタンバイリストとは別物） | 14.6 GB に対し実際のスタンバイは 16.1 GB | PDH `Memory\Standby Cache *` の合計（[uMemCollector.pas:237](../src/metrics/uMemCollector.pas#L237)）。空き（＝利用可能−スタンバイ）も正しくなる |
+| ディスクのキュー・IOPS・アクティブ時間・レイテンシ | 1 フレーム（約 60 ms）の値。キューは瞬間値 | — | 別のクエリで 1 秒ごとに取り、1 秒の平均に（[uDiskCollector.pas:256](../src/metrics/uDiskCollector.pas#L256)）。キューは `Avg. Disk Queue Length`（[uDiskCollector.pas:173](../src/metrics/uDiskCollector.pas#L173)） |
+| ダッシュボードのディスク・ネットの速度 | 1 フレームの値をそのまま表示 | — | ホバー表示と同じ 1 秒平均（[uDashboardForm.pas:1731](../src/dashboard/uDashboardForm.pas#L1731)） |
+| プロセス別 CPU | Process V2 の `% Processor Time`（稼働時間）。タスクマネージャーのプロセス一覧は使用率（全体の CPU と同じ基準） | — | 同じサンプル区間の全体の使用率／稼働時間の比で換算（[uProcessCollector.pas:788](../src/metrics/uProcessCollector.pas#L788)、[uProcessCollector.pas:884](../src/metrics/uProcessCollector.pas#L884)） |
+
+### 問題が無かったもの
+
+- メモリ使用率（物理）・コミット・GPU 使用率（タスクマネージャーと同じ集計）・ディスクの読み書き速度（PDH `PhysicalDisk(_Total)`）・ドライブ別の速度・ディスク累計・稼働時間・Ping（`RoundTripTime`）・電源・コア数／スレッド数・プロセス別のメモリ（Working Set - Private）。
+- プロセス別の I/O はディスク以外も含む値で、見出しも「I/O」なので食い違いではない。
+
+### 残るもの
+
+- 物理アダプターではない WAN Miniport (IP/IPv6) は今も合計に含まれる。この PC では通信が 0 で確認できないが、PPPoE や VPN の環境で二重に数える可能性がある。
+
+### 公開文書（リリース時）
+
+- CHANGELOG（JA/EN）に、SWAP がページファイルの使用率になったこと、CPU 使用率・クロックがタスクマネージャーと同じ基準になったこと、ネットの速度・累計の修正を書く。`public_docs/FEATURES.md` の「SWAP（ページファイル相当）」はそのままで正しくなる。
+
+### 実機で見ること（実装時。Win64 Release を IDE でビルド）
+
+タスクマネージャー（パフォーマンス タブ）を横に並べて:
+- ダウンロード中、ダッシュボードのネットカードとホバー表示のネット速度が、タスクマネージャーのイーサネットの送受信とおおむね同じ値になること（4 倍にならない）。ダッシュボードの「ネットワーク」欄に「…-WFP Native MAC Layer…」などの行が出ないこと。
+- CPU 使用率（ガジェットの数値・ダッシュボード・ホバー表示）が、タスクマネージャーの CPU の値とおおむね同じで、1 秒ごとに落ち着いて変わること。
+- ダッシュボード CPU 欄のクロックが、タスクマネージャーの「速度」とおおむね同じで、負荷に応じて変わること（常に 2.93 GHz ではない）。
+- SWAP（ガジェット・ダッシュボード）が数 % 程度になり、ダッシュボードの SWAP 欄の量がページファイルのサイズ（この PC では 4 GB）になること。すぐ下の「コミット」欄とは違う数字になること。
+- ダッシュボードのメモリ欄のスタンバイが、タスクマネージャーの「キャッシュ済み」より少しだけ小さい値（差は「変更済み」の分）になること。
+- ダッシュボードのディスク情報（キュー・レイテンシ・IOPS・アクティブ）が、1 秒ごとに落ち着いて変わること。
+- プロセスページの CPU 列が、タスクマネージャーの「プロセス」タブの CPU 列とおおむね同じになること。
+
+### 見積り
+
+1.5 日（収集ユニット 6 本の修正と照合）。
