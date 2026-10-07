@@ -69,7 +69,7 @@ begin
   AddStr('tray.update', 'DiskLED %s が公開されています', 'DiskLED %s is available');
   AddStr('tray.hint_net', 'DiskLED ネットアクセス', 'DiskLED Network activity');
   AddStr('opt.window_mode', '表示モード', 'Display mode');
-  AddStr('tray.drive_rate', '%s: 読み %s ・ 書き %s', '%s: Read %s · Write %s');
+  AddStr('tray.drive_rate', '%s: 読込 %s ・ 書込 %s', '%s: Read %s · Write %s');
   AddStr('hover.ping_off', 'オフ', 'off');
   AddStr('hover.ping_timeout', 'タイムアウト', 'timeout');
   AddStr('hover.ping_pending', '…', '…');
@@ -109,12 +109,12 @@ begin
   AddStr('opt.speed_scale', 'ネット速度の反応', 'Network speed response');
   AddStr('opt.speed_scale_linear', '直線（リンク速度＝100%）', 'Linear (link speed = 100%)');
   AddStr('opt.speed_scale_log', '対数（小さい通信も振れやすい）', 'Logarithmic (small traffic more visible)');
-  AddStr('opt.tray_led_color', 'トレイ LED の色', 'Tray LED Color');
+  AddStr('opt.tray_led_color', 'トレイ LED の色', 'Tray LED color');
   AddStr('opt.tray_led_color_green', '緑', 'Green');
   AddStr('opt.tray_led_color_blue', '青', 'Blue');
   AddStr('opt.tray_led_color_red', '赤', 'Red');
   AddStr('opt.tray_led_color_yellow', '黄', 'Yellow');
-  AddStr('opt.tray_led_info', 'トレイ LED の情報', 'Tray LED Info');
+  AddStr('opt.tray_led_info', 'トレイ LED の情報', 'Tray LED info');
   AddStr('opt.tray_led_info_disk', 'ディスク', 'Disk');
   AddStr('opt.tray_led_info_net', 'ネットワーク', 'Network');
   AddStr('opt.tray_drives', 'ドライブ別 LED（ツールチップで識別）', 'Per-drive LEDs (identified by tooltip)');
@@ -129,9 +129,9 @@ begin
   AddStr('opt.ping_auto_gw', 'デフォルトゲートウェイを使う', 'Use default gateway');
   AddStr('opt.ping_host', 'Ping ホスト', 'Ping host');
   AddStr('opt.ping_interval', '間隔 (秒, 最低 300)', 'Interval (sec, min 300)');
-  AddStr('opt.ping_fair', 'やや遅い閾値 (ms)', 'Fair threshold (ms)');
-  AddStr('opt.ping_slow', '遅い閾値 (ms)', 'Slow threshold (ms)');
-  AddStr('opt.ping_timeout', 'タイムアウト閾値 (ms)', 'Timeout threshold (ms)');
+  AddStr('opt.ping_fair', 'やや遅いしきい値 (ms)', 'Fair threshold (ms)');
+  AddStr('opt.ping_slow', '遅いしきい値 (ms)', 'Slow threshold (ms)');
+  AddStr('opt.ping_timeout', 'タイムアウトしきい値 (ms)', 'Timeout threshold (ms)');
   AddStr('opt.ping_fair_short', 'やや遅い (ms)', 'Fair (ms)');
   AddStr('opt.ping_slow_short', '遅い (ms)', 'Slow (ms)');
   AddStr('opt.ping_timeout_short', 'タイムアウト', 'Timeout');
@@ -177,15 +177,15 @@ begin
     'layout.cfg のメーターパーツに Kind/Strength がありません: %s [%s]',
     'Missing Kind/Strength for a meter part in layout.cfg: %s [%s]');
   AddStr('err.layout_digit_font_required',
-    'layout.cfg の数値readoutに ValFontFile がありません: %s [%s]',
+    'layout.cfg の数値表示に ValFontFile がありません: %s [%s]',
     'Missing ValFontFile for a bitmap digit readout in layout.cfg: %s [%s]');
 
   AddStr('dash.title', 'DiskLED ダッシュボード', 'DiskLED Dashboard');
   AddStr('dash.cpu', 'CPU', 'CPU');
   AddStr('dash.gpu', 'GPU', 'GPU');
   AddStr('dash.cpu_gpu', 'CPU / GPU', 'CPU / GPU');
-  AddStr('dash.cpu_user', 'User', 'User');
-  AddStr('dash.cpu_kernel', 'Kernel', 'Kernel');
+  AddStr('dash.cpu_user', 'ユーザー', 'User');
+  AddStr('dash.cpu_kernel', 'カーネル', 'Kernel');
   AddStr('dash.cpu_name', '名前', 'Name');
   AddStr('dash.cpu_cores', 'コア', 'Cores');
   AddStr('dash.cpu_clock', 'クロック', 'Clock');
@@ -206,8 +206,8 @@ begin
   AddStr('dash.mem_free', '空き', 'Free');
   AddStr('dash.lg_read', '読込', 'Read');
   AddStr('dash.lg_write', '書込', 'Write');
-  AddStr('dash.lg_in', 'In', 'In');
-  AddStr('dash.lg_out', 'Out', 'Out');
+  AddStr('dash.lg_in', '受信', 'In');
+  AddStr('dash.lg_out', '送信', 'Out');
   AddStr('dash.disk_active', 'アクティブ', 'Active');
   AddStr('dash.queue', 'ディスク情報', 'Disk Info');
   AddStr('dash.queue_depth', 'Queue', 'Queue');
@@ -224,11 +224,11 @@ begin
   AddStr('dash.uptime_dhm', '%d日 %d時間 %d分', '%dd %dh %dm');
   AddStr('dash.uptime_hm', '%d時間 %d分', '%dh %dm');
   AddStr('dash.cum', 'ディスク累計 読込 %s 書込 %s ・ ネット累計 受信 %s 送信 %s',
-    'Disk total R %s W %s · Net total In %s Out %s');
+    'Disk total Read %s Write %s · Net total In %s Out %s');
   AddStr('dash.power_remain', '残時間', 'Remaining');
   AddStr('dash.power_remain_h', '%d時間', '%dh');
-  AddStr('dash.power_remain_m', '%d分', '%dmin');
-  AddStr('dash.power_remain_hm', '%d時間%d分', '%dh %dmin');
+  AddStr('dash.power_remain_m', '%d分', '%dm');
+  AddStr('dash.power_remain_hm', '%d時間 %d分', '%dh %dm');
   AddStr('dash.audio', '音量', 'Volume');
   AddStr('dash.audio_l', 'L', 'L');
   AddStr('dash.audio_r', 'R', 'R');
@@ -249,7 +249,7 @@ begin
   AddStr('dash.tab_process', 'プロセス', 'Processes');
   AddStr('dash.tab_route', 'Ping/経路', 'Ping / Route');
   AddStr('dash.route_auto', '自動', 'Auto');
-  AddStr('dash.route_min', '%d分', '%d min');
+  AddStr('dash.route_min', '%d分', '%dm');
   AddStr('dash.route_now', '今すぐ計測', 'Measure now');
   AddStr('dash.route_hops', '%d ホップ', '%d hops');
   AddStr('dash.route_total', '往復 %s', 'Round trip %s');
@@ -274,7 +274,7 @@ begin
   AddStr('dash.route_cls_global', 'グローバル', 'Global');
   AddStr('dash.route_kind_ttl', 'TTL 超過', 'TTL expired');
   AddStr('dash.route_kind_reached', '到達', 'Reached');
-  AddStr('dash.route_kind_net', 'ネット到達不能', 'Net unreachable');
+  AddStr('dash.route_kind_net', 'ネットワーク到達不能', 'Network unreachable');
   AddStr('dash.route_kind_host', 'ホスト到達不能', 'Host unreachable');
   AddStr('dash.route_kind_proto', 'プロトコル到達不能', 'Protocol unreachable');
   AddStr('dash.route_kind_port', 'ポート到達不能', 'Port unreachable');
