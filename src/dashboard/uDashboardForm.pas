@@ -1730,8 +1730,8 @@ begin
   FCards[2].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
   FCards[3].Value := FormatRateBps(Snap.DiskReadBps);
   FCards[3].Value2 := FormatRateBps(Snap.DiskWriteBps);
-  FCards[4].Value := FormatRateBps(Snap.NetInBps);
-  FCards[4].Value2 := FormatRateBps(Snap.NetOutBps);
+  FCards[4].Value := FormatNetRateBps(Snap.NetInBps);
+  FCards[4].Value2 := FormatNetRateBps(Snap.NetOutBps);
   ApplyDonutLevels;
   FCollector.CopyPingHistory(FPingHistory);
   FHeaderPaint.Invalidate;

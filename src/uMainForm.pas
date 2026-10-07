@@ -1935,7 +1935,7 @@ begin
   MemPct := 0;
   SwapPct := 0;
   DiskIo := FormatRateBps(0);
-  NetIo := FormatRateBps(0);
+  NetIo := FormatNetRateBps(0);
   PingLine := 'Ping: ' + S('hover.ping_off');
   if FPipeline <> nil then
   begin
@@ -1944,7 +1944,7 @@ begin
     SwapPct := Round(Clamp01(FPipeline.State.SwapDigit) * 100);
     Snap := FPipeline.LastSnap;
     DiskIo := FormatRateBps(FPipeline.Rates.DiskReadBps + FPipeline.Rates.DiskWriteBps);
-    NetIo := FormatRateBps(FPipeline.Rates.NetInBps + FPipeline.Rates.NetOutBps);
+    NetIo := FormatNetRateBps(FPipeline.Rates.NetInBps + FPipeline.Rates.NetOutBps);
     Host := Trim(Snap.PingTarget);
     if not Snap.PingEnabled then
       PingLine := 'Ping: ' + S('hover.ping_off')

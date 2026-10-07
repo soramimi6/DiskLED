@@ -175,6 +175,9 @@ function Clamp01(const AValue: Double): Double;
 function ClampStrength(AValue: Integer): Integer;
 function IsActiveBps(const ABps: Double): Boolean;
 function FormatRateBps(ABps: Double): string;
+{ Network rate: takes Byte/s, shows bits in 1000 steps from Kbps up, like
+  Task Manager ("0 Kbps", "8.0 Kbps", "176 Kbps", "1.2 Mbps"). }
+function FormatNetRateBps(ABps: Double): string;
 function FormatLinkSpeedBps(ABps: Double): string;
 function FormatBytesPair(AUsed, ATotal: UInt64): string;
 function FormatBytesGiB(ABytes: UInt64): string;
@@ -239,6 +242,32 @@ begin
     Result := Format('%.1f %s', [V, UnitLabel])
   else
     Result := Format('%.2f %s', [V, UnitLabel]);
+end;
+
+function FormatNetRateBps(ABps: Double): string;
+var
+  V: Double;
+  UnitLabel: string;
+begin
+  if ABps <= 0 then
+    Exit('0 Kbps');
+  V := ABps * 8 / 1000;
+  if V < 1000 then
+    UnitLabel := 'Kbps'
+  else if V < 1000 * 1000 then
+  begin
+    V := V / 1000;
+    UnitLabel := 'Mbps';
+  end
+  else
+  begin
+    V := V / (1000 * 1000);
+    UnitLabel := 'Gbps';
+  end;
+  if V >= 100 then
+    Result := Format('%.0f %s', [V, UnitLabel])
+  else
+    Result := Format('%.1f %s', [V, UnitLabel]);
 end;
 
 function FormatBytesPair(AUsed, ATotal: UInt64): string;
