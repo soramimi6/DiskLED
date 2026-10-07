@@ -61,7 +61,8 @@ type
     Pids: TArray<Cardinal>;
     { One PID of this name, for the details and icon. 0 when unknown. }
     Pid: Cardinal;
-    { % Processor Time: one fully busy core = 100, so it can exceed 100. }
+    { % Processor Time scaled to processor utility (see CpuUtilityScale): one
+      fully busy core = about 100, so it can exceed 100. }
     CpuPct: Double;
     { Working Set - Private, matching Task Manager's memory column. }
     MemBytes: UInt64;
@@ -99,6 +100,10 @@ type
     { Worker-thread only. }
     FQuery: THandle;
     FCounters: array[TProcessCounter] of THandle;
+    { Whole-CPU utility and busy time over the same window, to scale the
+      per-process busy time to Task Manager's utility figure. 0 if missing. }
+    FTotalUtil: THandle;
+    FTotalTime: THandle;
     FBufs: array[TProcessCounter] of TBytes;
     FFailCount: Integer;
     { The query uses the legacy "\Process(*)" set: no PIDs in instance names. }
@@ -177,6 +182,8 @@ const
     instance names carry no PID and repeat for same-named processes, which
     the name-merge absorbs; rows then have no details, titles or own icon. }
   CProcessLegacySet = '\Process(*)\';
+  CTotalUtilPath = '\Processor Information(_Total)\% Processor Utility';
+  CTotalTimePath = '\Processor Information(_Total)\% Processor Time';
   CCounterFormats: array[TProcessCounter] of DWORD = (
     PDH_FMT_DOUBLE or PDH_FMT_NOCAP100,
     PDH_FMT_LARGE,
@@ -222,6 +229,9 @@ function PdhGetFormattedCounterArrayW(hCounter: THandle; dwFormat: DWORD;
   var lpdwBufferSize: DWORD; var lpdwItemCount: DWORD;
   ItemBuffer: PPdhFmtCounterValueItemW): LongInt; stdcall;
   external 'pdh.dll' name 'PdhGetFormattedCounterArrayW';
+function PdhGetFormattedCounterValue(hCounter: THandle; dwFormat: DWORD;
+  lpdwType: PDWORD; var pValue: TPdhFmtCounterValue): LongInt; stdcall;
+  external 'pdh.dll' name 'PdhGetFormattedCounterValue';
 
 const
   PROCESS_QUERY_LIMITED_INFORMATION_ = $1000;
@@ -731,6 +741,12 @@ begin
       ClosePdh;
       Exit;
     end;
+  if (PdhAddEnglishCounterW(FQuery, CTotalUtilPath, 0, FTotalUtil) <> 0) or
+    (PdhAddEnglishCounterW(FQuery, CTotalTimePath, 0, FTotalTime) <> 0) then
+  begin
+    FTotalUtil := 0;
+    FTotalTime := 0;
+  end;
   Result := True;
 end;
 
@@ -761,6 +777,26 @@ begin
   end;
   for C := Low(TProcessCounter) to High(TProcessCounter) do
     FCounters[C] := 0;
+  FTotalUtil := 0;
+  FTotalTime := 0;
+end;
+
+{ Task Manager's process CPU column follows processor utility (busy time
+  scaled by the clock), so it adds up to the headline CPU figure. Process V2
+  only has busy time; scale it by the whole CPU's utility / busy time over the
+  same sample window. 1 when either counter is missing. }
+function CpuUtilityScale(AUtil, ATime: THandle): Double;
+var
+  U, T: TPdhFmtCounterValue;
+begin
+  Result := 1;
+  if (AUtil = 0) or (ATime = 0) then
+    Exit;
+  if (PdhGetFormattedCounterValue(AUtil, PDH_FMT_DOUBLE or PDH_FMT_NOCAP100, nil, U) <> 0) or
+    (PdhGetFormattedCounterValue(ATime, PDH_FMT_DOUBLE or PDH_FMT_NOCAP100, nil, T) <> 0) then
+    Exit;
+  if (T.DoubleValue > 0.5) and (U.DoubleValue > 0) then
+    Result := U.DoubleValue / T.DoubleValue;
 end;
 
 function TProcessCollector.SamplePdh(out ATop: TProcessTop): Boolean;
@@ -845,6 +881,9 @@ begin
   finally
     Index.Free;
   end;
+  V := CpuUtilityScale(FTotalUtil, FTotalTime);
+  for i := 0 to AggCount - 1 do
+    Aggs[i].Vals[pcCpu] := Aggs[i].Vals[pcCpu] * V;
 
   ATop.Items[prCpu] := TopBy(Aggs, AggCount, prCpu);
   ATop.Items[prMem] := TopBy(Aggs, AggCount, prMem);

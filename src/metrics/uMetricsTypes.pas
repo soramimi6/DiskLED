@@ -10,8 +10,9 @@ type
   TDriveRates = array[TDriveLetter] of Double;
 
   TMetricsSnapshot = record
-    CpuUsage: Double;
-    CpuUserPct: Double;
+    CpuUsage: Double; { this frame, for meters }
+    CpuUsageAvg: Double; { last one-second window, for numbers; -1 not yet }
+    CpuUserPct: Double; { one-second window, scaled to add up to CpuUsageAvg }
     CpuKernelPct: Double;
     CpuName: string;
     CpuCores: Integer;
