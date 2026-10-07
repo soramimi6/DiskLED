@@ -2,6 +2,11 @@ unit uDiskCollector;
 
 { Physical disk Read/Write Byte/s. Prefers PDH PhysicalDisk(_Total); falls back
   to IOCTL_DISK_PERFORMANCE cumulative deltas when PDH is unavailable.
+
+  Read/Write rates are sampled every frame (LEDs and meters). Queue, IOPS,
+  active time and latency are only shown as numbers, so they come from a
+  second query collected once a second: PDH then averages them over that
+  second, as Task Manager does, instead of over one ~60 ms frame.
   Set CDebugForceLatencyUnavailable to False after the "—" UI is verified. }
 
 interface
@@ -17,6 +22,9 @@ type
   private
     FUsePdh: Boolean;
     FQuery: THandle;
+    FStatQuery: THandle;
+    FStatTick: Cardinal;
+    FHasStatTick: Boolean;
     FReadCounter: THandle;
     FWriteCounter: THandle;
     FQueueCounter: THandle;
@@ -67,6 +75,7 @@ uses
 const
   PDH_FMT_DOUBLE = $00000200;
   IOCTL_DISK_PERFORMANCE = $00070020;
+  CStatIntervalMs = 1000;
 
 type
   TPdhFmtCounterValue = record
@@ -122,6 +131,8 @@ function TDiskCollector.InitPdh: Boolean;
 begin
   Result := False;
   FQuery := 0;
+  FStatQuery := 0;
+  FHasStatTick := False;
   FReadCounter := 0;
   FWriteCounter := 0;
   FQueueCounter := 0;
@@ -152,17 +163,26 @@ begin
     ClosePdh;
     Exit;
   end;
-  FPdhQueueOk :=
-    (PdhAddEnglishCounterW(FQuery,
-      '\PhysicalDisk(_Total)\Current Disk Queue Length', 0, FQueueCounter) = 0) and
-    (PdhAddEnglishCounterW(FQuery,
-      '\PhysicalDisk(_Total)\Disk Reads/sec', 0, FReadIopsCounter) = 0) and
-    (PdhAddEnglishCounterW(FQuery,
-      '\PhysicalDisk(_Total)\Disk Writes/sec', 0, FWriteIopsCounter) = 0);
-  FPdhIdleOk := PdhAddEnglishCounterW(FQuery,
-    '\PhysicalDisk(_Total)\% Idle Time', 0, FIdleCounter) = 0;
-  FPdhLatencyOk := PdhAddEnglishCounterW(FQuery,
-    '\PhysicalDisk(_Total)\Avg. Disk sec/Transfer', 0, FLatencyCounter) = 0;
+  if PdhOpenQueryW(nil, 0, FStatQuery) <> 0 then
+    FStatQuery := 0
+  else
+  begin
+    { Average queue length over the second, not the instantaneous count. }
+    FPdhQueueOk :=
+      (PdhAddEnglishCounterW(FStatQuery,
+        '\PhysicalDisk(_Total)\Avg. Disk Queue Length', 0, FQueueCounter) = 0) and
+      (PdhAddEnglishCounterW(FStatQuery,
+        '\PhysicalDisk(_Total)\Disk Reads/sec', 0, FReadIopsCounter) = 0) and
+      (PdhAddEnglishCounterW(FStatQuery,
+        '\PhysicalDisk(_Total)\Disk Writes/sec', 0, FWriteIopsCounter) = 0);
+    FPdhIdleOk := PdhAddEnglishCounterW(FStatQuery,
+      '\PhysicalDisk(_Total)\% Idle Time', 0, FIdleCounter) = 0;
+    FPdhLatencyOk := PdhAddEnglishCounterW(FStatQuery,
+      '\PhysicalDisk(_Total)\Avg. Disk sec/Transfer', 0, FLatencyCounter) = 0;
+    PdhCollectQueryData(FStatQuery);
+    FStatTick := GetTickCount;
+    FHasStatTick := True;
+  end;
   { First collect establishes a baseline; values are valid from the second call. }
   PdhCollectQueryData(FQuery);
   FPdhReady := False;
@@ -176,6 +196,12 @@ begin
     PdhCloseQuery(FQuery);
     FQuery := 0;
   end;
+  if FStatQuery <> 0 then
+  begin
+    PdhCloseQuery(FStatQuery);
+    FStatQuery := 0;
+  end;
+  FHasStatTick := False;
   FReadCounter := 0;
   FWriteCounter := 0;
   FQueueCounter := 0;
@@ -226,6 +252,13 @@ begin
     AWriteBps := WriteVal.DoubleValue;
   FLastReadBps := AReadBps;
   FLastWriteBps := AWriteBps;
+  Result := True;
+  if (FStatQuery = 0) or (FHasStatTick and (GetTickCount - FStatTick < CStatIntervalMs)) then
+    Exit;
+  FStatTick := GetTickCount;
+  FHasStatTick := True;
+  if PdhCollectQueryData(FStatQuery) <> 0 then
+    Exit;
   if FPdhQueueOk then
   begin
     if PdhGetFormattedCounterValue(FQueueCounter, PDH_FMT_DOUBLE, nil, QueueVal) = 0 then
@@ -281,7 +314,6 @@ begin
       FLastLatencyMs := ALatencyMs;
     end;
   end;
-  Result := True;
 end;
 
 function TDiskCollector.SumDiskPerformance(out AReadBytes, AWriteBytes, AReadCount,

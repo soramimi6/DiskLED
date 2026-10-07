@@ -83,6 +83,7 @@ begin
   Result.UptimeSec := GetTickCount64 div 1000;
   try
     Result.CpuUsage := FCpu.Sample;
+    Result.CpuUsageAvg := FCpu.AvgUsage;
     Result.CpuUserPct := FCpu.UserPct;
     Result.CpuKernelPct := FCpu.KernelPct;
     Result.CpuName := FCpu.Name;
@@ -92,6 +93,7 @@ begin
     Result.CpuMaxMhz := FCpu.MaxMhz;
   except
     Result.CpuUsage := 0;
+    Result.CpuUsageAvg := -1;
     Result.CpuUserPct := 0;
     Result.CpuKernelPct := 0;
   end;
