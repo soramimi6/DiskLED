@@ -1718,20 +1718,20 @@ end;
 
 procedure TDashboardForm.RefreshData;
 var
-  Snap: TMetricsSnapshot;
   i: Integer;
 begin
   if (FPipeline = nil) or (FCollector = nil) then
     Exit;
-  Snap := FPipeline.LastSnap;
   FCards[0].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.CpuDigit) * 100)]);
   FCards[0].Value2 := Format('%d%%', [Round(Clamp01(FPipeline.State.GpuDigit) * 100)]);
   FCards[1].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.MemDigit) * 100)]);
   FCards[2].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
-  FCards[3].Value := FormatRateBps(Snap.DiskReadBps);
-  FCards[3].Value2 := FormatRateBps(Snap.DiskWriteBps);
-  FCards[4].Value := FormatNetRateBps(Snap.NetInBps);
-  FCards[4].Value2 := FormatNetRateBps(Snap.NetOutBps);
+  { One-second averages (as the hover text and Task Manager), not the last
+    frame's rate, which swings with frame timing. }
+  FCards[3].Value := FormatRateBps(FPipeline.Rates.DiskReadBps);
+  FCards[3].Value2 := FormatRateBps(FPipeline.Rates.DiskWriteBps);
+  FCards[4].Value := FormatNetRateBps(FPipeline.Rates.NetInBps);
+  FCards[4].Value2 := FormatNetRateBps(FPipeline.Rates.NetOutBps);
   ApplyDonutLevels;
   FCollector.CopyPingHistory(FPingHistory);
   FHeaderPaint.Invalidate;

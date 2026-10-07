@@ -231,7 +231,13 @@ begin
   if (not AForce) and FHasDigitTick and ((NowTick - FDigitTick) < CDigitIntervalMs) then
     Exit;
 
-  FState.CpuDigit := FState.Cpu;
+  { CPU as a number is the one-second average (Task Manager's figure), not
+    where the fast-rising needle happens to be. The startup sweep keeps the
+    needle value so the digits ramp with it. }
+  if FStartupDone and (FLastSnap.CpuUsageAvg >= 0) then
+    FState.CpuDigit := Clamp01(FLastSnap.CpuUsageAvg / 100.0)
+  else
+    FState.CpuDigit := FState.Cpu;
   FState.GpuDigit := FState.Gpu;
   FState.MemDigit := FState.Mem;
   FState.SwapDigit := FState.Swap;

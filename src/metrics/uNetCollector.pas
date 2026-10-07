@@ -2,7 +2,8 @@ unit uNetCollector;
 
 { Real-NIC In/Out Byte/s via IP Helper. Adapter list is refreshed every few
   seconds with GetIfTable; per-sample counters use GetIfEntry on cached
-  indexes. Excludes loopback / tunnel / common virtual adapters from aggregate.
+  indexes. Excludes loopback / tunnel / common virtual adapters from aggregate,
+  and NDIS filter rows (see IsFilterInterface) from both aggregate and list.
   Dashboard shows all non-loopback adapters with Included flag. }
 
 interface
@@ -119,6 +120,7 @@ const
   IF_TYPE_SLIP = 28;
   IF_TYPE_TUNNEL = 131;
   IF_TYPE_PROP_VIRTUAL = 53;
+  IF_OPER_STATUS_OPERATIONAL = 5;
 
   GAA_FLAG_INCLUDE_ALL_INTERFACES = $0100;
   AF_UNSPEC = 0;
@@ -288,6 +290,42 @@ begin
     (Pos('bluetooth', D) > 0);
 end;
 
+type
+  TIfRow2Info = record
+    { NDIS filter row: GetIfTable also lists each filter bound to an adapter
+      (WFP, QoS Packet Scheduler, Native WiFi Filter ...) as its own row
+      carrying the same traffic as the adapter, so counting them multiplies
+      the rate. MIB_IF_ROW2.InterfaceAndOperStatusFlags bit 1. }
+    IsFilter: Boolean;
+    { Link up (IfOperStatusUp). }
+    IsUp: Boolean;
+    { Bits/s, 64-bit: MIB_IFROW.dwSpeed is 32-bit and stops at 4.29 Gbps. }
+    SpeedBits: UInt64;
+  end;
+
+function ReadIfRow2(AIndex: Cardinal; out AInfo: TIfRow2Info): Boolean;
+const
+  CFilterInterfaceFlag = $02;
+  IfOperStatusUp = 1;
+  CSpeedUnknown = UInt64($FFFFFFFFFFFFFFFF);
+var
+  Row: TMibIfRow2;
+begin
+  AInfo := Default(TIfRow2Info);
+  FillChar(Row, SizeOf(Row), 0);
+  Row.InterfaceIndex := AIndex;
+  Result := GetIfEntry2(@Row) = 0;
+  if not Result then
+    Exit;
+  AInfo.IsFilter := (Row.InterfaceAndOperStatusFlags and CFilterInterfaceFlag) <> 0;
+  AInfo.IsUp := Row.OperStatus = IfOperStatusUp;
+  if Row.ReceiveLinkSpeed <> CSpeedUnknown then
+    AInfo.SpeedBits := Row.ReceiveLinkSpeed;
+  if (Row.TransmitLinkSpeed <> CSpeedUnknown) and
+    (Row.TransmitLinkSpeed > AInfo.SpeedBits) then
+    AInfo.SpeedBits := Row.TransmitLinkSpeed;
+end;
+
 function TNetCollector.FindIf(AIndex: Cardinal): Integer;
 var
   i: Integer;
@@ -406,7 +444,8 @@ var
   Descr, Friendly: string;
   Row: PMIBIfRow;
   NextIfs: TNetIfPrevArray;
-  MaxSpeedBits: DWORD;
+  MaxSpeedBits: UInt64;
+  Row2: TIfRow2Info;
   Included: Boolean;
   Info: TNetAdapterInfo;
   DisplayList: TList<TNetAdapterInfo>;
@@ -457,6 +496,14 @@ begin
 
       if IsLoopbackAdapter(Row.dwType) then
         Continue;
+      if not ReadIfRow2(Row.dwIndex, Row2) then
+      begin
+        Row2.IsFilter := False;
+        Row2.IsUp := Row.dwOperStatus = IF_OPER_STATUS_OPERATIONAL;
+        Row2.SpeedBits := Row.dwSpeed;
+      end;
+      if Row2.IsFilter then
+        Continue;
 
       Included := not IsExcludedAdapter(Row.dwType, Descr);
       Friendly := FindFriendlyName(Row.dwIndex);
@@ -466,10 +513,7 @@ begin
       Info.Index := Row.dwIndex;
       Info.FriendlyName := Friendly;
       Info.Descr := Descr;
-      if Row.dwSpeed > 0 then
-        Info.LinkSpeedBps := Row.dwSpeed / 8.0
-      else
-        Info.LinkSpeedBps := 0;
+      Info.LinkSpeedBps := Row2.SpeedBits / 8.0;
       Info.Included := Included;
       Info.IsLoopback := False;
       DisplayList.Add(Info);
@@ -477,8 +521,10 @@ begin
       if not Included then
         Continue;
 
-      if Row.dwSpeed > MaxSpeedBits then
-        MaxSpeedBits := Row.dwSpeed;
+      { Only connected links set the meter's full scale: a disconnected
+        adapter still reports its nominal speed but carries no traffic. }
+      if Row2.IsUp and (Row2.SpeedBits > MaxSpeedBits) then
+        MaxSpeedBits := Row2.SpeedBits;
 
       NextIfs[NewCount].Index := Row.dwIndex;
       NextIfs[NewCount].Used := True;
@@ -521,7 +567,6 @@ var
   ElapsedSec: Double;
   DeltaIn, DeltaOut: UInt64;
   TotalInBps, TotalOutBps: Double;
-  MaxSpeedBits: DWORD;
 begin
   if Length(FIfs) < 1 then
   begin
@@ -533,11 +578,14 @@ begin
     ElapsedSec := (ATick - FPrevTick) / 1000.0
   else
     ElapsedSec := 0;
+  { Same tick as the previous sample: keep the baseline so these bytes are
+    counted in the next interval instead of dropped. }
+  if FHasPrev and (ElapsedSec <= 0) then
+    Exit;
 
   OkCount := 0;
   TotalInBps := 0;
   TotalOutBps := 0;
-  MaxSpeedBits := 0;
 
   for i := 0 to High(FIfs) do
   begin
@@ -547,8 +595,6 @@ begin
       Continue;
 
     Inc(OkCount);
-    if Row.dwSpeed > MaxSpeedBits then
-      MaxSpeedBits := Row.dwSpeed;
 
     if FHasPrev and (ElapsedSec > 0) then
     begin
@@ -567,9 +613,6 @@ begin
     FForceRefresh := True;
     Exit;
   end;
-
-  if MaxSpeedBits > 0 then
-    FLastLinkSpeedBps := MaxSpeedBits / 8.0;
 
   FPrevTick := ATick;
   FHasPrev := True;
