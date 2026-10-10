@@ -26,7 +26,6 @@ object OptionsForm: TOptionsForm
     ActivePage = TsGeneral
     Align = alClient
     TabOrder = 0
-    ExplicitHeight = 422
     object TsGeneral: TTabSheet
       Caption = 'General'
       object CardWindow: TPanel
@@ -87,6 +86,19 @@ object OptionsForm: TOptionsForm
           Visible = False
           WordWrap = True
         end
+        object LblSecWindowMode: TLabel
+          Left = 20
+          Top = 200
+          Width = 85
+          Height = 17
+          Caption = 'Display mode'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -13
+          Font.Name = 'Segoe UI'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
         object CbLanguage: TComboBox
           Left = 90
           Top = 146
@@ -123,19 +135,6 @@ object OptionsForm: TOptionsForm
           Caption = 'Check for a new version at startup'
           TabOrder = 2
         end
-        object LblSecWindowMode: TLabel
-          Left = 20
-          Top = 200
-          Width = 60
-          Height = 17
-          Caption = 'Display mode'
-          Font.Charset = DEFAULT_CHARSET
-          Font.Color = clWindowText
-          Font.Height = -13
-          Font.Name = 'Segoe UI'
-          Font.Style = [fsBold]
-          ParentFont = False
-        end
         object RbWinOnly: TRadioButton
           Left = 20
           Top = 226
@@ -171,7 +170,7 @@ object OptionsForm: TOptionsForm
         Height = 128
         BevelOuter = bvNone
         Color = clWhite
-        TabOrder = 1
+        TabOrder = 2
         object LblSecFps: TLabel
           Left = 20
           Top = 12
@@ -311,7 +310,7 @@ object OptionsForm: TOptionsForm
         object LblSecDisplayScale: TLabel
           Left = 20
           Top = 12
-          Width = 80
+          Width = 81
           Height = 17
           Caption = 'Display Scale'
           Font.Charset = DEFAULT_CHARSET
@@ -369,7 +368,7 @@ object OptionsForm: TOptionsForm
         TabOrder = 0
         object LblSecTrayLedColor: TLabel
           Left = 20
-          Top = 12
+          Top = 78
           Width = 91
           Height = 17
           Caption = 'Tray LED Color'
@@ -382,7 +381,7 @@ object OptionsForm: TOptionsForm
         end
         object LblSecTrayLedInfo: TLabel
           Left = 20
-          Top = 140
+          Top = 12
           Width = 83
           Height = 17
           Caption = 'Tray LED Info'
@@ -395,7 +394,7 @@ object OptionsForm: TOptionsForm
         end
         object ImgLedGreen: TImage
           Left = 112
-          Top = 38
+          Top = 101
           Width = 16
           Height = 16
           Center = True
@@ -405,7 +404,7 @@ object OptionsForm: TOptionsForm
         end
         object ImgLedBlue: TImage
           Left = 184
-          Top = 38
+          Top = 101
           Width = 16
           Height = 16
           Center = True
@@ -415,7 +414,7 @@ object OptionsForm: TOptionsForm
         end
         object ImgLedRed: TImage
           Left = 256
-          Top = 38
+          Top = 101
           Width = 16
           Height = 16
           Center = True
@@ -425,7 +424,7 @@ object OptionsForm: TOptionsForm
         end
         object ImgLedYellow: TImage
           Left = 328
-          Top = 38
+          Top = 101
           Width = 16
           Height = 16
           Center = True
@@ -435,7 +434,7 @@ object OptionsForm: TOptionsForm
         end
         object LblLedGreen: TLabel
           Left = 90
-          Top = 56
+          Top = 119
           Width = 60
           Height = 15
           Alignment = taCenter
@@ -444,7 +443,7 @@ object OptionsForm: TOptionsForm
         end
         object LblLedBlue: TLabel
           Left = 162
-          Top = 56
+          Top = 119
           Width = 60
           Height = 15
           Alignment = taCenter
@@ -453,7 +452,7 @@ object OptionsForm: TOptionsForm
         end
         object LblLedRed: TLabel
           Left = 234
-          Top = 56
+          Top = 119
           Width = 60
           Height = 15
           Alignment = taCenter
@@ -462,7 +461,7 @@ object OptionsForm: TOptionsForm
         end
         object LblLedYellow: TLabel
           Left = 306
-          Top = 56
+          Top = 119
           Width = 60
           Height = 15
           Alignment = taCenter
@@ -484,12 +483,12 @@ object OptionsForm: TOptionsForm
         end
         object PnlLedDisk: TPanel
           Left = 0
-          Top = 76
+          Top = 140
           Width = 400
           Height = 24
           BevelOuter = bvNone
           ParentColor = True
-          TabOrder = 0
+          TabOrder = 2
           object LblLedDisk: TLabel
             Left = 20
             Top = 4
@@ -531,12 +530,12 @@ object OptionsForm: TOptionsForm
         end
         object PnlLedNet: TPanel
           Left = 0
-          Top = 102
+          Top = 166
           Width = 400
           Height = 24
           BevelOuter = bvNone
           ParentColor = True
-          TabOrder = 1
+          TabOrder = 3
           object LblLedNet: TLabel
             Left = 20
             Top = 4
@@ -578,39 +577,39 @@ object OptionsForm: TOptionsForm
         end
         object ChkLedDisk: TCheckBox
           Left = 20
-          Top = 179
+          Top = 36
           Width = 120
           Height = 21
           Caption = 'Disk'
           Checked = True
           State = cbChecked
-          TabOrder = 2
+          TabOrder = 0
           OnClick = ChkLedDiskClick
         end
         object ChkLedNet: TCheckBox
           Left = 136
-          Top = 179
+          Top = 36
           Width = 120
           Height = 21
           Caption = 'Network'
-          TabOrder = 3
+          TabOrder = 1
           OnClick = ChkLedNetClick
         end
         object ChkLedTotal: TCheckBox
           Left = 20
-          Top = 236
+          Top = 364
           Width = 360
           Height = 21
           Caption = 'Also show the total LED'
-          TabOrder = 4
+          TabOrder = 5
         end
         object LstDrives: TCheckListBox
           Left = 20
-          Top = 262
+          Top = 238
           Width = 360
           Height = 120
           ItemHeight = 17
-          TabOrder = 5
+          TabOrder = 4
         end
       end
     end
@@ -684,9 +683,9 @@ object OptionsForm: TOptionsForm
           TabOrder = 3
         end
         object CardThresholds: TPanel
-          Left = 20
+          Left = 12
           Top = 216
-          Width = 368
+          Width = 381
           Height = 121
           BevelOuter = bvNone
           Color = 15921906
@@ -768,7 +767,6 @@ object OptionsForm: TOptionsForm
     BevelOuter = bvNone
     Color = clWhite
     TabOrder = 1
-    ExplicitTop = 430
     object ShpButtonTop: TShape
       Left = 0
       Top = 0
