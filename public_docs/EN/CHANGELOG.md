@@ -4,6 +4,33 @@
 
 Newest first. User-facing summary only; implementation detail lives in `docs/DESIGN.md`.
 
+## 3.3.0
+
+**If you are updating from 3.2.0 or earlier**: "View Trace Route" has been removed from the right-click menu. The route now lives on the dashboard's "Ping / Route" tab (clicking the Ping box on the Overview page also opens it). "Window Only / Window + Tray LED / Tray LED Only" moved from the right-click menu to the General tab in Options, and "Display Scale" moved to the Display tab.
+
+Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
+
+- **Added pages to the dashboard**. Tabs under the header (or Ctrl+Tab) switch between Overview, Processes, and Ping / Route
+  - **Processes**: lists the top processes by CPU usage, memory used, and I/O in three columns (processes with the same name are combined into one row). Also shows window title, company, user, commit, handle and thread counts, and executable path; hover an entry for more. Refreshes every 3 / 5 / 10 seconds, or can be stopped
+  - **Ping / Route**: a waterfall showing which segments of the path the round trip to the target is spent in, with each hop's RTT (min–max), loss, jitter, and change from last time. Automatic measurement every 1 / 5 / 10 minutes or stopped (default: stopped), plus "Measure now". Measures only while the page is showing. Turning on "Show network operators" looks up each hop's operator from an external DNS service (off by default). When the Ping target has only an IPv6 address, the route is measured over IPv6
+- **Per-drive tray LEDs**. Shows a tray icon for each drive chosen in Options (C:, D:, …), identified by the letter at the icon's lower right and its tooltip. Can be shown together with the all-drives LED
+- **Added yellow to the tray LED colors, and disk and network can now use different colors**
+- **Network LEDs now flicker like an access lamp**. While traffic continues, they go dark for a moment whenever the transfer rate drops (in the tray and in display modes that have network LEDs)
+- **The dashboard header now shows the PC's uptime and cumulative disk (read / write) and network (received / sent) totals**
+- **Measured values now match Task Manager**
+  - Fixed network rates and totals coming out several times too high because filter drivers attached to network adapters were counted as extra adapters
+  - Network rates are now shown in bits (Kbps / Mbps / Gbps)
+  - CPU usage now uses the same basis as Task Manager (processor utility, which accounts for clock speed). The CPU clock now shows the actual running clock (it used to show an average of base clocks)
+  - SWAP is now page file usage (it used to show the commit charge). Shows "—" where the value cannot be read
+  - The dashboard's memory "Standby" is now Windows' standby list
+  - Fixed link speeds such as 10 Gbps being capped at 4.29 Gbps
+  - Disk queue, IOPS, active time and latency, and the dashboard's disk and network rates are now one-second averages
+- Tidied up the right-click menu. "Window Only / Window + Tray LED / Tray LED Only" moved to the General tab in Options and "Display Scale" to the Display tab
+- The Options dialog now always uses the standard Windows look (it no longer follows light/dark mode)
+- Fixed the dashboard flickering over Remote Desktop
+- Fixed the black outline around the numbers inside the dashboard donuts standing out in light mode
+- Unified wording across the UI
+
 ## 3.2.0
 
 Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
