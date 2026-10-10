@@ -338,6 +338,8 @@ begin
       Exit;
     FUsePdh := False;
     ClosePdh;
+    { The live clock came from the same counter set: unknown from here on. }
+    FCurrentMhz := 0;
   end;
   if not GetSystemTimes(IdleTime, KernelTime, UserTime) then
     Exit;

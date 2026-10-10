@@ -95,12 +95,6 @@ type
     FHoverHeldText: string;
     FDriveHintTick: Cardinal;
     FHasDriveHint: Boolean;
-    { Tray net LED state: ON while net is active, with a one-frame OFF
-      whenever the transfer rate drops, so sustained traffic flickers like a
-      hub's activity lamp. }
-    FNetBlinkOn: Boolean;
-    FPrevNetBps: Double;
-    FHasPrevNetBps: Boolean;
     FHoverTextTick: Cardinal;
     FHasHoverText: Boolean;
     FMonitorDpi: Integer;
@@ -1001,8 +995,6 @@ begin
 end;
 
 procedure TMainForm.TimerTick(Sender: TObject);
-const
-  CNetBlinkDropRatio = 0.10;
 var
   IntervalMs: Cardinal;
   NowTick: Cardinal;
@@ -1011,7 +1003,6 @@ var
   GraphKey: Cardinal;
   Fp: TVisualFingerprint;
   Snap: TMetricsSnapshot;
-  NetBps: Double;
 begin
   if (FCollector = nil) or (FPipeline = nil) then
     Exit;
@@ -1071,19 +1062,6 @@ begin
 
   { Window rendering and the tray LED(s) are independent now: either, both,
     or (checked at the settings layer) neither can be active at once. }
-  { ON while active, but a frame whose transfer rate dropped by 10% or more
-    from the previous frame goes OFF for that one frame (the next frame is ON
-    again). }
-  NetBps := Snap.NetInBps + Snap.NetOutBps;
-  if not FPipeline.State.NetActivityOn then
-    FNetBlinkOn := False
-  else if FNetBlinkOn and FHasPrevNetBps and
-    (NetBps <= FPrevNetBps * (1.0 - CNetBlinkDropRatio)) then
-    FNetBlinkOn := False
-  else
-    FNetBlinkOn := True;
-  FPrevNetBps := NetBps;
-  FHasPrevNetBps := True;
   if (FSettings <> nil) and FSettings.TrayLed then
     UpdateTrayLeds;
   if (FSettings = nil) or (not FSettings.WindowHidden) then
@@ -1170,7 +1148,7 @@ begin
   if PrimarySourceIsDisk then
     Result := FPipeline.State.DiskRWOn
   else
-    Result := FNetBlinkOn;
+    Result := FPipeline.State.NetBlinkOn;
 end;
 
 procedure TMainForm.ReloadTrayIcons;
@@ -1418,7 +1396,7 @@ begin
   begin
     EnsureTraySlot(1);
     if FPipeline <> nil then
-      UpdateTrayLed(1, FNetBlinkOn);
+      UpdateTrayLed(1, FPipeline.State.NetBlinkOn);
   end
   else
     HideTraySlot(1);
@@ -1925,15 +1903,15 @@ end;
 
 function TMainForm.HoverInfoText: string;
 var
-  CpuPct, MemPct, SwapPct: Integer;
-  DiskIo, NetIo: string;
+  CpuPct, MemPct: Integer;
+  SwapText, DiskIo, NetIo: string;
   PingLine: string;
   Snap: TMetricsSnapshot;
   Host: string;
 begin
   CpuPct := 0;
   MemPct := 0;
-  SwapPct := 0;
+  SwapText := '0%';
   DiskIo := FormatRateBps(0);
   NetIo := FormatNetRateBps(0);
   PingLine := 'Ping: ' + S('hover.ping_off');
@@ -1941,8 +1919,12 @@ begin
   begin
     CpuPct := Round(Clamp01(FPipeline.State.CpuDigit) * 100);
     MemPct := Round(Clamp01(FPipeline.State.MemDigit) * 100);
-    SwapPct := Round(Clamp01(FPipeline.State.SwapDigit) * 100);
     Snap := FPipeline.LastSnap;
+    { A total of 0 = page file usage unknown (or no page file). }
+    if Snap.SwapTotalBytes = 0 then
+      SwapText := #$2014
+    else
+      SwapText := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
     DiskIo := FormatRateBps(FPipeline.Rates.DiskReadBps + FPipeline.Rates.DiskWriteBps);
     NetIo := FormatNetRateBps(FPipeline.Rates.NetInBps + FPipeline.Rates.NetOutBps);
     Host := Trim(Snap.PingTarget);
@@ -1979,11 +1961,11 @@ begin
     'DiskLED %s%s'#13#10 +
     ' CPU: %d%%'#13#10 +
     ' MEM: %d%%'#13#10 +
-    ' SWP: %d%%'#13#10 +
+    ' SWP: %s'#13#10 +
     ' Disk: %s'#13#10 +
     ' Net: %s'#13#10 +
     ' %s',
-    [FVersionText, EditionSuffix, CpuPct, MemPct, SwapPct, DiskIo, NetIo, PingLine]);
+    [FVersionText, EditionSuffix, CpuPct, MemPct, SwapText, DiskIo, NetIo, PingLine]);
 end;
 
 procedure TMainForm.RefreshHoverText;

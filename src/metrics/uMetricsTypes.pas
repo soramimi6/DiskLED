@@ -135,6 +135,12 @@ type
     NetInOn: Boolean;
     NetOutOn: Boolean;
     NetActivityOn: Boolean;
+    { NetActivityOn / NetInOn / NetOutOn, but OFF for one frame when that
+      transfer rate drops (hub access lamp style). Drive the net LEDs: the
+      combined one (tray, NetActivity, NetTotal) and NetIn / NetOut. }
+    NetBlinkOn: Boolean;
+    NetInBlinkOn: Boolean;
+    NetOutBlinkOn: Boolean;
     PingLevel: TPingLevel;
     PingPending: Boolean;
   end;
@@ -253,9 +259,11 @@ begin
   if ABps <= 0 then
     Exit('0 Kbps');
   V := ABps * 8 / 1000;
-  if V < 1000 then
+  { Thresholds sit at the rounding point, so 999.7 Kbps reads 1.0 Mbps rather
+    than "1000 Kbps", and 99.97 reads "100" rather than "100.0". }
+  if V < 999.5 then
     UnitLabel := 'Kbps'
-  else if V < 1000 * 1000 then
+  else if V < 999.5 * 1000 then
   begin
     V := V / 1000;
     UnitLabel := 'Mbps';
@@ -265,7 +273,7 @@ begin
     V := V / (1000 * 1000);
     UnitLabel := 'Gbps';
   end;
-  if V >= 100 then
+  if V >= 99.95 then
     Result := Format('%.0f %s', [V, UnitLabel])
   else
     Result := Format('%.1f %s', [V, UnitLabel]);

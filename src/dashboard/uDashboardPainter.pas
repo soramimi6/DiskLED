@@ -507,15 +507,19 @@ end;
 
 function CpuClockText(const ASnap: TMetricsSnapshot): string;
 begin
-  if (ASnap.CpuCurrentMhz <= 0) and (ASnap.CpuMaxMhz <= 0) then
-    Result := #$2014
+  { CurrentMhz 0 = live clock unknown: show the base clock alone. }
+  if ASnap.CpuCurrentMhz <= 0 then
+  begin
+    if ASnap.CpuMaxMhz > 0 then
+      Result := Format('%.2f GHz', [ASnap.CpuMaxMhz / 1000.0])
+    else
+      Result := #$2014;
+  end
   else if (ASnap.CpuMaxMhz > 0) and (Abs(ASnap.CpuCurrentMhz - ASnap.CpuMaxMhz) >= 50) then
     Result := Format('%.2f / %.2f GHz',
       [ASnap.CpuCurrentMhz / 1000.0, ASnap.CpuMaxMhz / 1000.0])
-  else if ASnap.CpuCurrentMhz > 0 then
-    Result := Format('%.2f GHz', [ASnap.CpuCurrentMhz / 1000.0])
   else
-    Result := Format('%.2f GHz', [ASnap.CpuMaxMhz / 1000.0]);
+    Result := Format('%.2f GHz', [ASnap.CpuCurrentMhz / 1000.0]);
 end;
 
 procedure DrawCpuPanel(ACanvas: TCanvas; const ARect: TRect;

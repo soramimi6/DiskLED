@@ -1725,7 +1725,11 @@ begin
   FCards[0].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.CpuDigit) * 100)]);
   FCards[0].Value2 := Format('%d%%', [Round(Clamp01(FPipeline.State.GpuDigit) * 100)]);
   FCards[1].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.MemDigit) * 100)]);
-  FCards[2].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
+  { A total of 0 = page file usage unknown (or no page file), as disk latency. }
+  if FPipeline.LastSnap.SwapTotalBytes = 0 then
+    FCards[2].Value := #$2014
+  else
+    FCards[2].Value := Format('%d%%', [Round(Clamp01(FPipeline.State.SwapDigit) * 100)]);
   { One-second averages (as the hover text and Task Manager), not the last
     frame's rate, which swings with frame timing. }
   FCards[3].Value := FormatRateBps(FPipeline.Rates.DiskReadBps);

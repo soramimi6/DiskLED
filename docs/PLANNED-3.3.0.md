@@ -21,7 +21,7 @@
 | 13 | リモートデスクトップ接続中のダッシュボードのちらつき解消 | 完了 | 高（VCL のプロパティ指定のみ） | 低 | 0.5日 |
 | 14 | Ping 結果ウィンドウをダッシュボードの「Ping/経路」ページに統合（区間遅延のウォーターフォール） | 完了 | 高（ICMP は既存の `IcmpSendEcho` 系。事業者名は外部 DNS 依存。IPv6 の経路は `ipv6.google.com` で実機確認済み） | 高（経路計測の作り直し＋ページ描画＋旧ウィンドウ廃止） | 1.5〜2週間 |
 | 15 | ダッシュボードのドーナツグラフ内の値の縁取りをテーマ（ライト／ダーク）に連動 | 完了 | 高（縁取り色を固定値からパレットへ） | 低 | 0.5日 |
-| 16 | トレイのネット LED を、通信が続く間も転送量の減少に合わせて一瞬消灯させる（ハブのアクセスランプ風） | 完了 | 高（毎フレームの転送量は既に取得済み） | 低 | 0.5日 |
+| 16 | トレイとガジェットのネット LED を、通信が続く間も転送量の減少に合わせて一瞬消灯させる（ハブのアクセスランプ風） | 完了 | 高（毎フレームの転送量は既に取得済み） | 低 | 0.5日 |
 | 17 | 画面表示の用語・表記の統一（トレイのツールチップの「読み／書き」ほか） | 完了 | 高（文字列表の書き換えのみ） | 低 | 0.5日 |
 | 18 | ネット速度の表示単位をバイト（KB/s）からビット（Kbps、1000 区切り）へ変更 | 完了 | 高（表示関数の追加と呼び出し 2 か所の差し替え） | 低 | 0.5日 |
 | 19 | 計測値をタスクマネージャー等と揃える（ネットの重複計上、CPU 使用率・クロック、SWAP、スタンバイ、ディスク詳細・プロセス CPU の算出） | 完了 | 高（すべて一般権限の公式 API。この PC で値を照合済み） | 中（収集ユニット 6 本の修正） | 1.5日 |
@@ -361,7 +361,7 @@
 - 表示モードの3択（ウィンドウのみ／ウィンドウ＋トレイ LED／トレイ LED のみ）は `FMiWindowOnly`／`FMiWindowTrayLed`／`FMiTrayOnly`（グループ 4、[uMainForm.pas:681-702](../src/uMainForm.pas#L681)）。切替は `miWindowOnlyClick`（[uMainForm.pas:1219](../src/uMainForm.pas#L1219)）・`SetWindowTrayState`（[uMainForm.pas:1541](../src/uMainForm.pas#L1541)）・`EnterTrayOnly`（[uMainForm.pas:1560](../src/uMainForm.pas#L1560)）。
 - 表示倍率は `FMiScale` の子項目（自動／100／150／200%、[uMainForm.pas:708-716](../src/uMainForm.pas#L708)）。`miScaleClick`（[uMainForm.pas:1234](../src/uMainForm.pas#L1234)）が即時に `FSettings.Scale` を書き、`ApplyDpiScale`（[uMainForm.pas:811](../src/uMainForm.pas#L811)）・再配置・`PersistSettings` まで行う。
 - 外した後も落ちないよう、項目の同期処理には既に nil ガードがある（`FMiWindowTrayLed` は [uMainForm.pas:1031](../src/uMainForm.pas#L1031)、`FMiScale` は `SyncScaleMenu` の [uMainForm.pas:1058](../src/uMainForm.pas#L1058)）。
-- 着手前の後半の順は「ダッシュボード → Ping結果表示 → オプション → 位置をリセット → 区切り → 更新（`FMiUpdate`、通常は非表示）→ 終了」（[uMainForm.pas:718-751](../src/uMainForm.pas#L718)）。「Ping結果表示」は項目14 でメニューから外した。
+- 着手前の後半の順は「ダッシュボード → Ping結果表示 → オプション → 位置をリセット → 区切り → 更新（`FMiUpdate`、通常は非表示）→ 終了」（[uMainForm.pas:718-751](../src/uMainForm.pas#L718)）。
 - オプション画面の「全般」タブ（[uOptionsForm.dfm:30](../src/uOptionsForm.dfm#L30)）には「ウィンドウ」カード（`CardWindow`、キャプション `opt.group.window`、[uAppStrings.pas:97](../src/uAppStrings.pas#L97)）がある。「表示」タブ（[uOptionsForm.dfm:128](../src/uOptionsForm.dfm#L128)）には `CardFps`・`CardScale` があるが、`CardScale` は「ネット速度の反応」（`SpeedScale`）であり表示倍率とは別物。
 - オプションの確定は `BtnOkClick`（[uOptionsForm.pas:524](../src/uOptionsForm.pas#L524)）。
 - 表示モードや倍率の保存キー（`WindowHidden`／`TrayLed`／`Scale`）は既存のものをそのまま使い、**設定キーは増やさない**。
@@ -590,31 +590,39 @@
 
 0.5 日（色の追加と置き換えは数行。ライトでの見え方の調整が中心）。
 
-## 16. トレイのネット LED にアクセスランプ風のちらつきを付ける（完了）
+## 16. ネット LED にアクセスランプ風のちらつきを付ける（完了）
 
-ネットの通信が続いている間、トレイのネット LED は点灯したままになり、データが流れている感じが出ない。イーサネットハブのアクセスランプのように、通信中も不規則に一瞬消える表示にする。
+ネットの通信が続いている間、ネット LED は点灯したままになり、データが流れている感じが出ない。イーサネットハブのアクセスランプのように、通信中も不規則に一瞬消える表示にする。対象はトレイとガジェットの両方。
 
 ### 現状（実ソース確認済み）
 
-- ネットの活動判定は受信・送信どちらかが閾値を超えたかどうかの真偽値（[uDisplayPipeline.pas:343-345](../src/metrics/uDisplayPipeline.pas#L343)）。トレイはこれをそのまま点灯・消灯に使うため、通信が続く間は点灯し続ける。
-- ネットの転送量（`NetInBps`／`NetOutBps`）は描画フレームごとに前回の取得からの差分で求めている（[uNetCollector.pas:516](../src/metrics/uNetCollector.pas#L516)、`Sample` から毎回呼ばれる [uNetCollector.pas:602](../src/metrics/uNetCollector.pas#L602)）。1 秒平均ではなくフレーム単位の値なので、フレーム間の増減を比べられる。
-- フレームの処理は `TimerTick`（[uMainForm.pas:1003](../src/uMainForm.pas#L1003)。間隔は fps 設定、既定 15fps）。
+- ネットの活動判定は受信・送信どちらかが閾値を超えたかどうかの真偽値（`NetActivityOn`、[uDisplayPipeline.pas:356-358](../src/metrics/uDisplayPipeline.pas#L356)）。
+- ネットの転送量（`NetInBps`／`NetOutBps`）は描画フレームごとに前回の取得からの差分で求めている（[uNetCollector.pas:599-604](../src/metrics/uNetCollector.pas#L599)、`Sample` から毎回呼ばれる `SampleFromEntries`、[uNetCollector.pas:562](../src/metrics/uNetCollector.pas#L562)）。1 秒平均ではなくフレーム単位の値なので、フレーム間の増減を比べられる。
+- フレームの処理は `TimerTick`（[uMainForm.pas:997](../src/uMainForm.pas#L997)。間隔は fps 設定、既定 15fps）が `TDisplayPipeline.Update` を呼ぶ。
 
 ### 方針
 
-- `TimerTick` で毎フレーム、受信＋送信の合計転送量を前フレームと比べ、トレイのネット LED の状態（`FNetBlinkOn`、[uMainForm.pas:101](../src/uMainForm.pas#L101)）を決める（[uMainForm.pas:1074-1086](../src/uMainForm.pas#L1074)）。
+- `TDisplayPipeline.Update` で毎フレーム、転送量を前フレームと比べて LED の表示状態を決める（判定は `NextBlink`、[uDisplayPipeline.pas:307](../src/metrics/uDisplayPipeline.pas#L307)。呼び出しは [uDisplayPipeline.pas:378-384](../src/metrics/uDisplayPipeline.pas#L378)）。表示状態は 3 つ（[uMetricsTypes.pas:141-143](../src/metrics/uMetricsTypes.pas#L141)）:
+  - `NetBlinkOn`: 受信＋送信の合計。
+  - `NetInBlinkOn`／`NetOutBlinkOn`: 受信・送信それぞれ。
+- 判定は 3 つとも同じ:
   - 活動していなければ消灯。
-  - 活動中は点灯。ただし前フレームより 10% 以上減ったフレームは 1 フレームだけ消灯する（しきい値は定数 `CNetBlinkDropRatio`、[uMainForm.pas:1005](../src/uMainForm.pas#L1005)）。
+  - 活動中は点灯。ただし前フレームより 10% 以上減ったフレームは 1 フレームだけ消灯する（しきい値は定数 `CNetBlinkDropRatio`、[uDisplayPipeline.pas:96](../src/metrics/uDisplayPipeline.pas#L96)）。
   - 消灯した次のフレームは必ず点灯に戻す（消灯が 2 フレーム続かない）。
 - 一定周期の点滅にはしない（同じペースの点滅は機械的に見えるため）。小さな揺れで消えすぎないよう、しきい値で絞る。
-- 対象はトレイのネット LED のみ。1 個目がネットのとき（[uMainForm.pas:1165-1173](../src/uMainForm.pas#L1165)）と 2 個目（[uMainForm.pas:1421](../src/uMainForm.pas#L1421)）。ウィンドウ側の LED（[uMeterRenderer.pas:232](../src/view/uMeterRenderer.pas#L232)）とディスクの LED は変えない。
-- 公開文書（リリース時）: `public_docs/USAGE.md`・`FEATURES.md`（JA/EN）のトレイ LED の説明に、通信中のちらつき表示を書き足す。
+- 使う LED:
+  - トレイ（`NetBlinkOn`）: 1 個目がネットのとき（[uMainForm.pas:1143-1151](../src/uMainForm.pas#L1143)）と 2 個目（[uMainForm.pas:1399](../src/uMainForm.pas#L1399)）。
+  - ガジェットの `NetActivity`・`NetTotal`（`NetBlinkOn`）、`NetIn`（`NetInBlinkOn`）、`NetOut`（`NetOutBlinkOn`）（[uMeterRenderer.pas:232-235](../src/view/uMeterRenderer.pas#L232)）。再描画の判定（[uMeterRenderer.pas:99-102](../src/view/uMeterRenderer.pas#L99)）も同じ値を見る。
+- ディスクの LED は変えない。
+- 公開文書（リリース時）: `public_docs/USAGE.md`・`FEATURES.md`（JA/EN）の LED の説明に、通信中のちらつき表示を書き足す。
 
 ### 実機で見ること（実装時。Win64 Release を IDE でビルド）
 
 - ダウンロードや動画再生など通信が続く状態で、トレイのネット LED が点灯を基本に不規則に一瞬消え、データが流れている感じに見えること。
 - 通信が止まると消灯すること。
 - ディスクとネットを両方表示した場合（2 個目）と、ネットのみ表示した場合（1 個目）の両方で同じ動きになること。
+- ガジェット（ネットの LED を持つスキン）の合計のネット LED が、トレイと同じタイミングでちらつくこと。
+- 受信・送信別の LED を持つスキンでは、受信・送信それぞれの LED が、その向きの通信量に合わせて別々にちらつくこと。
 
 ### 見積り
 
@@ -622,7 +630,7 @@
 
 ## 17. 画面表示の用語・表記の統一（完了）
 
-同じものを指す言葉や表記が画面によって違う箇所を、文字列表（`src/uAppStrings.pas`）で揃える。画面上の文字はすべてこの表から出ており、他のソースに日本語の表示文字列は無い（トレイのホバー表示の `CPU:`／`Disk:` などは 128 文字制限のため英字固定。[uMainForm.pas:1975-1977](../src/uMainForm.pas#L1975)）。
+同じものを指す言葉や表記が画面によって違う箇所を、文字列表（`src/uAppStrings.pas`）で揃える。画面上の文字はすべてこの表から出ており、他のソースに日本語の表示文字列は無い（トレイのホバー表示の `CPU:`／`Disk:` などは 128 文字制限のため英字固定。[uMainForm.pas:1957-1959](../src/uMainForm.pas#L1957)）。
 
 ### 揃える基準
 
@@ -676,23 +684,23 @@
 
 ## 18. ネット速度の表示単位をビット（Kbps）に変更（完了）
 
-ネットの転送速度をバイト単位（`KB/s`・`MB/s`、1024 区切り）で出しているのを、Windows 標準のタスクマネージャーと同じビット単位（`Kbps`・`Mbps`・`Gbps`、1000 区切り）に揃える。ネットの速度はビットで表すのが一般的で、リンク速度の表示（[uMetricsTypes.pas:325-338](../src/metrics/uMetricsTypes.pas#L325)）も既に `Mbps`／`Gbps`。
+ネットの転送速度をバイト単位（`KB/s`・`MB/s`、1024 区切り）で出しているのを、Windows 標準のタスクマネージャーと同じビット単位（`Kbps`・`Mbps`・`Gbps`、1000 区切り）に揃える。ネットの速度はビットで表すのが一般的で、リンク速度の表示（[uMetricsTypes.pas:332](../src/metrics/uMetricsTypes.pas#L332)）も既に `Mbps`／`Gbps`。
 
 ### 現状（実ソース確認済み）
 
-- 速度の表示はディスク・ネット・プロセスの I/O で共通の `FormatRateBps`（[uMetricsTypes.pas:211](../src/metrics/uMetricsTypes.pas#L211)。`B/s`〜`GB/s`、1024 区切り）を使っている。
-- ネットの速度を出しているのは、ダッシュボード概要のネットカードの受信・送信（[uDashboardForm.pas:1733-1734](../src/dashboard/uDashboardForm.pas#L1733)）と、ガジェットのホバー表示の `Net:` 行（[uMainForm.pas:1938](../src/uMainForm.pas#L1938)、[uMainForm.pas:1947](../src/uMainForm.pas#L1947)）。ホバー表示の文字列はトレイのツールチップにもそのまま使う（[uMainForm.pas:2006-2008](../src/uMainForm.pas#L2006)）。
+- 速度の表示はディスク・ネット・プロセスの I/O で共通の `FormatRateBps`（[uMetricsTypes.pas:216](../src/metrics/uMetricsTypes.pas#L216)。`B/s`〜`GB/s`、1024 区切り）を使っている。
+- ネットの速度を出しているのは、ダッシュボード概要のネットカードの受信・送信（[uDashboardForm.pas:1737-1738](../src/dashboard/uDashboardForm.pas#L1737)）と、ガジェットのホバー表示の `Net:` 行（[uMainForm.pas:1916](../src/uMainForm.pas#L1916)、[uMainForm.pas:1929](../src/uMainForm.pas#L1929)）。ホバー表示の文字列はトレイのツールチップにもそのまま使う（[uMainForm.pas:1987-1990](../src/uMainForm.pas#L1987)）。
 
 ### 方針
 
-- ネット専用の `FormatNetRateBps`（[uMetricsTypes.pas:247](../src/metrics/uMetricsTypes.pas#L247)）を追加し、上の 2 か所だけ差し替える。入力はこれまでどおり Byte/s で、関数の中で 8 倍してビットにする。
-- 表記はタスクマネージャーに合わせる: 最小単位は `Kbps`（0 は `0 Kbps`）、1000 で `Mbps`・`Gbps` に上がる。100 未満は小数 1 桁（`8.0 Kbps`）、100 以上は整数（`176 Kbps`）。
+- ネット専用の `FormatNetRateBps`（[uMetricsTypes.pas:252](../src/metrics/uMetricsTypes.pas#L252)）を追加し、上の 2 か所だけ差し替える。入力はこれまでどおり Byte/s で、関数の中で 8 倍してビットにする。
+- 表記はタスクマネージャーに合わせる: 最小単位は `Kbps`（0 は `0 Kbps`）、1000 で `Mbps`・`Gbps` に上がる。100 未満は小数 1 桁（`8.0 Kbps`）、100 以上は整数（`176 Kbps`）。単位と桁の切り替えは丸めた後の値で判断し、`1000 Kbps`・`100.0 Mbps` のような表記は出さない。
 - 内部の値（`NetInBps` 等）は Byte/s のまま。メーターの正規化（`uRangeEngine.pas`）・LED の点灯判定（`CNoiseFloorBps`）・トレイのちらつき判定（項目16）は単位に依存しないため変えない。
 
 ### 変えないもの
 
 - ディスクの速度（ダッシュボード・ホバー表示・トレイのドライブ別ツールチップ）とプロセスページの I/O 列は `FormatRateBps` のまま。プロセスの I/O はディスク以外も含む読み書き量で、ネット速度ではない。
-- ヘッダーのネット累計（`FormatBytesGiB`、[uDashboardForm.pas:1804-1805](../src/dashboard/uDashboardForm.pas#L1804)）は速度ではなく量なのでバイト（GB）のまま。
+- ヘッダーのネット累計（`FormatBytesGiB`、[uDashboardForm.pas:1807-1809](../src/dashboard/uDashboardForm.pas#L1807)）は速度ではなく量なのでバイト（GB）のまま。
 
 ### 公開文書（リリース時）
 
@@ -720,13 +728,13 @@
 | ネット速度・ネット累計・ネットのメーター | `GetIfTable` がアダプターに付く NDIS フィルター（WFP Native MAC・QoS Packet Scheduler・WFP 802.3 MAC）を、同じ通信量を持つ別の行として返し、それを合計していた | 有線 1 枚が 4 行に数えられ、ちょうど 4 倍（実 1.6 Gbps → 表示 6.3 Gbps） | `GetIfEntry2` のフラグでフィルター行を除外（[uNetCollector.pas:306](../src/metrics/uNetCollector.pas#L306)、[uNetCollector.pas:505](../src/metrics/uNetCollector.pas#L505)）。アダプター一覧の表示からも外れる |
 | リンク速度（アダプター一覧・ネットメーターの基準） | 32bit の `dwSpeed` を使っていたため 4.29 Gbps で頭打ち。未接続のアダプターの定格もメーターの基準に入っていた | 10GbE の仮想アダプターが 4294 Mbps | `GetIfEntry2` の 64bit 値を使い、基準は接続中のアダプターの最大値（[uNetCollector.pas:526](../src/metrics/uNetCollector.pas#L526)） |
 | ネットの取りこぼし | 前回と同じ時刻（経過 0）のサンプルで、基準値だけ更新して転送量を捨てていた | — | 経過 0 のサンプルは基準値を更新しない（[uNetCollector.pas:583](../src/metrics/uNetCollector.pas#L583)） |
-| CPU 使用率 | `GetSystemTimes` の稼働時間。タスクマネージャーはクロックを加味したプロセッサ使用率（`% Processor Utility`）を出す | 1 秒平均で DiskLED 8.7% に対しタスクマネージャー 13% 前後 | PDH `% Processor Utility` に変更（[uCpuCollector.pas:321](../src/metrics/uCpuCollector.pas#L321)）。User / Kernel の内訳は合計が使用率と一致するよう換算 |
-| CPU 使用率の数値 | 数値はメーター針（上昇は速く下降は遅い）の、1 秒ごとのその瞬間の位置。1 フレーム（約 60 ms）の値を拾うため揺れ、高めに出る | — | 直近 1 秒の平均（`CpuUsageAvg`）を数値に使う（[uCpuCollector.pas:360](../src/metrics/uCpuCollector.pas#L360)、[uDisplayPipeline.pas:238](../src/metrics/uDisplayPipeline.pas#L238)）。メーターは従来どおりフレームごと |
-| CPU クロック | `CallNtPowerInformation` の CurrentMhz の平均。現在の Windows では各コアの定格を返すだけで、実クロックではない | 常に 2.93 GHz（P コア 3.2 GHz と E コア 2.4 GHz の定格平均）。タスクマネージャー方式では 3.85 GHz | PDH `% Processor Performance` × `Processor Frequency`（[uCpuCollector.pas:395](../src/metrics/uCpuCollector.pas#L395)） |
-| SWAP | `GlobalMemoryStatusEx` のページファイル欄を使っていたが、これはコミット（＝ダッシュボードの「コミット」欄と同じ数字） | SWAP 49%（33.2/67.7 GB）に対し、実際のページファイル使用率は 3.2%（132/4,096 MB） | PDH `Paging File(_Total)\% Usage` の生値（使用中／サイズ）に変更（[uMemCollector.pas:242](../src/metrics/uMemCollector.pas#L242)） |
-| メモリのスタンバイ | `GetPerformanceInfo` の SystemCache（システムのワーキングセットを含み、スタンバイリストとは別物） | 14.6 GB に対し実際のスタンバイは 16.1 GB | PDH `Memory\Standby Cache *` の合計（[uMemCollector.pas:237](../src/metrics/uMemCollector.pas#L237)）。空き（＝利用可能−スタンバイ）も正しくなる |
-| ディスクのキュー・IOPS・アクティブ時間・レイテンシ | 1 フレーム（約 60 ms）の値。キューは瞬間値 | — | 別のクエリで 1 秒ごとに取り、1 秒の平均に（[uDiskCollector.pas:256](../src/metrics/uDiskCollector.pas#L256)）。キューは `Avg. Disk Queue Length`（[uDiskCollector.pas:173](../src/metrics/uDiskCollector.pas#L173)） |
-| ダッシュボードのディスク・ネットの速度 | 1 フレームの値をそのまま表示 | — | ホバー表示と同じ 1 秒平均（[uDashboardForm.pas:1731](../src/dashboard/uDashboardForm.pas#L1731)） |
+| CPU 使用率 | `GetSystemTimes` の稼働時間。タスクマネージャーはクロックを加味したプロセッサ使用率（`% Processor Utility`）を出す | 1 秒平均で DiskLED 8.7% に対しタスクマネージャー 13% 前後 | PDH `% Processor Utility` に変更（[uCpuCollector.pas:83](../src/metrics/uCpuCollector.pas#L83)、[uCpuCollector.pas:329](../src/metrics/uCpuCollector.pas#L329)）。User / Kernel の内訳は合計が使用率と一致するよう換算 |
+| CPU 使用率の数値 | 数値はメーター針（上昇は速く下降は遅い）の、1 秒ごとのその瞬間の位置。1 フレーム（約 60 ms）の値を拾うため揺れ、高めに出る | — | 直近 1 秒の平均（`CpuUsageAvg`）を数値に使う（[uCpuCollector.pas:362](../src/metrics/uCpuCollector.pas#L362)、[uDisplayPipeline.pas:243](../src/metrics/uDisplayPipeline.pas#L243)）。メーターは従来どおりフレームごと |
+| CPU クロック | `CallNtPowerInformation` の CurrentMhz の平均。現在の Windows では各コアの定格を返すだけで、実クロックではない | 常に 2.93 GHz（P コア 3.2 GHz と E コア 2.4 GHz の定格平均）。タスクマネージャー方式では 3.85 GHz | PDH `% Processor Performance` × `Processor Frequency`（[uCpuCollector.pas:397](../src/metrics/uCpuCollector.pas#L397)）。取れない間は定格だけを表示する（[uDashboardPainter.pas:510](../src/dashboard/uDashboardPainter.pas#L510)） |
+| SWAP | `GlobalMemoryStatusEx` のページファイル欄を使っていたが、これはコミット（＝ダッシュボードの「コミット」欄と同じ数字） | SWAP 49%（33.2/67.7 GB）に対し、実際のページファイル使用率は 3.2%（132/4,096 MB） | PDH `Paging File(_Total)\% Usage` の生値（使用中／サイズ）に変更（[uMemCollector.pas:244](../src/metrics/uMemCollector.pas#L244)）。カウンタが取れない環境では、ダッシュボードの SWAP カードとホバー表示を「—」にする（ディスクのレイテンシと同じ扱い。[uDashboardForm.pas:1729](../src/dashboard/uDashboardForm.pas#L1729)） |
+| メモリのスタンバイ | `GetPerformanceInfo` の SystemCache（システムのワーキングセットを含み、スタンバイリストとは別物） | 14.6 GB に対し実際のスタンバイは 16.1 GB | PDH `Memory\Standby Cache *` の合計（[uMemCollector.pas:241](../src/metrics/uMemCollector.pas#L241)）。空き（＝利用可能−スタンバイ）も正しくなる |
+| ディスクのキュー・IOPS・アクティブ時間・レイテンシ | 1 フレーム（約 60 ms）の値。キューは瞬間値 | — | 別のクエリで 1 秒ごとに取り、1 秒の平均に（[uDiskCollector.pas:262](../src/metrics/uDiskCollector.pas#L262)）。キューは `Avg. Disk Queue Length`（[uDiskCollector.pas:179](../src/metrics/uDiskCollector.pas#L179)）。別のクエリを開けないときは読み書き速度と同じクエリに載せる（[uDiskCollector.pas:175](../src/metrics/uDiskCollector.pas#L175)） |
+| ダッシュボードのディスク・ネットの速度 | 1 フレームの値をそのまま表示 | — | ホバー表示と同じ 1 秒平均（[uDashboardForm.pas:1735](../src/dashboard/uDashboardForm.pas#L1735)） |
 | プロセス別 CPU | Process V2 の `% Processor Time`（稼働時間）。タスクマネージャーのプロセス一覧は使用率（全体の CPU と同じ基準） | — | 同じサンプル区間の全体の使用率／稼働時間の比で換算（[uProcessCollector.pas:788](../src/metrics/uProcessCollector.pas#L788)、[uProcessCollector.pas:884](../src/metrics/uProcessCollector.pas#L884)） |
 
 ### 問題が無かったもの

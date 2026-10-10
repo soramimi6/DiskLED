@@ -96,10 +96,10 @@ begin
   Result.DiskReadOn := VisibleLed(ALayout.DiskRead, AState.DiskReadOn);
   Result.DiskWriteOn := VisibleLed(ALayout.DiskWrite, AState.DiskWriteOn);
   Result.DiskRWOn := VisibleLed(ALayout.DiskRW, AState.DiskRWOn);
-  Result.NetInOn := VisibleLed(ALayout.NetIn, AState.NetInOn);
-  Result.NetOutOn := VisibleLed(ALayout.NetOut, AState.NetOutOn);
-  Result.NetActivityOn := VisibleLed(ALayout.NetActivity, AState.NetActivityOn) or
-    VisibleLed(ALayout.NetTotal, AState.NetActivityOn);
+  Result.NetInOn := VisibleLed(ALayout.NetIn, AState.NetInBlinkOn);
+  Result.NetOutOn := VisibleLed(ALayout.NetOut, AState.NetOutBlinkOn);
+  Result.NetActivityOn := VisibleLed(ALayout.NetActivity, AState.NetBlinkOn) or
+    VisibleLed(ALayout.NetTotal, AState.NetBlinkOn);
   if (ALayout.Ping.FileName <> '') and (ALayout.Ping.Frames > 0) then
     Result.PingLevel := AState.PingLevel
   else
@@ -229,10 +229,10 @@ begin
   DrawLed(ADest, ALayout, AAssets, ALayout.DiskRead, AState.DiskReadOn);
   DrawLed(ADest, ALayout, AAssets, ALayout.DiskWrite, AState.DiskWriteOn);
   DrawLed(ADest, ALayout, AAssets, ALayout.DiskRW, AState.DiskRWOn);
-  DrawLed(ADest, ALayout, AAssets, ALayout.NetActivity, AState.NetActivityOn);
-  DrawLed(ADest, ALayout, AAssets, ALayout.NetIn, AState.NetInOn);
-  DrawLed(ADest, ALayout, AAssets, ALayout.NetOut, AState.NetOutOn);
-  DrawLed(ADest, ALayout, AAssets, ALayout.NetTotal, AState.NetActivityOn);
+  DrawLed(ADest, ALayout, AAssets, ALayout.NetActivity, AState.NetBlinkOn);
+  DrawLed(ADest, ALayout, AAssets, ALayout.NetIn, AState.NetInBlinkOn);
+  DrawLed(ADest, ALayout, AAssets, ALayout.NetOut, AState.NetOutBlinkOn);
+  DrawLed(ADest, ALayout, AAssets, ALayout.NetTotal, AState.NetBlinkOn);
 
   DrawPing(ADest, ALayout, AAssets, ALayout.Ping, AState.PingLevel);
 
