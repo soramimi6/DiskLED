@@ -41,6 +41,12 @@ type
     FRatesWindowMs: Cardinal;
     FRatesTick: Cardinal;
     FHasRatesTick: Boolean;
+    FPrevNetBps: Double;
+    FPrevNetInBps: Double;
+    FPrevNetOutBps: Double;
+    FHasPrevNetBps: Boolean;
+    function NextBlink(AOn, AActive: Boolean; ABps: Double;
+      var APrevBps: Double): Boolean;
     function AttackTau(const AParams: TBallisticParams): Double;
     function FallSpeedOf(AKind: TBallisticKind): Double;
     function Follow(ACurrent, ATarget: Double; const AParams: TBallisticParams;
@@ -84,6 +90,10 @@ const
   CVuFallPerSec = 1.25;
   CBarFallPerSec = 2.0;
   CPeakFallPerSec = 0.77;
+
+  { A frame whose net transfer rate dropped by this ratio or more from the
+    previous frame turns its *BlinkOn LED OFF for that one frame. }
+  CNetBlinkDropRatio = 0.10;
 
 constructor TDisplayPipeline.Create;
 begin
@@ -291,6 +301,22 @@ begin
   FHasRatesTick := True;
 end;
 
+{ Net LED with an access-lamp flicker: ON while active, but a frame whose
+  transfer rate dropped from the previous frame goes OFF for that one frame
+  (the next frame is ON again). }
+function TDisplayPipeline.NextBlink(AOn, AActive: Boolean; ABps: Double;
+  var APrevBps: Double): Boolean;
+begin
+  if not AActive then
+    Result := False
+  else if AOn and FHasPrevNetBps and
+    (ABps <= APrevBps * (1.0 - CNetBlinkDropRatio)) then
+    Result := False
+  else
+    Result := True;
+  APrevBps := ABps;
+end;
+
 procedure TDisplayPipeline.Update(const ASnap: TMetricsSnapshot);
 var
   CpuT, GpuT, MemT, SwapT: Double;
@@ -349,6 +375,13 @@ begin
   FState.NetInOn := IsActiveBps(ASnap.NetInBps);
   FState.NetOutOn := IsActiveBps(ASnap.NetOutBps);
   FState.NetActivityOn := FState.NetInOn or FState.NetOutOn;
+  FState.NetBlinkOn := NextBlink(FState.NetBlinkOn, FState.NetActivityOn,
+    ASnap.NetInBps + ASnap.NetOutBps, FPrevNetBps);
+  FState.NetInBlinkOn := NextBlink(FState.NetInBlinkOn, FState.NetInOn,
+    ASnap.NetInBps, FPrevNetInBps);
+  FState.NetOutBlinkOn := NextBlink(FState.NetOutBlinkOn, FState.NetOutOn,
+    ASnap.NetOutBps, FPrevNetOutBps);
+  FHasPrevNetBps := True;
   FState.PingPending := ASnap.PingPending;
   { Ping level is discrete — no smoothing; keep prior while pending. }
   if not ASnap.PingPending then

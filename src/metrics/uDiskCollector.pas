@@ -128,6 +128,8 @@ begin
 end;
 
 function TDiskCollector.InitPdh: Boolean;
+var
+  StatQuery: THandle;
 begin
   Result := False;
   FQuery := 0;
@@ -163,26 +165,30 @@ begin
     ClosePdh;
     Exit;
   end;
+  { Without a second query the stats ride on the per-frame one: still read once
+    a second, but averaged over the last frame only. }
   if PdhOpenQueryW(nil, 0, FStatQuery) <> 0 then
-    FStatQuery := 0
+    FStatQuery := 0;
+  if FStatQuery <> 0 then
+    StatQuery := FStatQuery
   else
-  begin
-    { Average queue length over the second, not the instantaneous count. }
-    FPdhQueueOk :=
-      (PdhAddEnglishCounterW(FStatQuery,
-        '\PhysicalDisk(_Total)\Avg. Disk Queue Length', 0, FQueueCounter) = 0) and
-      (PdhAddEnglishCounterW(FStatQuery,
-        '\PhysicalDisk(_Total)\Disk Reads/sec', 0, FReadIopsCounter) = 0) and
-      (PdhAddEnglishCounterW(FStatQuery,
-        '\PhysicalDisk(_Total)\Disk Writes/sec', 0, FWriteIopsCounter) = 0);
-    FPdhIdleOk := PdhAddEnglishCounterW(FStatQuery,
-      '\PhysicalDisk(_Total)\% Idle Time', 0, FIdleCounter) = 0;
-    FPdhLatencyOk := PdhAddEnglishCounterW(FStatQuery,
-      '\PhysicalDisk(_Total)\Avg. Disk sec/Transfer', 0, FLatencyCounter) = 0;
+    StatQuery := FQuery;
+  { Average queue length over the second, not the instantaneous count. }
+  FPdhQueueOk :=
+    (PdhAddEnglishCounterW(StatQuery,
+      '\PhysicalDisk(_Total)\Avg. Disk Queue Length', 0, FQueueCounter) = 0) and
+    (PdhAddEnglishCounterW(StatQuery,
+      '\PhysicalDisk(_Total)\Disk Reads/sec', 0, FReadIopsCounter) = 0) and
+    (PdhAddEnglishCounterW(StatQuery,
+      '\PhysicalDisk(_Total)\Disk Writes/sec', 0, FWriteIopsCounter) = 0);
+  FPdhIdleOk := PdhAddEnglishCounterW(StatQuery,
+    '\PhysicalDisk(_Total)\% Idle Time', 0, FIdleCounter) = 0;
+  FPdhLatencyOk := PdhAddEnglishCounterW(StatQuery,
+    '\PhysicalDisk(_Total)\Avg. Disk sec/Transfer', 0, FLatencyCounter) = 0;
+  if FStatQuery <> 0 then
     PdhCollectQueryData(FStatQuery);
-    FStatTick := GetTickCount;
-    FHasStatTick := True;
-  end;
+  FStatTick := GetTickCount;
+  FHasStatTick := True;
   { First collect establishes a baseline; values are valid from the second call. }
   PdhCollectQueryData(FQuery);
   FPdhReady := False;
@@ -253,11 +259,12 @@ begin
   FLastReadBps := AReadBps;
   FLastWriteBps := AWriteBps;
   Result := True;
-  if (FStatQuery = 0) or (FHasStatTick and (GetTickCount - FStatTick < CStatIntervalMs)) then
+  if FHasStatTick and (GetTickCount - FStatTick < CStatIntervalMs) then
     Exit;
   FStatTick := GetTickCount;
   FHasStatTick := True;
-  if PdhCollectQueryData(FStatQuery) <> 0 then
+  { No second query: the stat counters were collected with FQuery above. }
+  if (FStatQuery <> 0) and (PdhCollectQueryData(FStatQuery) <> 0) then
     Exit;
   if FPdhQueueOk then
   begin

@@ -5,7 +5,8 @@ unit uMemCollector;
   - SWAP is page file usage (in use / size of all page files), from PDH
     "\Paging File(_Total)\% Usage": its raw value carries both, in pages.
     GlobalMemoryStatusEx's "page file" fields are the commit charge and
-    limit, not the page file, so they are not used for SWAP.
+    limit, not the page file, so they are not used for SWAP. Without the
+    counter, SWAP stays 0 with a total of 0, which the UI shows as unknown.
   - Standby is the standby list, from PDH "\Memory\Standby Cache *" (Task
     Manager's "Cached" is this plus the small modified list).
     GetPerformanceInfo's SystemCache is the fallback: it counts the system
@@ -183,13 +184,16 @@ begin
     end;
   end;
 
-  { CStatus 0 / 1 = valid / new data; no page file leaves the instance invalid. }
-  if (FPageFile <> 0) and (PdhGetRawCounterValue(FPageFile, nil, Raw) = 0) and
-    (Raw.CStatus <= 1) and (Raw.FirstValue >= 0) and (Raw.SecondValue >= 0) then
+  { CStatus 0 / 1 = valid / new data; no page file leaves the instance invalid.
+    An invalid read drops the last values, so SWAP shows "unknown" rather than
+    a stale figure. }
+  FHasPageFile := (FPageFile <> 0) and
+    (PdhGetRawCounterValue(FPageFile, nil, Raw) = 0) and
+    (Raw.CStatus <= 1) and (Raw.FirstValue >= 0) and (Raw.SecondValue >= 0);
+  if FHasPageFile then
   begin
     FPageUsedPages := UInt64(Raw.FirstValue);
     FPageTotalPages := UInt64(Raw.SecondValue);
-    FHasPageFile := True;
   end;
 end;
 

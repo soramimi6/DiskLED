@@ -170,7 +170,7 @@ object OptionsForm: TOptionsForm
         Height = 128
         BevelOuter = bvNone
         Color = clWhite
-        TabOrder = 2
+        TabOrder = 0
         object LblSecFps: TLabel
           Left = 20
           Top = 12
@@ -266,7 +266,7 @@ object OptionsForm: TOptionsForm
         Height = 96
         BevelOuter = bvNone
         Color = clWhite
-        TabOrder = 0
+        TabOrder = 1
         object LblSecScale: TLabel
           Left = 20
           Top = 12
@@ -306,7 +306,7 @@ object OptionsForm: TOptionsForm
         Height = 96
         BevelOuter = bvNone
         Color = clWhite
-        TabOrder = 1
+        TabOrder = 2
         object LblSecDisplayScale: TLabel
           Left = 20
           Top = 12
