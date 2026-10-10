@@ -392,7 +392,7 @@ end;
 
 function GetProductVersionText: string;
 const
-  CFallback = '3.2.0';
+  CFallback = '3.3.0';
 var
   Path: string;
   Size: DWORD;
