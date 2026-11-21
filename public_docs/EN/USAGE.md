@@ -141,7 +141,7 @@ Right-click **Options** (Japanese UI: **オプション**). Confirm with **Apply
 | Item | Effect |
 |------|--------|
 | Always on top | Gadget window only (on by default). Does not apply to the dashboard |
-| Run at Windows startup | Starts at logon. The GitHub edition writes the Run key on Apply and on a normal exit. The Microsoft Store edition uses Windows' startup task mechanism (`windows.startupTask`); if it has been disabled from outside the app (Windows Startup Apps settings or policy), the checkbox becomes read-only and shows that state |
+| Run at Windows startup | Starts at logon. The GitHub edition writes the Run key on Apply and on a normal exit. The Microsoft Store edition uses Windows' startup task mechanism (`windows.startupTask`); if it has been disabled from outside the app (Windows Startup Apps settings or policy), the checkbox becomes read-only and shows that state. On the first run after an upgrade, asks whether to turn it on if it is off (portable zip and Store edition; 3.3.1) |
 | Check for a new version at startup | One GitHub Latest lookup after launch (on by default). Off skips the request and hides the menu item. Not shown on the Microsoft Store build, which updates automatically via the Store. **Do not run the Store edition and the GitHub edition (installer/zip) side by side** |
 | Language | Auto (default) / Japanese / English. **Takes effect on the next launch** |
 | Display mode | Window Only (default) / Window + Tray LED / Tray LED Only. See [Task Tray](#task-tray) |

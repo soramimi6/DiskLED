@@ -4,6 +4,14 @@
 
 Newest first. User-facing summary only; implementation detail lives in `docs/DESIGN.md`.
 
+## 3.3.1
+
+Update for DiskLED 3.x on Windows 10 / 11 (64-bit).
+
+- **Asks whether to start with Windows on the first run after an upgrade**. Shown only while "Run at Windows startup" is off: "Start DiskLED automatically when Windows starts?" (with "Don't show this again"). Applies to the portable zip and the Microsoft Store edition; it is not shown for the installer edition, a fresh install, or when starting in Tray LED Only
+- **Drive letters on per-drive tray LEDs are readable in light mode too**: the letter now sits on a dark plate
+- Fixed the jagged edge of the LED circle on per-drive tray LEDs
+
 ## 3.3.0
 
 **If you are updating from 3.2.0 or earlier**: "View Trace Route" has been removed from the right-click menu. The route now lives on the dashboard's "Ping / Route" tab (clicking the Ping box on the Overview page also opens it). "Window Only / Window + Tray LED / Tray LED Only" moved from the right-click menu to the General tab in Options, and "Display Scale" moved to the Display tab.
