@@ -120,6 +120,8 @@ type
     FOptionsOpen: Boolean;
     { Same as FOptionsOpen, for the post-upgrade startup prompt. }
     FStartupPromptOpen: Boolean;
+    { The prompt's own window while it is on screen, else 0. }
+    FStartupPromptWnd: HWND;
     FMiUpdate: TMenuItem;
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
@@ -218,6 +220,7 @@ type
     procedure MaybeScheduleStartupPrompt;
     procedure WMAppStartupPrompt(var Message: TMessage); message WM_APP_STARTUP_PROMPT;
     procedure StartupPromptConstructed(Sender: TObject);
+    procedure RaiseStartupPrompt;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -503,6 +506,7 @@ begin
   Dlg := (Sender as TTaskDialog).Handle;
   if Dlg = 0 then
     Exit;
+  FStartupPromptWnd := Dlg;
   Work := WorkAreaForWindow(Handle);
   for Pass := 1 to 2 do
   begin
@@ -524,51 +528,67 @@ begin
   Message.Result := 0;
   if (FSettings = nil) or FClosing or FSettings.WindowHidden then
     Exit;
+  { Set before QueryState: on the Store build it pumps messages while the
+    WinRT read is pending, and the tray menu's Exit/Options must already be
+    held off then. }
+  FStartupPromptOpen := True;
   try
-    TStartup.QueryState(Registered, Blocked, Unknown);
-  except
-    Exit;
-  end;
-  if Registered or Blocked or Unknown then
-    Exit;
-
-  Yes := False;
-  Dlg := TTaskDialog.Create(nil);
-  try
-    Dlg.Caption := 'DiskLED';
-    Dlg.Title := S('startup_prompt.main');
-    Dlg.Text := S('startup_prompt.content');
-    Dlg.MainIcon := tdiInformation;
-    Dlg.CommonButtons := [tcbYes, tcbNo];
-    Dlg.DefaultButton := tcbYes;
-    Dlg.VerificationText := S('startup_prompt.dont_show');
-    { Closing with [x] / Esc counts as "No". }
-    Dlg.Flags := [tfAllowDialogCancellation];
-    Dlg.OnDialogConstructed := StartupPromptConstructed;
-    FStartupPromptOpen := True;
     try
-      Yes := Dlg.Execute(Handle) and (Dlg.ModalResult = mrYes);
-    finally
-      FStartupPromptOpen := False;
-    end;
-    if tfVerificationFlagChecked in Dlg.Flags then
-      FSettings.StartupPromptDisabled := True;
-  finally
-    Dlg.Free;
-  end;
-
-  if Yes then
-    try
-      { Store build: a first enable may raise Windows' own consent prompt
-        after this returns (see StoreSetRegistered). Off Store, Startup must
-        follow or ApplyStartupRegistration would remove the key at exit. }
-      TStartup.SetRegistered(True);
-      FSettings.Startup := True;
+      TStartup.QueryState(Registered, Blocked, Unknown);
     except
-      on E: Exception do
-        MessageBox(Handle, PChar(E.Message), 'DiskLED', MB_OK or MB_ICONWARNING);
+      Exit;
     end;
-  PersistSettings;
+    if Registered or Blocked or Unknown then
+      Exit;
+
+    Yes := False;
+    Dlg := TTaskDialog.Create(nil);
+    try
+      Dlg.Caption := 'DiskLED';
+      Dlg.Title := S('startup_prompt.main');
+      Dlg.Text := S('startup_prompt.content');
+      Dlg.MainIcon := tdiInformation;
+      Dlg.CommonButtons := [tcbYes, tcbNo];
+      Dlg.DefaultButton := tcbYes;
+      Dlg.VerificationText := S('startup_prompt.dont_show');
+      { Closing with [x] / Esc counts as "No". }
+      Dlg.Flags := [tfAllowDialogCancellation];
+      Dlg.OnDialogConstructed := StartupPromptConstructed;
+      try
+        Yes := Dlg.Execute(Handle) and (Dlg.ModalResult = mrYes);
+      finally
+        FStartupPromptWnd := 0;
+      end;
+      if tfVerificationFlagChecked in Dlg.Flags then
+        FSettings.StartupPromptDisabled := True;
+    finally
+      Dlg.Free;
+    end;
+
+    if Yes then
+      try
+        { Store build: a first enable may raise Windows' own consent prompt
+          after this returns (see StoreSetRegistered). Off Store, Startup must
+          follow or ApplyStartupRegistration would remove the key at exit. }
+        TStartup.SetRegistered(True);
+        FSettings.Startup := True;
+      except
+        on E: Exception do
+          MessageBox(Handle, PChar(E.Message), 'DiskLED', MB_OK or MB_ICONWARNING);
+      end;
+    PersistSettings;
+  finally
+    FStartupPromptOpen := False;
+  end;
+end;
+
+{ Tray menu Exit/Options while the startup prompt is up: they are held off
+  until it is answered, so bring it forward instead of seeming to ignore the
+  click (it may have opened behind other windows). }
+procedure TMainForm.RaiseStartupPrompt;
+begin
+  if FStartupPromptWnd <> 0 then
+    SetForegroundWindow(FStartupPromptWnd);
 end;
 
 procedure TMainForm.FormShow(Sender: TObject);
@@ -1654,7 +1674,12 @@ var
 begin
   { The startup prompt disables only the main form; the tray menu still
     works. Options would race the prompt's own write of the startup state. }
-  if (FSettings = nil) or FStartupPromptOpen then
+  if FStartupPromptOpen then
+  begin
+    RaiseStartupPrompt;
+    Exit;
+  end;
+  if FSettings = nil then
     Exit;
   OldHidden := FSettings.WindowHidden;
   OldScale := FSettings.Scale;
@@ -1847,7 +1872,10 @@ begin
   { Closing inside the prompt's modal loop would tear down settings the
     prompt then writes to; answer the prompt first. }
   if FStartupPromptOpen then
+  begin
+    RaiseStartupPrompt;
     Exit;
+  end;
   Close;
 end;
 
