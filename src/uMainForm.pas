@@ -465,14 +465,14 @@ end;
 procedure TMainForm.MaybeScheduleStartupPrompt;
 var
   Current: string;
-  Upgraded: Boolean;
+  Changed, Upgraded: Boolean;
 begin
   if FSettings = nil then
     Exit;
   Current := GetProductVersionText;
-  Upgraded := FSettings.IniExisted and
-    (not SameText(FSettings.LastRunVersion, Current));
-  if not SameText(FSettings.LastRunVersion, Current) then
+  Changed := not SameText(FSettings.LastRunVersion, Current);
+  Upgraded := FSettings.IniExisted and Changed;
+  if Changed then
   begin
     FSettings.LastRunVersion := Current;
     PersistSettings;
@@ -491,20 +491,28 @@ end;
   (the one it overlaps most). Done here, before the dialog is shown, because
   neither of TaskDialog's own placements fits: relative to the window it
   centers on the small gadget and can spill onto the next monitor when the
-  gadget sits at a screen edge; without it, which monitor is up to Windows. }
+  gadget sits at a screen edge; without it, which monitor is up to Windows.
+  Centered twice: landing on a monitor with another DPI resizes the dialog
+  (WM_DPICHANGED during the first move), so the second pass uses that size. }
 procedure TMainForm.StartupPromptConstructed(Sender: TObject);
 var
   Dlg: HWND;
   R, Work: TRect;
+  Pass: Integer;
 begin
   Dlg := (Sender as TTaskDialog).Handle;
-  if (Dlg = 0) or (not GetWindowRect(Dlg, R)) then
+  if Dlg = 0 then
     Exit;
   Work := WorkAreaForWindow(Handle);
-  SetWindowPos(Dlg, 0,
-    Work.Left + (Work.Width - R.Width) div 2,
-    Work.Top + (Work.Height - R.Height) div 2,
-    0, 0, SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
+  for Pass := 1 to 2 do
+  begin
+    if not GetWindowRect(Dlg, R) then
+      Exit;
+    SetWindowPos(Dlg, 0,
+      Work.Left + (Work.Width - R.Width) div 2,
+      Work.Top + (Work.Height - R.Height) div 2,
+      0, 0, SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
+  end;
 end;
 
 procedure TMainForm.WMAppStartupPrompt(var Message: TMessage);
@@ -1644,7 +1652,9 @@ var
   OldHidden: Boolean;
   OldScale: Integer;
 begin
-  if FSettings = nil then
+  { The startup prompt disables only the main form; the tray menu still
+    works. Options would race the prompt's own write of the startup state. }
+  if (FSettings = nil) or FStartupPromptOpen then
     Exit;
   OldHidden := FSettings.WindowHidden;
   OldScale := FSettings.Scale;
@@ -1834,6 +1844,10 @@ end;
 
 procedure TMainForm.miExitClick(Sender: TObject);
 begin
+  { Closing inside the prompt's modal loop would tear down settings the
+    prompt then writes to; answer the prompt first. }
+  if FStartupPromptOpen then
+    Exit;
   Close;
 end;
 
