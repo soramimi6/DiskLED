@@ -217,6 +217,7 @@ type
     function ShowUpdateBalloon(const AVersion: string): Boolean;
     procedure MaybeScheduleStartupPrompt;
     procedure WMAppStartupPrompt(var Message: TMessage); message WM_APP_STARTUP_PROMPT;
+    procedure StartupPromptConstructed(Sender: TObject);
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -486,6 +487,26 @@ begin
   PostMessage(Handle, WM_APP_STARTUP_PROMPT, 0, 0);
 end;
 
+{ Centers the startup prompt on the work area of the monitor the gadget is on
+  (the one it overlaps most). Done here, before the dialog is shown, because
+  neither of TaskDialog's own placements fits: relative to the window it
+  centers on the small gadget and can spill onto the next monitor when the
+  gadget sits at a screen edge; without it, which monitor is up to Windows. }
+procedure TMainForm.StartupPromptConstructed(Sender: TObject);
+var
+  Dlg: HWND;
+  R, Work: TRect;
+begin
+  Dlg := (Sender as TTaskDialog).Handle;
+  if (Dlg = 0) or (not GetWindowRect(Dlg, R)) then
+    Exit;
+  Work := WorkAreaForWindow(Handle);
+  SetWindowPos(Dlg, 0,
+    Work.Left + (Work.Width - R.Width) div 2,
+    Work.Top + (Work.Height - R.Height) div 2,
+    0, 0, SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
+end;
+
 procedure TMainForm.WMAppStartupPrompt(var Message: TMessage);
 var
   Registered, Blocked, Unknown: Boolean;
@@ -513,7 +534,9 @@ begin
     Dlg.CommonButtons := [tcbYes, tcbNo];
     Dlg.DefaultButton := tcbYes;
     Dlg.VerificationText := S('startup_prompt.dont_show');
-    Dlg.Flags := [tfPositionRelativeToWindow];
+    { Closing with [x] / Esc counts as "No". }
+    Dlg.Flags := [tfAllowDialogCancellation];
+    Dlg.OnDialogConstructed := StartupPromptConstructed;
     FStartupPromptOpen := True;
     try
       Yes := Dlg.Execute(Handle) and (Dlg.ModalResult = mrYes);
