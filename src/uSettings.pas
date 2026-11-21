@@ -19,6 +19,9 @@ type
     FStartup: Boolean;
     FScale: Integer;
     FLanguage: string;
+    FLastRunVersion: string;
+    FStartupPromptDisabled: Boolean;
+    FIniExisted: Boolean;
     FCompact: Boolean;
     FWindowHidden: Boolean;
     FTrayLed: Boolean;
@@ -78,6 +81,15 @@ type
     { UI language preference: 'auto' (follow OS), 'ja', or 'en'. Applied only
       at startup (see uAppStrings.InitAppLanguage); a change needs a restart. }
     property Language: string read FLanguage write FLanguage;
+    { Version that last ran with this ini ('' before 3.3.1). Compared with the
+      running version to detect the first start after an upgrade. }
+    property LastRunVersion: string read FLastRunVersion write FLastRunVersion;
+    { "Don't show again" on the post-upgrade startup prompt. }
+    property StartupPromptDisabled: Boolean read FStartupPromptDisabled
+      write FStartupPromptDisabled;
+    { The ini file existed when Load ran. False on a clean install, even after
+      the first Save has created the file. }
+    property IniExisted: Boolean read FIniExisted;
     { Window size preference (compact/full), independent of WindowHidden. }
     property Compact: Boolean read FCompact write FCompact;
     { Main window hidden (tray-only display). Orthogonal to TrayLed: the
@@ -292,6 +304,8 @@ begin
   FStartup := False;
   FScale := 0;
   FLanguage := 'auto';
+  FLastRunVersion := '';
+  FStartupPromptDisabled := False;
   FCompact := True;
   FWindowHidden := False;
   FTrayLed := False;
@@ -409,7 +423,8 @@ var
 begin
   ApplyDefaults;
   ResolvePath;
-  if not FileExists(FFilePath) then
+  FIniExisted := FileExists(FFilePath);
+  if not FIniExisted then
   begin
     Normalize;
     Exit;
@@ -425,6 +440,9 @@ begin
     FStartup := Ini.ReadBool('General', 'Startup', FStartup);
     FScale := Ini.ReadInteger('General', 'Scale', FScale);
     FLanguage := Ini.ReadString('General', 'Language', FLanguage);
+    FLastRunVersion := Trim(Ini.ReadString('General', 'LastRunVersion', FLastRunVersion));
+    FStartupPromptDisabled := Ini.ReadBool('General', 'StartupPromptDisabled',
+      FStartupPromptDisabled);
     FCompact := Ini.ReadBool('View', 'Compact', FCompact);
     { Size is the legacy (3.1.1) exclusive key; Compact above is read first
       as the fallback for files written before it existed. WindowHidden/
@@ -519,6 +537,8 @@ begin
     Ini.WriteBool('General', 'Startup', FStartup);
     Ini.WriteInteger('General', 'Scale', FScale);
     Ini.WriteString('General', 'Language', FLanguage);
+    Ini.WriteString('General', 'LastRunVersion', FLastRunVersion);
+    Ini.WriteBool('General', 'StartupPromptDisabled', FStartupPromptDisabled);
     Ini.WriteBool('View', 'Compact', FCompact);
     Ini.WriteBool('View', 'WindowHidden', FWindowHidden);
     { Delete the legacy exclusive key: once this file is saved under the new

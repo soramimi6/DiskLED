@@ -46,6 +46,7 @@
 
 **ダイアログ**
 - Windows 標準の TaskDialog（VCL の `TTaskDialog`）を使う。所有者はメインウィンドウにする。
+  - 位置: ガジェットがあるモニターの作業領域の中央（`OnDialogConstructed` で移動する）。×／Esc で閉じたときは「いいえ」と同じ扱い。
   - 本文: 「Windows 起動時に DiskLED を自動起動しますか？」
   - ボタン: 「はい」「いいえ」
   - チェックボックス（verification）: 「今後表示しない」

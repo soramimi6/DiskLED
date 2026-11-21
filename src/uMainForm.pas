@@ -29,6 +29,9 @@ uses
 const
   CMaxDriveTraySlots = 16;
   CTraySlotCount = 2 + CMaxDriveTraySlots;
+  { Posted at the end of FormCreate; handled once Application.Run's message
+    loop is running (see MaybeScheduleStartupPrompt). }
+  WM_APP_STARTUP_PROMPT = WM_APP + 1;
 
 type
   { One tray icon with its LED state. Slot 0 is the primary icon (always shown,
@@ -115,6 +118,8 @@ type
       HWND_TOPMOST on the (disabled-while-modal) main form while it's up,
       or it would bury the dialog behind it. }
     FOptionsOpen: Boolean;
+    { Same as FOptionsOpen, for the post-upgrade startup prompt. }
+    FStartupPromptOpen: Boolean;
     FMiUpdate: TMenuItem;
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
@@ -210,6 +215,9 @@ type
     procedure ApplyUpdateCheckResult(AGen: Integer; const AResult: TUpdateCheckResult);
     procedure OpenUpdatePage;
     function ShowUpdateBalloon(const AVersion: string): Boolean;
+    procedure MaybeScheduleStartupPrompt;
+    procedure WMAppStartupPrompt(var Message: TMessage); message WM_APP_STARTUP_PROMPT;
+    procedure StartupPromptConstructed(Sender: TObject);
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -446,6 +454,121 @@ begin
     it a few seconds later. }
   if UpdateCheckEnabled then
     ScheduleUpdateCheck;
+
+  MaybeScheduleStartupPrompt;
+end;
+
+{ First start after an upgrade: offer to turn on Windows startup. Decides here
+  what can be decided from the ini alone and records this version, then posts
+  WM_APP_STARTUP_PROMPT for the startup-state read and the dialog, which wait
+  for the message loop (a WinRT round-trip this early could stall launch). }
+procedure TMainForm.MaybeScheduleStartupPrompt;
+var
+  Current: string;
+  Changed, Upgraded: Boolean;
+begin
+  if FSettings = nil then
+    Exit;
+  Current := GetProductVersionText;
+  Changed := not SameText(FSettings.LastRunVersion, Current);
+  Upgraded := FSettings.IniExisted and Changed;
+  if Changed then
+  begin
+    FSettings.LastRunVersion := Current;
+    PersistSettings;
+  end;
+  if (not Upgraded) or FSettings.StartupPromptDisabled or FSettings.WindowHidden then
+    Exit;
+  { Installer build: Inno Setup puts its uninstaller next to the exe. Startup
+    is a task on that installer's own pages, so it is not asked again here. }
+  if (not IsStorePackage) and
+    FileExists(ExtractFilePath(ParamStr(0)) + 'unins000.exe') then
+    Exit;
+  PostMessage(Handle, WM_APP_STARTUP_PROMPT, 0, 0);
+end;
+
+{ Centers the startup prompt on the work area of the monitor the gadget is on
+  (the one it overlaps most). Done here, before the dialog is shown, because
+  neither of TaskDialog's own placements fits: relative to the window it
+  centers on the small gadget and can spill onto the next monitor when the
+  gadget sits at a screen edge; without it, which monitor is up to Windows.
+  Centered twice: landing on a monitor with another DPI resizes the dialog
+  (WM_DPICHANGED during the first move), so the second pass uses that size. }
+procedure TMainForm.StartupPromptConstructed(Sender: TObject);
+var
+  Dlg: HWND;
+  R, Work: TRect;
+  Pass: Integer;
+begin
+  Dlg := (Sender as TTaskDialog).Handle;
+  if Dlg = 0 then
+    Exit;
+  Work := WorkAreaForWindow(Handle);
+  for Pass := 1 to 2 do
+  begin
+    if not GetWindowRect(Dlg, R) then
+      Exit;
+    SetWindowPos(Dlg, 0,
+      Work.Left + (Work.Width - R.Width) div 2,
+      Work.Top + (Work.Height - R.Height) div 2,
+      0, 0, SWP_NOSIZE or SWP_NOZORDER or SWP_NOACTIVATE);
+  end;
+end;
+
+procedure TMainForm.WMAppStartupPrompt(var Message: TMessage);
+var
+  Registered, Blocked, Unknown: Boolean;
+  Dlg: TTaskDialog;
+  Yes: Boolean;
+begin
+  Message.Result := 0;
+  if (FSettings = nil) or FClosing or FSettings.WindowHidden then
+    Exit;
+  try
+    TStartup.QueryState(Registered, Blocked, Unknown);
+  except
+    Exit;
+  end;
+  if Registered or Blocked or Unknown then
+    Exit;
+
+  Yes := False;
+  Dlg := TTaskDialog.Create(nil);
+  try
+    Dlg.Caption := 'DiskLED';
+    Dlg.Title := S('startup_prompt.main');
+    Dlg.Text := S('startup_prompt.content');
+    Dlg.MainIcon := tdiInformation;
+    Dlg.CommonButtons := [tcbYes, tcbNo];
+    Dlg.DefaultButton := tcbYes;
+    Dlg.VerificationText := S('startup_prompt.dont_show');
+    { Closing with [x] / Esc counts as "No". }
+    Dlg.Flags := [tfAllowDialogCancellation];
+    Dlg.OnDialogConstructed := StartupPromptConstructed;
+    FStartupPromptOpen := True;
+    try
+      Yes := Dlg.Execute(Handle) and (Dlg.ModalResult = mrYes);
+    finally
+      FStartupPromptOpen := False;
+    end;
+    if tfVerificationFlagChecked in Dlg.Flags then
+      FSettings.StartupPromptDisabled := True;
+  finally
+    Dlg.Free;
+  end;
+
+  if Yes then
+    try
+      { Store build: a first enable may raise Windows' own consent prompt
+        after this returns (see StoreSetRegistered). Off Store, Startup must
+        follow or ApplyStartupRegistration would remove the key at exit. }
+      TStartup.SetRegistered(True);
+      FSettings.Startup := True;
+    except
+      on E: Exception do
+        MessageBox(Handle, PChar(E.Message), 'DiskLED', MB_OK or MB_ICONWARNING);
+    end;
+  PersistSettings;
 end;
 
 procedure TMainForm.FormShow(Sender: TObject);
@@ -818,7 +941,8 @@ begin
     Re-asserting HWND_TOPMOST on the main form while one of them is open
     would bury it behind the (possibly disabled) main form, since SetWindowPos
     doesn't re-elevate an already-open owned window for us. }
-  if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) then
+  if FOptionsOpen or FStartupPromptOpen or
+    ((FDashboardForm <> nil) and FDashboardForm.Visible) then
     Exit;
   { A right-click / tray menu is a TrackPopupMenu modal loop that still
     dispatches WM_TIMER, so this poll keeps running while it is open. The menu
@@ -1528,7 +1652,9 @@ var
   OldHidden: Boolean;
   OldScale: Integer;
 begin
-  if FSettings = nil then
+  { The startup prompt disables only the main form; the tray menu still
+    works. Options would race the prompt's own write of the startup state. }
+  if (FSettings = nil) or FStartupPromptOpen then
     Exit;
   OldHidden := FSettings.WindowHidden;
   OldScale := FSettings.Scale;
@@ -1718,6 +1844,10 @@ end;
 
 procedure TMainForm.miExitClick(Sender: TObject);
 begin
+  { Closing inside the prompt's modal loop would tear down settings the
+    prompt then writes to; answer the prompt first. }
+  if FStartupPromptOpen then
+    Exit;
   Close;
 end;
 
