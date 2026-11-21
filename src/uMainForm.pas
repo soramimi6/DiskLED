@@ -29,6 +29,9 @@ uses
 const
   CMaxDriveTraySlots = 16;
   CTraySlotCount = 2 + CMaxDriveTraySlots;
+  { Posted at the end of FormCreate; handled once Application.Run's message
+    loop is running (see MaybeScheduleStartupPrompt). }
+  WM_APP_STARTUP_PROMPT = WM_APP + 1;
 
 type
   { One tray icon with its LED state. Slot 0 is the primary icon (always shown,
@@ -115,6 +118,8 @@ type
       HWND_TOPMOST on the (disabled-while-modal) main form while it's up,
       or it would bury the dialog behind it. }
     FOptionsOpen: Boolean;
+    { Same as FOptionsOpen, for the post-upgrade startup prompt. }
+    FStartupPromptOpen: Boolean;
     FMiUpdate: TMenuItem;
     FUpdateDelay: TTimer;
     FUpdateGen: Integer;
@@ -210,6 +215,8 @@ type
     procedure ApplyUpdateCheckResult(AGen: Integer; const AResult: TUpdateCheckResult);
     procedure OpenUpdatePage;
     function ShowUpdateBalloon(const AVersion: string): Boolean;
+    procedure MaybeScheduleStartupPrompt;
+    procedure WMAppStartupPrompt(var Message: TMessage); message WM_APP_STARTUP_PROMPT;
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
@@ -446,6 +453,91 @@ begin
     it a few seconds later. }
   if UpdateCheckEnabled then
     ScheduleUpdateCheck;
+
+  MaybeScheduleStartupPrompt;
+end;
+
+{ First start after an upgrade: offer to turn on Windows startup. Decides here
+  what can be decided from the ini alone and records this version, then posts
+  WM_APP_STARTUP_PROMPT for the startup-state read and the dialog, which wait
+  for the message loop (a WinRT round-trip this early could stall launch). }
+procedure TMainForm.MaybeScheduleStartupPrompt;
+var
+  Current: string;
+  Upgraded: Boolean;
+begin
+  if FSettings = nil then
+    Exit;
+  Current := GetProductVersionText;
+  Upgraded := FSettings.IniExisted and
+    (not SameText(FSettings.LastRunVersion, Current));
+  if not SameText(FSettings.LastRunVersion, Current) then
+  begin
+    FSettings.LastRunVersion := Current;
+    PersistSettings;
+  end;
+  if (not Upgraded) or FSettings.StartupPromptDisabled or FSettings.WindowHidden then
+    Exit;
+  { Installer build: Inno Setup puts its uninstaller next to the exe. Startup
+    is a task on that installer's own pages, so it is not asked again here. }
+  if (not IsStorePackage) and
+    FileExists(ExtractFilePath(ParamStr(0)) + 'unins000.exe') then
+    Exit;
+  PostMessage(Handle, WM_APP_STARTUP_PROMPT, 0, 0);
+end;
+
+procedure TMainForm.WMAppStartupPrompt(var Message: TMessage);
+var
+  Registered, Blocked, Unknown: Boolean;
+  Dlg: TTaskDialog;
+  Yes: Boolean;
+begin
+  Message.Result := 0;
+  if (FSettings = nil) or FClosing or FSettings.WindowHidden then
+    Exit;
+  try
+    TStartup.QueryState(Registered, Blocked, Unknown);
+  except
+    Exit;
+  end;
+  if Registered or Blocked or Unknown then
+    Exit;
+
+  Yes := False;
+  Dlg := TTaskDialog.Create(nil);
+  try
+    Dlg.Caption := 'DiskLED';
+    Dlg.Title := S('startup_prompt.main');
+    Dlg.Text := S('startup_prompt.content');
+    Dlg.MainIcon := tdiInformation;
+    Dlg.CommonButtons := [tcbYes, tcbNo];
+    Dlg.DefaultButton := tcbYes;
+    Dlg.VerificationText := S('startup_prompt.dont_show');
+    Dlg.Flags := [tfPositionRelativeToWindow];
+    FStartupPromptOpen := True;
+    try
+      Yes := Dlg.Execute(Handle) and (Dlg.ModalResult = mrYes);
+    finally
+      FStartupPromptOpen := False;
+    end;
+    if tfVerificationFlagChecked in Dlg.Flags then
+      FSettings.StartupPromptDisabled := True;
+  finally
+    Dlg.Free;
+  end;
+
+  if Yes then
+    try
+      { Store build: a first enable may raise Windows' own consent prompt
+        after this returns (see StoreSetRegistered). Off Store, Startup must
+        follow or ApplyStartupRegistration would remove the key at exit. }
+      TStartup.SetRegistered(True);
+      FSettings.Startup := True;
+    except
+      on E: Exception do
+        MessageBox(Handle, PChar(E.Message), 'DiskLED', MB_OK or MB_ICONWARNING);
+    end;
+  PersistSettings;
 end;
 
 procedure TMainForm.FormShow(Sender: TObject);
@@ -818,7 +910,8 @@ begin
     Re-asserting HWND_TOPMOST on the main form while one of them is open
     would bury it behind the (possibly disabled) main form, since SetWindowPos
     doesn't re-elevate an already-open owned window for us. }
-  if FOptionsOpen or ((FDashboardForm <> nil) and FDashboardForm.Visible) then
+  if FOptionsOpen or FStartupPromptOpen or
+    ((FDashboardForm <> nil) and FDashboardForm.Visible) then
     Exit;
   { A right-click / tray menu is a TrackPopupMenu modal loop that still
     dispatches WM_TIMER, so this poll keeps running while it is open. The menu

@@ -68,6 +68,12 @@ begin
   AddStr('tray.update_title', 'DiskLED からのお知らせ', 'A notice from DiskLED');
   AddStr('tray.update', 'DiskLED %s が公開されています', 'DiskLED %s is available');
   AddStr('tray.hint_net', 'DiskLED ネットアクセス', 'DiskLED Network activity');
+  AddStr('startup_prompt.main', 'Windows 起動時に DiskLED を自動起動しますか？',
+    'Start DiskLED automatically when Windows starts?');
+  AddStr('startup_prompt.content',
+    'あとからオプションの「スタートアップに登録」で変更できます。',
+    'You can change this later with "Run at Windows startup" in Options.');
+  AddStr('startup_prompt.dont_show', '今後表示しない', 'Don''t show this again');
   AddStr('opt.window_mode', '表示モード', 'Display mode');
   AddStr('tray.drive_rate', '%s: 読込 %s ・ 書込 %s', '%s: Read %s · Write %s');
   AddStr('hover.ping_off', 'オフ', 'off');
