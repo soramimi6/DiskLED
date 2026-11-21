@@ -5,6 +5,7 @@
 | # | 機能 | 対応状況 | 実現可能性 | 難易度 | 工数目安 |
 |---|---|---|---|---|---|
 | 1 | バージョンアップ後の初回起動時、自動起動が OFF なら「Windows 起動時に DiskLED を自動起動しますか？」を尋ねる（「今後表示しない」付き） | 未着手 | 高 | 低〜中（ini キー 2 つ追加と TaskDialog 1 つ。常に手前に表示との競合対策が要る） | 1日 |
+| 2 | ドライブ別トレイ LED の見た目を直す（ライトモードでドライブレターが読めない／LED の縁がギザギザ） | 未着手 | 高 | 低（`uTrayIconComposer.pas` 1 ファイルの描画処理） | 0.5日 |
 
 ## 1. バージョンアップ後の初回起動時に自動起動を尋ねる
 
@@ -71,3 +72,41 @@
 - **自動起動が既に ON**: ダイアログが出ない。
 - **Store 版**: 「はい」のあとに Windows の同意プロンプトが出た場合も、自動起動が ON になる（Options の表示とタスクマネージャーの「スタートアップ アプリ」で確認）。タスクマネージャーで無効化している場合はダイアログが出ない。
 - **表示**: DPI 100／125／150／200%、Windows のライト／ダーク、JA／EN で文字が欠けない。
+
+## 2. ドライブ別トレイ LED の見た目を直す
+
+Windows のライトモードでは、ドライブ別トレイ LED のドライブレターが背景に溶けて読めない。また、ドライブ別 LED はネットワーク LED より円の縁がギザギザに見える。
+
+### 現状（実ソース確認済み）
+
+- ドライブ別のトレイアイコンは、`assets/tray/<色>/diskOff.ico`・`diskOn.ico` を小アイコンサイズで読み込み（[uMainForm.pas:1193-1196](../src/uMainForm.pas#L1193-L1196)）、`SyncDriveTrays` で `ComposeLetterIcon` を通してドライブレターを重ねたものを使う（[uMainForm.pas:1360-1361](../src/uMainForm.pas#L1360-L1361)）。
+- ネットワーク LED（と主 LED）は読み込んだアイコンをそのままトレイに渡す（[uMainForm.pas:1185-1191](../src/uMainForm.pas#L1185-L1191)、[uMainForm.pas:1241-1242](../src/uMainForm.pas#L1241-L1242)）。
+- 読み込みは `LoadImage` でシステムの小アイコンサイズちょうどのコマを選ぶ（[uAssetStore.pas:180-196](../src/view/uAssetStore.pas#L180-L196)）。.ico は 16〜96px の 32bit PNG コマを持ち、16px コマでは円の縁の 49 ピクセルが半透明。
+- **縁がギザギザになる原因**: `ComposeLetterIcon` は元アイコンを `TGPBitmap.Create(ABase.Handle)`（GDI+ の `Bitmap::FromHICON`）で取り込む（[uTrayIconComposer.pas:47](../src/uTrayIconComposer.pas#L47)）。この関数はアイコンのアルファチャンネルを使わず AND マスクで透過を作るため、縁の半透明ピクセルが不透明か透明かの 2 値になる。ネットワーク LED は合成を通らないので、半透明の縁がそのまま残る。
+- **ドライブレターが読めない原因**: 文字は Segoe UI Bold、アイコンサイズの 0.62 倍（16px で約 10px）で（[uTrayIconComposer.pas:20](../src/uTrayIconComposer.pas#L20)、[uTrayIconComposer.pas:54](../src/uTrayIconComposer.pas#L54)）、右下隅に寄せて置く（[uTrayIconComposer.pas:62-64](../src/uTrayIconComposer.pas#L62-L64)）。このため文字の大半は LED の円の外、タスクバーの背景の上に直接乗る。塗りは白、縁取りは黒（不透明度 220/255）でサイズの 0.12 倍（16px で約 1.9px）（[uTrayIconComposer.pas:21](../src/uTrayIconComposer.pas#L21)、[uTrayIconComposer.pas:66](../src/uTrayIconComposer.pas#L66)、[uTrayIconComposer.pas:73](../src/uTrayIconComposer.pas#L73)）。小さい文字ではアンチエイリアスで縁取りが薄い灰色になり、明るい背景では白い塗りと一緒に背景へ溶ける。
+- 合成結果は `Target.GetHICON` でアイコンにしている（[uTrayIconComposer.pas:86](../src/uTrayIconComposer.pas#L86)）。
+
+### 方針
+
+`uTrayIconComposer.pas` の `ComposeLetterIcon` だけを直す。呼び出し側と素材は変えない。
+
+**元アイコンをアルファ付きで取り込む**
+- `TGPBitmap.Create(ABase.Handle)` をやめる。`GetIconInfo` でカラービットマップを取り、`GetDIBits` で 32bit・トップダウンの DIB として読み出し、`PixelFormat32bppARGB` の `TGPBitmap` に写してから描く。
+- 取り出したアルファがすべて 0 の場合（アルファを持たない古い形式のアイコン）は、マスクビットマップから透過を作る。
+- `GetIconInfo` で得たビットマップ 2 つは `DeleteObject` で解放する。
+
+**ドライブレターの後ろに暗い下地を敷く**
+- 文字の外接矩形に少し余白を足した角丸の下地（黒・半透明）を、文字より先に描く。下地はアイコン内に収め、はみ出す場合は右下に寄せたまま切り詰める。
+- 文字は白で塗る。下地があるので縁取りは不要か細くする。どちらにするかは 16／20／24／32px の実機表示を見て決める。
+- 下地の色はライト／ダークで変えない。タスクバーの明るさに関係なく読めるので、テーマ変更を検知して作り直す処理は足さない。
+- 余白・角の丸み・不透明度はサイズ比の定数にする（既存の `CLetterEmRatio`／`COutlineWidthRatio` と同じ書き方）。
+
+### 実機で見ること
+
+オプションの「トレイ LED」でドライブ別 LED を 2 つ以上 ON にし、ネットワーク LED も表示した状態で見る。
+
+- **ライトモード**（設定 → 個人用設定 → 色 →「既定のアプリモード」と「既定の Windows モード」をライト）: すべてのドライブ別 LED でドライブレターが読める。点灯／消灯のどちらでも読める。
+- **ダークモード**: ドライブレターが従来どおり読める。
+- **縁のなめらかさ**: ドライブ別 LED の円の縁が、隣のネットワーク LED と同じなめらかさに見える（拡大鏡で比べて、ドライブ別だけが階段状になっていない）。
+- **LED の色**: 4 色（緑・赤・黄・青）それぞれで上の 3 点が成り立つ。
+- **DPI**: 100／125／150／200% で、ドライブレターと下地が欠けたりはみ出したりしない。DPI を変えたあとは DiskLED を再起動してから確認する。
